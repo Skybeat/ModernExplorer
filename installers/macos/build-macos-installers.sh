@@ -69,7 +69,9 @@ DMG_OUT="${OUTPUT_DIR}/ModernExplorer-Setup-${RID}.dmg"
 hdiutil create \
   -volname "Modern Explorer ${VERSION}" \
   -srcfolder "${WORK_DIR}/dmg_stage" \
+  -size 220m \
   -ov \
   -format UDZO \
   "${DMG_OUT}"
 echo "Built macOS .dmg installer: ${DMG_OUT}"
+
