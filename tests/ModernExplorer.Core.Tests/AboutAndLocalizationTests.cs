@@ -8,6 +8,8 @@ using ModernExplorer.Core.Update;
 using ModernExplorer.Core.ViewModels;
 using Xunit;
 
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace ModernExplorer.Core.Tests;
 
 public sealed class AboutAndLocalizationTests
