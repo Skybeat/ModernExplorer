@@ -1,20 +1,20 @@
 # Modern Explorer
 
-A fast, keyboard-centric dual-pane file manager built with **.NET 9**, featuring a native **WinUI 3 (Windows App SDK)** experience on Windows and a cross-platform **Avalonia UI** desktop build for **Linux**, **macOS**, and **Windows**.
+A fast, keyboard-centric dual-pane file manager for **Windows**, **Linux**, and **macOS** built with **.NET 9**, featuring a native **WinUI 3 (Windows App SDK)** experience on Windows and a cross-platform **Avalonia UI** desktop build for **Linux**, **macOS**, and **Windows**.
 
-## Supported Operating Systems & Releases
+## Supported Operating Systems, Installers & Portable Releases
 
-Every GitHub Release provides ready-to-run binary packages for all supported platforms and architectures:
+Every GitHub Release automatically builds and publishes both **native installers** and **portable `.zip` packages** for all supported platforms and CPU architectures:
 
-| Operating System | Architecture | Package Name | UI Stack |
-| :--- | :--- | :--- | :--- |
-| **Windows 10 / 11** | `x64` | `ModernExplorer-win-x64.zip` | WinUI 3 (Windows App SDK) |
-| **Windows 10 / 11** | `ARM64` | `ModernExplorer-win-arm64.zip` | WinUI 3 (Windows App SDK) |
-| **Windows 10 / 11** | `x86` (32-bit) | `ModernExplorer-win-x86.zip` | Avalonia UI Desktop |
-| **Linux** | `x64` | `ModernExplorer-linux-x64.zip` | Avalonia UI Desktop |
-| **Linux** | `ARM64` | `ModernExplorer-linux-arm64.zip` | Avalonia UI Desktop |
-| **macOS** | `x64` (Intel) | `ModernExplorer-osx-x64.zip` | Avalonia UI Desktop |
-| **macOS** | `ARM64` (Apple Silicon) | `ModernExplorer-osx-arm64.zip` | Avalonia UI Desktop |
+| Operating System | Architecture | Native Installer(s) | Portable Package | UI Stack |
+| :--- | :--- | :--- | :--- | :--- |
+| **Windows 10 / 11** | `x64` | `ModernExplorer-Setup-win-x64.exe` | `ModernExplorer-win-x64.zip` | WinUI 3 (Windows App SDK) |
+| **Windows 10 / 11** | `ARM64` | `ModernExplorer-Setup-win-arm64.exe` | `ModernExplorer-win-arm64.zip` | WinUI 3 (Windows App SDK) |
+| **Windows 10 / 11** | `x86` (32-bit) | `ModernExplorer-Setup-win-x86.exe` | `ModernExplorer-win-x86.zip` | Avalonia UI Desktop |
+| **Linux** | `x64` | `ModernExplorer-Setup-linux-x64.deb`<br>`ModernExplorer-Installer-linux-x64.sh` | `ModernExplorer-linux-x64.zip` | Avalonia UI Desktop |
+| **Linux** | `ARM64` | `ModernExplorer-Setup-linux-arm64.deb`<br>`ModernExplorer-Installer-linux-arm64.sh` | `ModernExplorer-linux-arm64.zip` | Avalonia UI Desktop |
+| **macOS** | `x64` (Intel) | `ModernExplorer-Setup-osx-x64.dmg`<br>`ModernExplorer-Setup-osx-x64.pkg` | `ModernExplorer-osx-x64.zip` | Avalonia UI Desktop |
+| **macOS** | `ARM64` (Apple Silicon) | `ModernExplorer-Setup-osx-arm64.dmg`<br>`ModernExplorer-Setup-osx-arm64.pkg` | `ModernExplorer-osx-arm64.zip` | Avalonia UI Desktop |
 
 ## Highlights
 
@@ -34,10 +34,4 @@ Every GitHub Release provides ready-to-run binary packages for all supported pla
 
 ## Building & Publishing Releases
 
-```powershell
-# Run unit tests
-dotnet test
-
-# Build & publish all OS release packages (Windows, Linux, macOS) to GitHub Releases
-pwsh -File scripts/publish-releases.ps1 -Version 1.0.0
-```
+Pushing a version tag (`v*`, e.g. `v1.0.0`) automatically triggers the GitHub Actions workflow (`.github/workflows/release.yml`) across Windows, Ubuntu Linux, and macOS runners to compile all portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attach them to the GitHub Release.

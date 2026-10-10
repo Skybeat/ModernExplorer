@@ -1,4 +1,4 @@
-name: Multi-OS Release Build & Publish
+name: Multi-OS Release & Installer Build
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows (win-x64, win-arm64, win-x86)
+    name: Build Windows (Zip + Setup.exe Installers)
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -30,34 +30,49 @@ jobs:
       - name: Run unit tests
         run: dotnet test tests/ModernExplorer.Core.Tests/ModernExplorer.Core.Tests.csproj -c Release
 
-      - name: Build & Package Windows x64 (WinUI 3)
+      - name: Build Windows x64, ARM64, and x86 + Compile Inno Setup Installers
+        shell: pwsh
         run: |
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64
+          $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
+          $version = $rawTag.TrimStart('v')
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+') { $version = "1.0.0" }
+
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "src/ModernExplorer.App/bin/x64/Release/net9.0-windows10.0.19041.0/win-x64/*" -DestinationPath "dist/ModernExplorer-win-x64.zip" -Force
+          $distFull = (Resolve-Path dist).Path
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
-      - name: Build & Package Windows ARM64 (WinUI 3)
-        run: |
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64
-          Compress-Archive -Path "src/ModernExplorer.App/bin/ARM64/Release/net9.0-windows10.0.19041.0/win-arm64/*" -DestinationPath "dist/ModernExplorer-win-arm64.zip" -Force
+          # 1. Windows x64 (WinUI 3)
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:Version=$version
+          $x64Dir = (Resolve-Path "src/ModernExplorer.App/bin/x64/Release/net9.0-windows10.0.19041.0/win-x64").Path
+          Compress-Archive -Path "$x64Dir/*" -DestinationPath "$distFull/ModernExplorer-win-x64.zip" -Force
+          & $iscc "/DAppVersion=$version" "/DTargetRid=win-x64" "/DSourceDir=$x64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
 
-      - name: Build & Package Windows x86
-        run: |
-          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -o publish/win-x86
-          Compress-Archive -Path "publish/win-x86/*" -DestinationPath "dist/ModernExplorer-win-x86.zip" -Force
+          # 2. Windows ARM64 (WinUI 3)
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:Version=$version
+          $arm64Dir = (Resolve-Path "src/ModernExplorer.App/bin/ARM64/Release/net9.0-windows10.0.19041.0/win-arm64").Path
+          Compress-Archive -Path "$arm64Dir/*" -DestinationPath "$distFull/ModernExplorer-win-arm64.zip" -Force
+          & $iscc "/DAppVersion=$version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
+
+          # 3. Windows x86 (CrossPlatform Desktop)
+          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:Version=$version -o publish/win-x86
+          $x86Dir = (Resolve-Path "publish/win-x86").Path
+          Compress-Archive -Path "$x86Dir/*" -DestinationPath "$distFull/ModernExplorer-win-x86.zip" -Force
+          & $iscc "/DAppVersion=$version" "/DTargetRid=win-x86" "/DSourceDir=$x86Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-binaries
-          path: dist/*.zip
+          name: windows-releases
+          path: |
+            dist/*.zip
+            dist/*.exe
 
-  build-linux-macos:
-    name: Build Linux & macOS (linux-x64, linux-arm64, osx-x64, osx-arm64)
+  build-linux:
+    name: Build Linux (${{ matrix.rid }} Zip + .deb + .sh Installer)
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rid: [linux-x64, linux-arm64, osx-x64, osx-arm64]
+        rid: [linux-x64, linux-arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,8 +82,12 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Publish ${{ matrix.rid }}
+      - name: Publish & Build Linux Installers (.deb & .sh)
         run: |
+          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.0"; fi
+
           mkdir -p dist
           dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
             -c Release \
@@ -76,19 +95,83 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version="${VERSION}" \
             -o publish/${{ matrix.rid }}
-          cd publish/${{ matrix.rid }}
-          zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .
 
-      - name: Upload ${{ matrix.rid }} artifact
+          (cd publish/${{ matrix.rid }} && zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .)
+
+          sed -i 's/\r$//' installers/linux/build-linux-installers.sh
+          chmod +x installers/linux/build-linux-installers.sh
+          ./installers/linux/build-linux-installers.sh \
+            "${{ matrix.rid }}" \
+            "${VERSION}" \
+            "$(pwd)/publish/${{ matrix.rid }}" \
+            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/dist"
+
+      - name: Upload Linux ${{ matrix.rid }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.rid }}
-          path: dist/ModernExplorer-${{ matrix.rid }}.zip
+          name: linux-releases-${{ matrix.rid }}
+          path: |
+            dist/*.zip
+            dist/*.deb
+            dist/*.sh
+
+  build-macos:
+    name: Build macOS (${{ matrix.rid }} Zip + .dmg + .pkg Installer)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish & Build macOS Installers (.dmg & .pkg)
+        run: |
+          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.0"; fi
+
+          mkdir -p dist
+          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version="${VERSION}" \
+            -o publish/${{ matrix.rid }}
+
+          (cd publish/${{ matrix.rid }} && zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .)
+
+          sed -i '' 's/\r$//' installers/macos/build-macos-installers.sh || true
+          chmod +x installers/macos/build-macos-installers.sh
+          ./installers/macos/build-macos-installers.sh \
+            "${{ matrix.rid }}" \
+            "${VERSION}" \
+            "$(pwd)/publish/${{ matrix.rid }}" \
+            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/dist"
+
+      - name: Upload macOS ${{ matrix.rid }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-releases-${{ matrix.rid }}
+          path: |
+            dist/*.zip
+            dist/*.dmg
+            dist/*.pkg
 
   publish-github-release:
     name: Publish GitHub Release
-    needs: [build-windows, build-linux-macos]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -103,5 +186,10 @@ jobs:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
           generate_release_notes: true
-          files: release-assets/*.zip
-
+          files: |
+            release-assets/*.zip
+            release-assets/*.exe
+            release-assets/*.deb
+            release-assets/*.sh
+            release-assets/*.dmg
+            release-assets/*.pkg
