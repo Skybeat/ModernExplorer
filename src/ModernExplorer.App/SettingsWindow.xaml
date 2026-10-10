@@ -1,0 +1,861 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ModernExplorer.App.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ModernExplorer.App"
+    Title="ModernExplorer – Einstellungen">
+
+    <Grid x:Name="RootGrid"
+          Background="{ThemeResource ExplorerSettingsBackgroundBrush}"
+          KeyDown="OnRootKeyDown">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ======================= CUSTOM TITLE BAR ======================= -->
+        <Border Grid.Row="0"
+                Background="{ThemeResource ExplorerTitleBarBackgroundBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="SettingsTitleBarDragRegion"
+                        Grid.Column="0"
+                        Background="Transparent" />
+
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            Padding="14,0"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False">
+                    <Image Source="ms-appx:///Assets/AppIcon.png"
+                           Width="18"
+                           Height="18"
+                           VerticalAlignment="Center" />
+                    <TextBlock x:Name="WindowTitleLabel"
+                               Text="ModernExplorer – Einstellungen"
+                               FontWeight="SemiBold"
+                               FontSize="13.5"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======================= MAIN CONTENT (LEFT CATEGORIES / RIGHT DETAILS) ======================= -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="265" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left sidebar: settings categories -->
+            <Border Grid.Column="0"
+                    Background="{ThemeResource ExplorerPanelBackgroundBrush}"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,1,0"
+                    Padding="10,14">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock x:Name="CategoriesHeaderLabel"
+                               Grid.Row="0"
+                               Text="KATEGORIEN"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Opacity="0.65"
+                               Margin="10,0,0,4" />
+
+                    <ListView x:Name="CategoryListView"
+                              Grid.Row="1"
+                              SelectionMode="Single"
+                              SelectedIndex="0"
+                              SelectionChanged="OnCategorySelectionChanged">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="10,8" />
+                                <Setter Property="Margin" Value="0,2" />
+                                <Setter Property="CornerRadius" Value="6" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+
+                        <ListViewItem Tag="Appearance">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="🌙" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavAppearanceTitle" Text="Darstellung &amp; Sprache" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Theme, Sprache &amp; Werkzeugleisten" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+
+                        <ListViewItem Tag="Colors">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="🎨" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavColorsTitle" Text="Farben &amp; Hervorhebung" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Rahmen- &amp; Markierungsfarben" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+
+                        <ListViewItem Tag="Behavior">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="📁" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavBehaviorTitle" Text="Dateiliste &amp; Verhalten" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Dateien, Sortierung &amp; Operationen" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+
+                        <ListViewItem Tag="Preview">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="🖼" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavPreviewTitle" Text="Bildvorschau" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Hover-Vorschau &amp; Größe" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+
+                        <ListViewItem Tag="Fonts">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="🔤" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavFontsTitle" Text="Schriftgrößen" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Textgrößen aller UI-Bereiche" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+
+                        <ListViewItem Tag="Session">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="💾" FontSize="18" VerticalAlignment="Center" />
+                                <StackPanel Spacing="1">
+                                    <TextBlock x:Name="NavSessionTitle" Text="Sitzung &amp; Updates" FontWeight="SemiBold" FontSize="13.5" />
+                                    <TextBlock Text="Session, GitHub-Updates &amp; Fenster" FontSize="11.5" Opacity="0.7" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ListViewItem>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <!-- Right main area: content of the selected category -->
+            <ScrollViewer x:Name="ContentScrollViewer"
+                          Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="28,22">
+                <Grid HorizontalAlignment="Stretch">
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 1: APPEARANCE, LANGUAGE & DESIGN                 -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategoryAppearancePanel" Spacing="18" Visibility="Visible">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Darstellung, Sprache &amp; Design" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Wählen Sie die Sprache der Benutzeroberfläche, das gewünschte Farbschema sowie die Sichtbarkeit der Werkzeugleisten."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <!-- Language Selection Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="LanguageCardTitle"
+                                           Text="🌐 Sprache / Language"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock x:Name="LanguageCardDesc"
+                                           Text="Standardmäßig wird automatisch die Systemsprache verwendet. Sie können hier jederzeit Ihre bevorzugte Sprache frei auswählen:"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <ComboBox x:Name="LanguageComboBox"
+                                          Width="340"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Code"
+                                          SelectionChanged="OnLanguageSelectionChanged" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Theme Selection Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Farbschema (Theme)"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Schalten Sie live zwischen dem dunklen und dem hellen Design um:"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="DarkThemeButton"
+                                            Grid.Column="0"
+                                            HorizontalAlignment="Stretch"
+                                            Click="OnSelectDarkThemeClick"
+                                            Padding="14,10"
+                                            Content="🌙 Dark Theme (Dunkel)" />
+                                    <Button x:Name="LightThemeButton"
+                                            Grid.Column="1"
+                                            HorizontalAlignment="Stretch"
+                                            Click="OnSelectLightThemeClick"
+                                            Padding="14,10"
+                                            Content="☀️ Light Theme (Hell)" />
+                                </Grid>
+
+                                <TextBlock Text="{x:Bind FormatActiveTheme(Settings.ThemeDisplayName), Mode=OneWay}"
+                                           FontSize="12.5"
+                                           Opacity="0.85" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Toolbars & Row Height Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock Text="Werkzeugleisten &amp; Zeilenabstand"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+
+                                <ToggleSwitch Header="Laufwerksleiste oberhalb der Tabs anzeigen"
+                                              IsOn="{x:Bind Settings.ShowDriveBar, Mode=TwoWay}"
+                                              OnContent="Sichtbar – Zeigt alle Laufwerke inkl. Hervorhebung des aktiven Laufwerks"
+                                              OffContent="Ausgeblendet – Mehr Platz für die Dateiliste" />
+
+                                <ToggleSwitch Header="Funktionsleiste (F1–F12) am unteren Fensterrand anzeigen"
+                                              IsOn="{x:Bind Settings.ShowFunctionKeyBar, Mode=TwoWay}"
+                                              OnContent="Sichtbar – Schneller Zugriff auf F1 bis F12 per Maus &amp; Tastatur"
+                                              OffContent="Ausgeblendet – Tastenkürzel (F1–F12) funktionieren weiterhin" />
+
+                                <StackPanel Spacing="4">
+                                    <Grid>
+                                        <TextBlock Text="Zeilenhöhe in der Dateiliste (Kompakt bis Komfortabel)" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.FileListRowHeightText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12.5" Opacity="0.85" />
+                                    </Grid>
+                                    <Slider Minimum="22" Maximum="40" StepFrequency="1"
+                                            Value="{x:Bind Settings.FileListRowHeight, Mode=TwoWay}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 2: COLORS & HIGHLIGHTING                         -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategoryColorsPanel" Spacing="18" Visibility="Collapsed">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Farben &amp; Hervorhebung" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Passen Sie die Farben für den aktiven Explorer-Rahmen, den Auswahlrahmen (Cursor) und die Textfarbe markierter Einträge an."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <!-- Card 2a: Active explorer panel border color -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Rahmenfarbe des aktiven Explorers"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Farbe des Rahmens um den aktuell aktiven Explorer-Bereich (links oder rechts, Standard: Blau #0078D4):"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Tag="#0078D4" ToolTipService.ToolTip="Windows-Blau (#0078D4 – Standard)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#0078D4" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#38BDF8" ToolTipService.ToolTip="Hellblau (#38BDF8)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#38BDF8" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#22D3EE" ToolTipService.ToolTip="Cyan (#22D3EE)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#22D3EE" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#4ADE80" ToolTipService.ToolTip="Grün (#4ADE80)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#4ADE80" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FACC15" ToolTipService.ToolTip="Gelb / Gold (#FACC15)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FACC15" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FB923C" ToolTipService.ToolTip="Orange (#FB923C)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FB923C" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#A855F7" ToolTipService.ToolTip="Violett (#A855F7)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#A855F7" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#F472B6" ToolTipService.ToolTip="Pink (#F472B6)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#F472B6" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FFFFFF" ToolTipService.ToolTip="Weiß (#FFFFFF)" Click="OnActivePanelColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                </StackPanel>
+
+                                <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="ActivePanelBorderHexBox"
+                                             Grid.Column="0"
+                                             Header="Hex-Farbcode (#RRGGBB)"
+                                             Text="{x:Bind Settings.ActivePanelBorderColor, Mode=OneWay}"
+                                             PlaceholderText="#0078D4" />
+
+                                    <Button Grid.Column="1"
+                                            Content="Übernehmen"
+                                            VerticalAlignment="Bottom"
+                                            Click="OnApplyActivePanelColorClick"
+                                            Padding="12,6" />
+
+                                    <Border Grid.Column="2"
+                                            VerticalAlignment="Bottom"
+                                            CornerRadius="4"
+                                            BorderThickness="2"
+                                            BorderBrush="{x:Bind local:ShellIconConverter.HexToBrush(Settings.ActivePanelBorderColor), Mode=OneWay}"
+                                            Padding="10,6">
+                                        <TextBlock Text="Vorschau: Aktiver Explorer-Rahmen"
+                                                   FontSize="12.5"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 2b: Selection border around focused item -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Auswahlrahmen des aktuell selektierten Eintrags"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Farbe des Rahmens um den aktuell per Maus oder Pfeiltasten ausgewählten Eintrag (die Textfarbe bleibt dabei normal):"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Tag="#FFFFFF" ToolTipService.ToolTip="Weiß (#FFFFFF – Standard)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#38BDF8" ToolTipService.ToolTip="Hellblau (#38BDF8)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#38BDF8" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FACC15" ToolTipService.ToolTip="Gelb / Gold (#FACC15)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FACC15" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#4ADE80" ToolTipService.ToolTip="Grün (#4ADE80)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#4ADE80" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FB923C" ToolTipService.ToolTip="Orange (#FB923C)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FB923C" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#22D3EE" ToolTipService.ToolTip="Cyan (#22D3EE)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#22D3EE" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#F472B6" ToolTipService.ToolTip="Pink / Magenta (#F472B6)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#F472B6" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#1E293B" ToolTipService.ToolTip="Anthrazit (#1E293B – ideal für Light Theme)" Click="OnColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#1E293B" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                </StackPanel>
+
+                                <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="BorderColorHexBox"
+                                             Grid.Column="0"
+                                             Header="Rahmenfarbe (#RRGGBB)"
+                                             Text="{x:Bind Settings.SelectionBorderColor, Mode=OneWay}"
+                                             PlaceholderText="#FFFFFF" />
+
+                                    <Button Grid.Column="1"
+                                            Content="Übernehmen"
+                                            VerticalAlignment="Bottom"
+                                            Click="OnApplyCustomColorClick"
+                                            Padding="12,6" />
+
+                                    <Border Grid.Column="2"
+                                            VerticalAlignment="Bottom"
+                                            CornerRadius="4"
+                                            BorderThickness="1.5"
+                                            BorderBrush="{x:Bind local:ShellIconConverter.HexToBrush(Settings.SelectionBorderColor), Mode=OneWay}"
+                                            Padding="10,6">
+                                        <TextBlock Text="Vorschau: Ausgewählter Eintrag (normale Textfarbe)"
+                                                   FontSize="12.5"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 2c: Text color for marked items (with checkmark ✓) -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Textfarbe für markierte Einträge (✓)"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Wird nur auf Einträge angewendet, die markiert sind (mit Häkchen ✓ vor dem Eintrag, z. B. per Leertaste oder Einfg). Standard: Blau (#38BDF8):"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Tag="#38BDF8" ToolTipService.ToolTip="Hellblau (#38BDF8 – Standard)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#38BDF8" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#0078D4" ToolTipService.ToolTip="Windows-Blau (#0078D4)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#0078D4" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#60A5FA" ToolTipService.ToolTip="Soft-Blau (#60A5FA)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#60A5FA" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#22D3EE" ToolTipService.ToolTip="Cyan (#22D3EE)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#22D3EE" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#4ADE80" ToolTipService.ToolTip="Grün (#4ADE80)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#4ADE80" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FACC15" ToolTipService.ToolTip="Gelb / Gold (#FACC15)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FACC15" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FB923C" ToolTipService.ToolTip="Orange (#FB923C)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FB923C" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#F472B6" ToolTipService.ToolTip="Pink (#F472B6)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#F472B6" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                    <Button Tag="#FFFFFF" ToolTipService.ToolTip="Weiß (#FFFFFF)" Click="OnMarkedTextColorPresetClick" Padding="4">
+                                        <Border Width="24" Height="20" CornerRadius="3" Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" />
+                                    </Button>
+                                </StackPanel>
+
+                                <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="MarkedTextColorHexBox"
+                                             Grid.Column="0"
+                                             Header="Textfarbe (#RRGGBB)"
+                                             Text="{x:Bind Settings.MarkedItemTextColor, Mode=OneWay}"
+                                             PlaceholderText="#38BDF8" />
+
+                                    <Button Grid.Column="1"
+                                            Content="Übernehmen"
+                                            VerticalAlignment="Bottom"
+                                            Click="OnApplyMarkedTextColorClick"
+                                            Padding="12,6" />
+
+                                    <Border Grid.Column="2"
+                                            VerticalAlignment="Bottom"
+                                            CornerRadius="4"
+                                            BorderThickness="1"
+                                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                            Padding="10,6">
+                                        <TextBlock Text="✓ Beispiel_Datei.txt (Markiert)"
+                                                   Foreground="{x:Bind local:ShellIconConverter.HexToBrush(Settings.MarkedItemTextColor), Mode=OneWay}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12.5"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 3: FILE LIST & BEHAVIOR                          -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategoryBehaviorPanel" Spacing="18" Visibility="Collapsed">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Dateiliste &amp; Verhalten" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Steuern Sie die Anzeige von versteckten Dateien, Dateiendungen, Sortierung sowie Sicherheitsabfragen."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock Text="Anzeige &amp; Sortierung"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+
+                                <ToggleSwitch Header="Versteckte Dateien und Systemdateien anzeigen (Strg+H)"
+                                              IsOn="{x:Bind Settings.ShowHiddenFilesByDefault, Mode=TwoWay}"
+                                              OnContent="Aktiv – Versteckte Elemente werden leicht transparent eingeblendet"
+                                              OffContent="Inaktiv – Versteckte Elemente sind ausgeblendet" />
+
+                                <ToggleSwitch Header="Dateinamenerweiterungen (z. B. .txt, .exe, .png) in der Namensspalte anzeigen"
+                                              IsOn="{x:Bind Settings.ShowFileExtensions, Mode=TwoWay}"
+                                              OnContent="Aktiv – Vollständiger Dateiname inklusive Endung wird angezeigt"
+                                              OffContent="Inaktiv – Dateiendung wird in der Namensspalte ausgeblendet (Typ-Spalte bleibt erhalten)" />
+
+                                <ToggleSwitch Header="Ordner in der Dateiliste immer zuerst sortieren"
+                                              IsOn="{x:Bind Settings.SortFoldersFirst, Mode=TwoWay}"
+                                              OnContent="Aktiv – Verzeichnisse stehen immer oberhalb der Dateien"
+                                              OffContent="Inaktiv – Ordner und Dateien werden gemeinsam sortiert" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock Text="Markieren &amp; Dateioperationen"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+
+                                <ToggleSwitch Header="Ordnergröße beim Markieren per Leertaste automatisch berechnen"
+                                              IsOn="{x:Bind Settings.AutoCalculateFolderSizeOnMark, Mode=TwoWay}"
+                                              OnContent="Aktiv – Berechnet beim Markieren eines Ordners sofort dessen Gesamtgröße im Hintergrund"
+                                              OffContent="Inaktiv – Schnelleres Markieren ohne automatische Größenberechnung" />
+
+                                <ToggleSwitch Header="Bestätigungsdialog vor dem Verschieben in den Papierkorb (F8 / Entf) anzeigen"
+                                              IsOn="{x:Bind Settings.ConfirmDeleteToRecycleBin, Mode=TwoWay}"
+                                              OnContent="Aktiv – Fragt vor dem Verschieben in den Papierkorb nach Bestätigung"
+                                              OffContent="Inaktiv – Verschiebt Elemente sofort in den Papierkorb (Endgültiges Löschen per Shift+F8 fragt immer nach)" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 4: IMAGE PREVIEW                                 -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategoryPreviewPanel" Spacing="18" Visibility="Collapsed">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Bildvorschau (Hover-Preview)" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Konfigurieren Sie das schwebende Vorschaubild beim Überfahren von Bilddateien mit der Maus."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <ToggleSwitch Header="Vorschaubild beim Überfahren von Bilddateien anzeigen"
+                                              IsOn="{x:Bind Settings.EnableImageHoverPreview, Mode=TwoWay}"
+                                              OnContent="Aktiv – Zeigt ein Vorschaubild beim Hovern über Bilddateien"
+                                              OffContent="Inaktiv – Keine Hover-Bildvorschau" />
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <TextBlock Text="Größe des Vorschaufensters (Max. Breite × Höhe)" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.ImageHoverPreviewSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12.5" Opacity="0.85" />
+                                    </Grid>
+                                    <Slider Minimum="160" Maximum="720" StepFrequency="20"
+                                            Value="{x:Bind Settings.ImageHoverPreviewSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <TextBlock Text="Unterstützte Bildformate: PNG, JPG/JPEG, GIF, BMP, WEBP, ICO, TIF/TIFF, JFIF. Die Fenster der F3-Schnellansicht und des F4-Editors können zusätzlich frei mit der Maus skaliert werden."
+                                           FontSize="12"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 5: FONT SIZES                                    -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategoryFontsPanel" Spacing="18" Visibility="Collapsed">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Schriftgrößen der UI-Elemente" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Passen Sie die Schriftgröße für die einzelnen Bereiche der Oberfläche individuell an."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Dateiliste (Dateinamen &amp; Ordner)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.FileListFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="9" Maximum="24" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.FileListFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Dateiliste Details &amp; Spaltenköpfe (Größe, Datum, Typ)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.FileListDetailsFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="22" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.FileListDetailsFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Tabs (Tab-Leiste)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.TabFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.TabFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Laufwerksleiste (Laufwerks-Buttons)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.DriveBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.DriveBarFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Adressleiste &amp; Filterfeld" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.AddressBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.AddressBarFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Breadcrumbs (Pfad-Segmente)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.BreadcrumbFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.BreadcrumbFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Statusleiste (Unten im Panel)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.StatusBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.StatusBarFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock Text="Funktionsleiste (F1–F12 Buttons)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.FunctionBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.FunctionBarFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <Button Content="Schriftgrößen auf Standardwerte zurücksetzen"
+                                        Click="OnResetFontSizesClick"
+                                        Padding="12,6"
+                                        FontSize="12.5" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================================= -->
+                    <!-- CATEGORY 6: SESSION, UPDATES & WINDOWS                    -->
+                    <!-- ========================================================= -->
+                    <StackPanel x:Name="CategorySessionPanel" Spacing="18" Visibility="Collapsed">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Sitzung, Updates &amp; Fenster" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Verwalten Sie die automatische Update-Prüfung auf GitHub, die Session-Speicherung sowie Ihre Fenstergrößen."
+                                       FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <!-- GitHub Release Update Check Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="UpdateCardTitle"
+                                           Text="🚀 Automatische Update-Prüfung (GitHub Releases)"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <ToggleSwitch Header="Beim Programmstart automatisch auf GitHub nach neuen Releases suchen"
+                                              IsOn="{x:Bind Settings.CheckForUpdatesOnStartup, Mode=TwoWay}"
+                                              OnContent="Aktiv – Informiert bei einem neuen Release und bietet ein direktes Update an"
+                                              OffContent="Inaktiv – Nur manuelle Update-Prüfung" />
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button x:Name="CheckUpdatesNowButton"
+                                            Content="Jetzt auf Updates prüfen"
+                                            Click="OnCheckForUpdatesClick"
+                                            Padding="12,6"
+                                            FontSize="12.5" />
+                                    <TextBlock x:Name="InstalledVersionLabel"
+                                               VerticalAlignment="Center"
+                                               FontSize="12.5"
+                                               Opacity="0.8" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Session Persistence Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Session speichern &amp; Startverhalten"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <ToggleSwitch Header="Session speichern aktivieren"
+                                              IsOn="{x:Bind Settings.SaveSession, Mode=TwoWay}"
+                                              OnContent="Aktiv – Tabs, geöffnete Pfade &amp; Layout werden gespeichert"
+                                              OffContent="Inaktiv – Startet immer mit Standard-Ordnern" />
+                                <TextBlock Text="Wenn aktiv, werden alle geöffneten Tabs, deren Pfade, das zuletzt gewählte Element, Pin-/Sperrstatus, Sortierungen und das Panel-Layout automatisch gesichert und beim nächsten Programmstart wiederhergestellt."
+                                           FontSize="12"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+                                <Button Content="Aktuelle Session jetzt sofort speichern"
+                                        Click="OnSaveSessionNowClick"
+                                        Padding="12,6"
+                                        FontSize="12.5" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Window Bounds Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Gespeicherte Fenstergrößen"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="ModernExplorer merkt sich automatisch die zuletzt verwendete Größe und den Maximiert-Status des Hauptfensters sowie aller Child-Fenster:"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <Grid RowSpacing="6" ColumnSpacing="16" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Hauptfenster:" FontWeight="SemiBold" FontSize="12.5" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Settings.MainWindowBoundsSummary, Mode=OneWay}" FontSize="12.5" Opacity="0.85" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Einstellungsfenster:" FontWeight="SemiBold" FontSize="12.5" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind Settings.SettingsWindowBoundsSummary, Mode=OneWay}" FontSize="12.5" Opacity="0.85" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Vorschau (F3) / Editor (F4):" FontWeight="SemiBold" FontSize="12.5" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind Settings.ChildWindowBoundsSummary, Mode=OneWay}" FontSize="12.5" Opacity="0.85" />
+                                </Grid>
+
+                                <Button Content="Fenstergrößen auf Standardwerte zurücksetzen"
+                                        Click="OnResetWindowBoundsClick"
+                                        Padding="12,6"
+                                        FontSize="12.5" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Reset to Factory Defaults Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Werkseinstellungen wiederherstellen"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Setzt alle Farben, Schriftgrößen, Anzeigeoptionen, Verhaltensregeln und Fenstergrößen auf die Standardwerte zurück:"
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+                                <Button Content="Alle Einstellungen auf Werkseinstellungen zurücksetzen"
+                                        Click="OnResetAllSettingsClick"
+                                        Padding="12,6"
+                                        FontSize="12.5" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ======================= FOOTER ======================= -->
+        <Border Grid.Row="2"
+                Padding="20,10"
+                Background="{ThemeResource ExplorerStatusBarBackgroundBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock Text="Alle Änderungen werden automatisch in %APPDATA%\ModernExplorer\settings.json gespeichert."
+                           FontSize="12"
+                           Opacity="0.7"
+                           VerticalAlignment="Center" />
+                <Button x:Name="CloseSettingsButton"
+                        Content="Schließen (Esc)"
+                        HorizontalAlignment="Right"
+                        Click="OnCloseClick"
+                        Padding="18,6" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

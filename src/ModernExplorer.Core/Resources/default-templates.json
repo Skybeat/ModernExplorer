@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "default": "text",
+  "templates": [
+    { "id": "text",     "label": "Textdatei",   "defaultName": "Neue Datei.txt", "content": "",                                  "encoding": "utf-8" },
+    { "id": "markdown", "label": "Markdown",    "defaultName": "README.md",      "content": "# ${baseName}\n\n${cursor}",        "encoding": "utf-8" },
+    { "id": "json",     "label": "JSON",        "defaultName": "data.json",      "content": "{\n  ${cursor}\n}\n",               "encoding": "utf-8" },
+    { "id": "ps1",      "label": "PowerShell",  "defaultName": "script.ps1",     "content": "# ${date:yyyy-MM-dd} ${user}\n\n", "encoding": "utf-8-bom" },
+    { "id": "cs",       "label": "C#-Klasse",   "defaultName": "Class1.cs",      "content": "namespace App;\n\npublic class ${baseName}\n{\n    ${cursor}\n}\n", "encoding": "utf-8" },
+    { "id": "empty",    "label": "Leere Datei (ohne Endung)", "defaultName": "Neue Datei", "content": "", "encoding": "utf-8" }
+  ]
+}
+
