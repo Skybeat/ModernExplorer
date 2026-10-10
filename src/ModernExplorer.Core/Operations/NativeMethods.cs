@@ -45,18 +45,65 @@ internal static partial class NativeMethods
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "SHFileOperationW")]
     private static extern int SHFileOperation(ref SHFILEOPSTRUCT op);
 
-    /// <summary>Moves a path to the Windows Recycle Bin (without showing shell dialogs).</summary>
+    /// <summary>Moves a path to the system Trash / Recycle Bin on Windows, macOS, and Linux.</summary>
     public static void MoveToRecycleBin(string path)
     {
-        var op = new SHFILEOPSTRUCT
+        if (OperatingSystem.IsWindows())
         {
-            wFunc = FO_DELETE,
-            pFrom = path + '\0' + '\0',
-            fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
-        };
-        var rc = SHFileOperation(ref op);
-        if (rc != 0) throw new IOException($"Papierkorb-Löschen fehlgeschlagen (Code 0x{rc:X}): {path}");
-        if (op.fAnyOperationsAborted) throw new OperationCanceledException();
+            var op = new SHFILEOPSTRUCT
+            {
+                wFunc = FO_DELETE,
+                pFrom = path + '\0' + '\0',
+                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
+            };
+            var rc = SHFileOperation(ref op);
+            if (rc != 0) throw new IOException($"Papierkorb-Löschen fehlgeschlagen (Code 0x{rc:X}): {path}");
+            if (op.fAnyOperationsAborted) throw new OperationCanceledException();
+            return;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var trashDir = Path.Combine(home, ".Trash");
+            Directory.CreateDirectory(trashDir);
+            var fileName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var targetName = ModernExplorer.Core.FileSystem.NameValidator.MakeUnique(trashDir, fileName);
+            var targetPath = Path.Combine(trashDir, targetName);
+            MoveEntryCrossPlatform(path, targetPath);
+            return;
+        }
+
+        // Linux / FreeDesktop.org Trash specification
+        var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        if (string.IsNullOrWhiteSpace(xdgDataHome))
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            xdgDataHome = Path.Combine(home, ".local", "share");
+        }
+
+        var trashFilesDir = Path.Combine(xdgDataHome, "Trash", "files");
+        var trashInfoDir = Path.Combine(xdgDataHome, "Trash", "info");
+        Directory.CreateDirectory(trashFilesDir);
+        Directory.CreateDirectory(trashInfoDir);
+
+        var baseName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var uniqueTrashName = ModernExplorer.Core.FileSystem.NameValidator.MakeUnique(trashFilesDir, baseName);
+        var trashTarget = Path.Combine(trashFilesDir, uniqueTrashName);
+        var trashInfoFile = Path.Combine(trashInfoDir, uniqueTrashName + ".trashinfo");
+
+        var normalizedTrashPath = Path.GetFullPath(path).Replace('\\', '/');
+        var infoContent = $"[Trash Info]\nPath={normalizedTrashPath}\nDeletionDate={DateTime.Now:yyyy-MM-ddTHH:mm:ss}\n";
+        File.WriteAllText(trashInfoFile, infoContent);
+        MoveEntryCrossPlatform(path, trashTarget);
+    }
+
+    private static void MoveEntryCrossPlatform(string sourcePath, string targetPath)
+    {
+        if (Directory.Exists(sourcePath))
+            Directory.Move(sourcePath, targetPath);
+        else if (File.Exists(sourcePath))
+            File.Move(sourcePath, targetPath);
     }
 }
 

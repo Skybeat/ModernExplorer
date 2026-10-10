@@ -262,6 +262,12 @@ internal sealed class FileOperationExecutor(IConflictResolver resolver)
                 File.SetAttributes(dst, attrs & ~(FileAttributes.ReadOnly | FileAttributes.Hidden));
         }
 
+        if (!OperatingSystem.IsWindows())
+        {
+            CopyFileManaged(src, dst, overwrite, h, onProgress);
+            return;
+        }
+
         NativeMethods.CopyProgressRoutine cb = (total, transferred, _, _, _, _, _, _, _) =>
         {
             onProgress(transferred);
@@ -282,6 +288,37 @@ internal sealed class FileOperationExecutor(IConflictResolver resolver)
             throw new IOException(new Win32Exception(err).Message, err);
         }
         GC.KeepAlive(cb);
+    }
+
+    private static void CopyFileManaged(string src, string dst, bool overwrite, OperationHandle h, Action<long> onProgress)
+    {
+        var fileMode = overwrite ? FileMode.Create : FileMode.CreateNew;
+        const int bufferSize = 1024 * 1024;
+        var buffer = new byte[bufferSize];
+        long transferred = 0;
+
+        using (var inStream = new FileStream(src, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan))
+        using (var outStream = new FileStream(dst, fileMode, FileAccess.Write, FileShare.None, bufferSize, FileOptions.SequentialScan))
+        {
+            int read;
+            while ((read = inStream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                h.WaitIfPaused();
+                h.Token.ThrowIfCancellationRequested();
+                outStream.Write(buffer, 0, read);
+                transferred += read;
+                onProgress(transferred);
+            }
+        }
+
+        try
+        {
+            File.SetLastWriteTimeUtc(dst, File.GetLastWriteTimeUtc(src));
+        }
+        catch
+        {
+            // Ignore timestamp preservation errors on restricted filesystems
+        }
     }
 
     private static void TryDeleteFile(string path, OperationHandle h)
@@ -378,6 +415,7 @@ internal static class LongPath
 {
     public static string Ensure(string path)
     {
+        if (!OperatingSystem.IsWindows()) return path;
         if (path.Length < 248 || path.StartsWith(@"\\?\", StringComparison.Ordinal)) return path;
         return path.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
     }

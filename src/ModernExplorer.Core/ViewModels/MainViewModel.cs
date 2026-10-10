@@ -629,6 +629,47 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void OpenTerminal(bool elevated)
     {
         var dir = ActivePanel.ActiveTab?.CurrentPath ?? Environment.CurrentDirectory;
+
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("open")
+                {
+                    ArgumentList = { "-a", "Terminal", dir },
+                    UseShellExecute = false,
+                });
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Terminal konnte nicht gestartet werden", ex.Message);
+            }
+            return;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            string[] candidates = ["x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "alacritty", "kitty", "xterm"];
+            foreach (var term in candidates)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(term)
+                    {
+                        WorkingDirectory = dir,
+                        UseShellExecute = false,
+                    });
+                    return;
+                }
+                catch
+                {
+                    // Try next installed terminal emulator
+                }
+            }
+            _ui.ShowMessage("Terminal konnte nicht gestartet werden", "Kein kompatibler Terminal-Emulator gefunden.");
+            return;
+        }
+
         try
         {
             var psi = new ProcessStartInfo("wt.exe")

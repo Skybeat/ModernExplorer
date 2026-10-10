@@ -1,0 +1,107 @@
+name: Multi-OS Release Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows (win-x64, win-arm64, win-x86)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Run unit tests
+        run: dotnet test tests/ModernExplorer.Core.Tests/ModernExplorer.Core.Tests.csproj -c Release
+
+      - name: Build & Package Windows x64 (WinUI 3)
+        run: |
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "src/ModernExplorer.App/bin/x64/Release/net9.0-windows10.0.19041.0/win-x64/*" -DestinationPath "dist/ModernExplorer-win-x64.zip" -Force
+
+      - name: Build & Package Windows ARM64 (WinUI 3)
+        run: |
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64
+          Compress-Archive -Path "src/ModernExplorer.App/bin/ARM64/Release/net9.0-windows10.0.19041.0/win-arm64/*" -DestinationPath "dist/ModernExplorer-win-arm64.zip" -Force
+
+      - name: Build & Package Windows x86
+        run: |
+          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -o publish/win-x86
+          Compress-Archive -Path "publish/win-x86/*" -DestinationPath "dist/ModernExplorer-win-x86.zip" -Force
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: dist/*.zip
+
+  build-linux-macos:
+    name: Build Linux & macOS (linux-x64, linux-arm64, osx-x64, osx-arm64)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [linux-x64, linux-arm64, osx-x64, osx-arm64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish ${{ matrix.rid }}
+        run: |
+          mkdir -p dist
+          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o publish/${{ matrix.rid }}
+          cd publish/${{ matrix.rid }}
+          zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .
+
+      - name: Upload ${{ matrix.rid }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.rid }}
+          path: dist/ModernExplorer-${{ matrix.rid }}.zip
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-linux-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create & Upload GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
+          generate_release_notes: true
+          files: release-assets/*.zip
+

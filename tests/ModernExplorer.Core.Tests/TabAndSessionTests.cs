@@ -507,6 +507,42 @@ public sealed class TabAndSessionTests : IDisposable
               "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-win-x64.zip",
               "size": 10485760,
               "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-win-arm64.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-win-arm64.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-win-x86.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-win-x86.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-linux-x64.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-linux-x64.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-linux-arm64.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-linux-arm64.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-osx-x64.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-osx-x64.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
+            },
+            {
+              "name": "ModernExplorer-osx-arm64.zip",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.2.0/ModernExplorer-osx-arm64.zip",
+              "size": 10485760,
+              "content_type": "application/zip"
             }
           ]
         }
@@ -517,9 +553,12 @@ public sealed class TabAndSessionTests : IDisposable
         Assert.Equal(new Version(1, 2, 0), info!.ParsedVersion);
         Assert.True(ModernExplorer.Core.Update.GitHubUpdateService.IsNewerVersion(v100, info.ParsedVersion));
 
-        var bestAsset = ModernExplorer.Core.Update.GitHubUpdateService.SelectBestAsset(info);
-        Assert.NotNull(bestAsset);
-        Assert.Equal("ModernExplorer-win-x64.zip", bestAsset!.Name);
+        foreach (var rid in ModernExplorer.Core.Update.GitHubUpdateService.SupportedRuntimeIdentifiers)
+        {
+            var matched = ModernExplorer.Core.Update.GitHubUpdateService.SelectBestAsset(info, rid);
+            Assert.NotNull(matched);
+            Assert.Equal($"ModernExplorer-{rid}.zip", matched!.Name);
+        }
     }
 
     private sealed class NullShellUi : IShellUi, ModernExplorer.Core.Operations.IConflictResolver

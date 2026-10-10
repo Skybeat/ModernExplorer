@@ -227,26 +227,96 @@ public sealed class GitHubUpdateService
     }
 
     /// <summary>
-    /// Selects the most appropriate binary asset (.zip, .exe, .msi, .msix) for the current architecture.
+    /// All target runtime identifiers built and published for GitHub Releases across Windows, Linux, and macOS.
     /// </summary>
-    public static GitHubReleaseAsset? SelectBestAsset(GitHubReleaseInfo release)
+    public static IReadOnlyList<string> SupportedRuntimeIdentifiers { get; } =
+    [
+        "win-x64",
+        "win-arm64",
+        "win-x86",
+        "linux-x64",
+        "linux-arm64",
+        "osx-x64",
+        "osx-arm64",
+    ];
+
+    /// <summary>
+    /// Detects the Runtime Identifier (RID) of the currently running operating system and CPU architecture.
+    /// </summary>
+    public static string GetCurrentRuntimeIdentifier()
+    {
+        var arch = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture switch
+        {
+            System.Runtime.InteropServices.Architecture.Arm64 => "arm64",
+            System.Runtime.InteropServices.Architecture.X86 => "x86",
+            System.Runtime.InteropServices.Architecture.Arm => "arm",
+            _ => "x64",
+        };
+
+        if (OperatingSystem.IsWindows())
+            return $"win-{arch}";
+        if (OperatingSystem.IsMacOS())
+            return $"osx-{arch}";
+        if (OperatingSystem.IsLinux())
+            return $"linux-{arch}";
+
+        return $"win-{arch}";
+    }
+
+    /// <summary>
+    /// Selects the most appropriate binary asset (.zip, .tar.gz, .exe, .msi, .msix, .dmg, .AppImage)
+    /// for the specified or currently running operating system and CPU architecture.
+    /// </summary>
+    public static GitHubReleaseAsset? SelectBestAsset(GitHubReleaseInfo release, string? targetRid = null)
     {
         if (release.Assets.Count == 0)
             return null;
 
-        // Prefer portable .zip or .exe installer for win-x64
-        var x64Zip = release.Assets.FirstOrDefault(a =>
-            a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
-            (a.Name.Contains("x64", StringComparison.OrdinalIgnoreCase) || !a.Name.Contains("arm64", StringComparison.OrdinalIgnoreCase)));
-        if (x64Zip is not null)
-            return x64Zip;
+        var rid = (targetRid ?? GetCurrentRuntimeIdentifier()).ToLowerInvariant();
+        var parts = rid.Split('-', 2);
+        var osPrefix = parts[0]; // "win", "linux", "osx"
+        var arch = parts.Length > 1 ? parts[1] : "x64";
 
-        var exeOrMsi = release.Assets.FirstOrDefault(a =>
-            a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-            a.Name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) ||
-            a.Name.EndsWith(".msix", StringComparison.OrdinalIgnoreCase));
-        if (exeOrMsi is not null)
-            return exeOrMsi;
+        // 1. Exact RID match (e.g., "ModernExplorer-win-x64.zip", "ModernExplorer-linux-x64.zip", "ModernExplorer-osx-arm64.zip")
+        var exactArchive = release.Assets.FirstOrDefault(a =>
+            a.Name.Contains(rid, StringComparison.OrdinalIgnoreCase) &&
+            (a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+             a.Name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)));
+        if (exactArchive is not null)
+            return exactArchive;
+
+        // 2. OS alias + architecture match (e.g., "macos-arm64", "windows-x64")
+        string[] osAliases = osPrefix switch
+        {
+            "osx" => ["osx", "macos", "darwin", "mac"],
+            "linux" => ["linux"],
+            _ => ["win", "windows"],
+        };
+
+        var aliasMatch = release.Assets.FirstOrDefault(a =>
+            osAliases.Any(alias => a.Name.Contains(alias, StringComparison.OrdinalIgnoreCase)) &&
+            a.Name.Contains(arch, StringComparison.OrdinalIgnoreCase));
+        if (aliasMatch is not null)
+            return aliasMatch;
+
+        // 3. Fallback for Windows installers or generic x64 zip when running on Windows
+        if (osPrefix == "win")
+        {
+            var winZip = release.Assets.FirstOrDefault(a =>
+                a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                !a.Name.Contains("linux", StringComparison.OrdinalIgnoreCase) &&
+                !a.Name.Contains("osx", StringComparison.OrdinalIgnoreCase) &&
+                !a.Name.Contains("macos", StringComparison.OrdinalIgnoreCase));
+            if (winZip is not null)
+                return winZip;
+
+            var exeOrMsi = release.Assets.FirstOrDefault(a =>
+                a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                a.Name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) ||
+                a.Name.EndsWith(".msix", StringComparison.OrdinalIgnoreCase));
+            if (exeOrMsi is not null)
+                return exeOrMsi;
+        }
 
         return release.Assets[0];
     }
@@ -264,6 +334,22 @@ public sealed class GitHubUpdateService
         sb.AppendLine("Start-Sleep -Milliseconds 600");
         sb.AppendLine($"Copy-Item -Path \"{stagingDir}\\*\" -Destination \"{targetAppDir}\" -Recurse -Force");
         sb.AppendLine($"Start-Process -FilePath \"{exePath}\"");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds a POSIX shell self-updater script for Linux and macOS that waits for the running process to exit,
+    /// copies extracted update files into the application directory, restores executable permissions, and restarts the binary.
+    /// </summary>
+    public static string BuildSelfUpdateShellScript(int processId, string stagingDir, string targetAppDir, string exePath)
+    {
+        var sb = new StringBuilder();
+        sb.Append("#!/bin/sh\n");
+        sb.Append($"while kill -0 {processId} 2>/dev/null; do sleep 0.3; done\n");
+        sb.Append("sleep 0.5\n");
+        sb.Append($"cp -Rf \"{stagingDir}/.\" \"{targetAppDir}/\"\n");
+        sb.Append($"chmod +x \"{exePath}\"\n");
+        sb.Append($"nohup \"{exePath}\" >/dev/null 2>&1 &\n");
         return sb.ToString();
     }
 
@@ -324,20 +410,39 @@ public sealed class GitHubUpdateService
             if (subFiles.Length == 0 && subDirs.Length == 1)
                 stagingDir = subDirs[0];
 
-            var exePath = currentExePath ?? Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "ModernExplorer.exe");
+            var defaultExeName = OperatingSystem.IsWindows() ? "ModernExplorer.exe" : "ModernExplorer";
+            var exePath = currentExePath ?? Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, defaultExeName);
             var targetDir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory.TrimEnd('\\', '/');
 
-            var scriptPath = Path.Combine(updateRoot, "apply-update.ps1");
-            var scriptContent = BuildSelfUpdatePowerShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
-            await File.WriteAllTextAsync(scriptPath, scriptContent, Encoding.UTF8, ct).ConfigureAwait(false);
-
-            Process.Start(new ProcessStartInfo
+            if (OperatingSystem.IsWindows())
             {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
+                var scriptPath = Path.Combine(updateRoot, "apply-update.ps1");
+                var scriptContent = BuildSelfUpdatePowerShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
+                await File.WriteAllTextAsync(scriptPath, scriptContent, Encoding.UTF8, ct).ConfigureAwait(false);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                });
+            }
+            else
+            {
+                var scriptPath = Path.Combine(updateRoot, "apply-update.sh");
+                var scriptContent = BuildSelfUpdateShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
+                await File.WriteAllTextAsync(scriptPath, scriptContent, new UTF8Encoding(false), ct).ConfigureAwait(false);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "/bin/sh",
+                    ArgumentList = { scriptPath },
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                });
+            }
+
             return true;
         }
 

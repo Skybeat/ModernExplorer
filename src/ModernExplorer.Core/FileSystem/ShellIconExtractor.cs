@@ -68,6 +68,9 @@ public static class ShellIconExtractor
 
     private static ShellIconData? ExtractIcon(string pathOrName, uint fileAttributes, bool useFileAttributes)
     {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
         var shfi = new SHFILEINFO();
         uint flags = SHGFI_ICON | SHGFI_SMALLICON;
         if (useFileAttributes) flags |= SHGFI_USEFILEATTRIBUTES;

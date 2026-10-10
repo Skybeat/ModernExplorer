@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>ModernExplorer.CrossPlatform</RootNamespace>
+    <AssemblyName>ModernExplorer</AssemblyName>
+    <ApplicationIcon>..\ModernExplorer.App\Assets\AppIcon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="..\ModernExplorer.App\Assets\AppIcon.png" Link="Assets\AppIcon.png" />
+    <AvaloniaResource Include="..\ModernExplorer.App\Assets\AppIcon.ico" Link="Assets\AppIcon.ico" />
+    <Content Include="..\ModernExplorer.App\Assets\AppIcon.png" Link="Assets\AppIcon.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\ModernExplorer.App\Assets\AppIcon.ico" Link="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModernExplorer.Core\ModernExplorer.Core.csproj" />
+  </ItemGroup>
+
+</Project>
+
