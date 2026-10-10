@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Session;
 
 namespace ModernExplorer.Core.ViewModels;
@@ -132,6 +133,18 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 FoldersFirst = SettingsViewModel.Current.SortFoldersFirst,
             };
         }
+
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        UpdateStatusSummary();
+        UpdateDriveSummary(CurrentPath);
+        foreach (var item in _allItems)
+            item.RefreshLocalization();
+        foreach (var item in Items)
+            item.RefreshLocalization();
     }
 
     partial void OnFocusedItemChanged(FileItemViewModel? oldValue, FileItemViewModel? newValue)
@@ -162,7 +175,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var resolved = ResolveSpecialAndFallback(rawPath, out var warning);
         if (resolved is null)
         {
-            ErrorBanner = $"Pfad nicht gefunden: {rawPath}";
+            ErrorBanner = LocalizationService.Format("Nav.PathNotFound", rawPath);
             return;
         }
 
@@ -182,7 +195,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
 
         HasPathWarning = warning;
-        ErrorBanner = warning ? $"Ursprünglicher Pfad nicht verfügbar – gewechselt zu {resolved}" : null;
+        ErrorBanner = warning ? LocalizationService.Format("Nav.FallbackWarning", resolved) : null;
         CurrentPath = resolved;
         AddressText = resolved;
         OnPropertyChanged(nameof(CanGoBack));
@@ -557,7 +570,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (string.IsNullOrEmpty(root)) { DriveSummary = ""; return; }
             var drive = new DriveInfo(root);
             if (!drive.IsReady) { DriveSummary = root; return; }
-            DriveSummary = $"{drive.Name.TrimEnd('\\')} {Format.Size(drive.AvailableFreeSpace)} frei von {Format.Size(drive.TotalSize)}";
+            var freeInfo = LocalizationService.Format("Drive.FreeOfTotal", Format.Size(drive.AvailableFreeSpace), Format.Size(drive.TotalSize));
+            DriveSummary = $"{drive.Name.TrimEnd('\\')} {freeInfo}";
         }
         catch
         {
@@ -573,11 +587,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var marked = realItems.Where(i => i.IsMarked).ToList();
         long markedBytes = marked.Sum(i => i.EffectiveSize);
 
-        var s = $"{realItems.Count} Elemente ({folders} Ordner, {files} Dateien)";
+        var s = LocalizationService.Format("Status.ItemsSummary", realItems.Count, folders, files);
         if (marked.Count > 0)
-            s += $" · {marked.Count} markiert ({Format.Size(markedBytes)})";
+            s += LocalizationService.Format("Status.MarkedSummary", marked.Count, Format.Size(markedBytes));
         if (!string.IsNullOrWhiteSpace(Filter))
-            s += $" · Filter: „{Filter}“";
+            s += LocalizationService.Format("Status.FilterSummary", Filter);
         StatusSummary = s;
     }
 
@@ -648,6 +662,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _watcherSub?.Dispose();

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 
 namespace ModernExplorer.Core.ViewModels;
 
@@ -41,6 +42,12 @@ public sealed partial class FileItemViewModel : ObservableObject
 
     public void RefreshDisplayName() => OnPropertyChanged(nameof(DisplayName));
 
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(SizeText));
+        OnPropertyChanged(nameof(TypeText));
+    }
+
     public string FullPath => Entry.FullPath;
     public bool IsDirectory => Entry.IsDirectory;
     public bool IsParentLink => Entry.IsParentLink;
@@ -53,13 +60,13 @@ public sealed partial class FileItemViewModel : ObservableObject
 
     public string SizeText =>
         Entry.IsParentLink ? "" :
-        Entry.IsDirectory ? (ComputedFolderSize is { } s ? Format.Size(s) : "<Ordner>") :
+        Entry.IsDirectory ? (ComputedFolderSize is { } s ? Format.Size(s) : LocalizationService.T("File.FolderTag")) :
         Format.Size(Entry.Size);
 
     public string ModifiedText => Entry.IsParentLink ? "" : Entry.LastWriteTime.ToString("dd.MM.yyyy HH:mm");
 
-    public string TypeText => Entry.IsParentLink ? "" : Entry.IsDirectory ? "Ordner" :
-        Entry.Extension.Length > 1 ? Entry.Extension[1..].ToUpperInvariant() : "Datei";
+    public string TypeText => Entry.IsParentLink ? "" : Entry.IsDirectory ? LocalizationService.T("File.FolderType") :
+        Entry.Extension.Length > 1 ? Entry.Extension[1..].ToUpperInvariant() : LocalizationService.T("File.FileType");
 
     public double Opacity => Entry.IsHidden ? 0.55 : 1.0;
 

@@ -45,6 +45,7 @@ public sealed class GitHubUpdateService
 {
     public const string RepositoryOwner = "Skybeat";
     public const string RepositoryName = "ModernExplorer";
+    public const string RepositoryWebUrl = $"https://github.com/{RepositoryOwner}/{RepositoryName}";
     public const string LatestReleaseApiUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest";
     public const string ReleasesListApiUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases?per_page=5";
     public const string RepositoryReleasesWebUrl = $"https://github.com/{RepositoryOwner}/{RepositoryName}/releases";
@@ -75,7 +76,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 0, 0);
+        return new Version(1, 0, 1);
     }
 
     public static string GetCurrentVersionString()

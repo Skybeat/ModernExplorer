@@ -50,14 +50,20 @@ public sealed partial class SettingsWindow : Window
         };
     }
 
-    public string FormatActiveTheme(string themeName) => $"Theme: {themeName}";
+    public string FormatActiveTheme(string themeName) =>
+        LocalizationService.Format("Settings.ActiveThemePrefix", themeName);
 
-    private void OnThemeChanged(object? sender, EventArgs e) => ApplyTheme(Settings.Theme);
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        ApplyTheme(Settings.Theme);
+        Bindings.Update();
+    }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         PopulateLanguageComboBox();
         ApplyLocalization();
+        Bindings.Update();
     }
 
     private void PopulateLanguageComboBox()
@@ -84,10 +90,155 @@ public sealed partial class SettingsWindow : Window
         Title = loc["Settings.Title"];
         if (WindowTitleLabel is not null) WindowTitleLabel.Text = loc["Settings.Title"];
         if (CategoriesHeaderLabel is not null) CategoriesHeaderLabel.Text = loc["Settings.Categories"];
+        if (ActiveThemeBadgeLabel is not null) ActiveThemeBadgeLabel.Text = FormatActiveTheme(Settings.ThemeDisplayName);
+
+        // Left Category Navigation
+        if (CatAppearanceTitle is not null) CatAppearanceTitle.Text = loc["Settings.Nav.Appearance.Title"];
+        if (CatAppearanceSub is not null) CatAppearanceSub.Text = loc["Settings.Nav.Appearance.Sub"];
+        if (CatColorsTitle is not null) CatColorsTitle.Text = loc["Settings.Nav.Colors.Title"];
+        if (CatColorsSub is not null) CatColorsSub.Text = loc["Settings.Nav.Colors.Sub"];
+        if (CatBehaviorTitle is not null) CatBehaviorTitle.Text = loc["Settings.Nav.Behavior.Title"];
+        if (CatBehaviorSub is not null) CatBehaviorSub.Text = loc["Settings.Nav.Behavior.Sub"];
+        if (CatPreviewTitle is not null) CatPreviewTitle.Text = loc["Settings.Nav.Preview.Title"];
+        if (CatPreviewSub is not null) CatPreviewSub.Text = loc["Settings.Nav.Preview.Sub"];
+        if (CatFontsTitle is not null) CatFontsTitle.Text = loc["Settings.Nav.Fonts.Title"];
+        if (CatFontsSub is not null) CatFontsSub.Text = loc["Settings.Nav.Fonts.Sub"];
+        if (CatSessionTitle is not null) CatSessionTitle.Text = loc["Settings.Nav.Session.Title"];
+        if (CatSessionSub is not null) CatSessionSub.Text = loc["Settings.Nav.Session.Sub"];
+
+        // Category 1: Appearance & Design
+        if (AppearanceHeaderTitle is not null) AppearanceHeaderTitle.Text = loc["Settings.Appearance.Header"];
+        if (AppearanceHeaderSub is not null) AppearanceHeaderSub.Text = loc["Settings.Appearance.Sub"];
         if (LanguageCardTitle is not null) LanguageCardTitle.Text = "🌐 " + loc["Settings.Language.Title"];
         if (LanguageCardDesc is not null) LanguageCardDesc.Text = loc["Settings.Language.Desc"];
+        if (ThemeCardTitle is not null) ThemeCardTitle.Text = loc["Settings.Theme.CardTitle"];
+        if (ThemeCardDesc is not null) ThemeCardDesc.Text = loc["Settings.Theme.CardDesc"];
+        if (DarkThemeTitle is not null) DarkThemeTitle.Text = loc["Settings.Theme.DarkTitle"];
+        if (DarkThemeDesc is not null) DarkThemeDesc.Text = loc["Settings.Theme.DarkDesc"];
+        if (LightThemeTitle is not null) LightThemeTitle.Text = loc["Settings.Theme.LightTitle"];
+        if (LightThemeDesc is not null) LightThemeDesc.Text = loc["Settings.Theme.LightDesc"];
+        if (ToolbarsCardTitle is not null) ToolbarsCardTitle.Text = loc["Settings.Toolbars.CardTitle"];
+        if (ToggleDriveBar is not null)
+        {
+            ToggleDriveBar.Header = loc["Settings.Toolbars.DriveBar.Header"];
+            ToggleDriveBar.OnContent = loc["Settings.Toolbars.DriveBar.On"];
+            ToggleDriveBar.OffContent = loc["Settings.Toolbars.DriveBar.Off"];
+        }
+        if (ToggleFunctionKeyBar is not null)
+        {
+            ToggleFunctionKeyBar.Header = loc["Settings.Toolbars.FnBar.Header"];
+            ToggleFunctionKeyBar.OnContent = loc["Settings.Toolbars.FnBar.On"];
+            ToggleFunctionKeyBar.OffContent = loc["Settings.Toolbars.FnBar.Off"];
+        }
+        if (RowHeightLabel is not null) RowHeightLabel.Text = loc["Settings.Toolbars.RowHeight"];
+
+        // Category 2: Colors & Highlighting
+        if (ColorsHeaderTitle is not null) ColorsHeaderTitle.Text = loc["Settings.Colors.Header"];
+        if (ColorsHeaderSub is not null) ColorsHeaderSub.Text = loc["Settings.Colors.Sub"];
+        if (ColorActivePanelTitle is not null) ColorActivePanelTitle.Text = loc["Settings.Colors.ActivePanel.Title"];
+        if (ColorActivePanelDesc is not null) ColorActivePanelDesc.Text = loc["Settings.Colors.ActivePanel.Desc"];
+        if (ColorActivePanelApplyBtn is not null) ColorActivePanelApplyBtn.Content = loc["Settings.Apply"];
+        if (ColorActivePanelPreviewText is not null) ColorActivePanelPreviewText.Text = loc["Settings.Colors.ActivePanel.Preview"];
+        if (ColorSelectionTitle is not null) ColorSelectionTitle.Text = loc["Settings.Colors.Selection.Title"];
+        if (ColorSelectionDesc is not null) ColorSelectionDesc.Text = loc["Settings.Colors.Selection.Desc"];
+        if (ColorSelectionApplyBtn is not null) ColorSelectionApplyBtn.Content = loc["Settings.Apply"];
+        if (ColorSelectionPreviewText is not null) ColorSelectionPreviewText.Text = loc["Settings.Colors.Selection.Preview"];
+        if (ColorMarkedTextTitle is not null) ColorMarkedTextTitle.Text = loc["Settings.Colors.Marked.Title"];
+        if (ColorMarkedTextDesc is not null) ColorMarkedTextDesc.Text = loc["Settings.Colors.Marked.Desc"];
+        if (ColorMarkedTextApplyBtn is not null) ColorMarkedTextApplyBtn.Content = loc["Settings.Apply"];
+        if (ColorMarkedTextPreviewText is not null) ColorMarkedTextPreviewText.Text = loc["Settings.Colors.Marked.Preview"];
+
+        // Category 3: File List & Behavior
+        if (BehaviorHeaderTitle is not null) BehaviorHeaderTitle.Text = loc["Settings.Behavior.Header"];
+        if (BehaviorHeaderSub is not null) BehaviorHeaderSub.Text = loc["Settings.Behavior.Sub"];
+        if (ToggleFoldersFirst is not null)
+        {
+            ToggleFoldersFirst.Header = loc["Settings.Behavior.FoldersFirst.Header"];
+            ToggleFoldersFirst.OnContent = loc["Settings.Behavior.FoldersFirst.On"];
+            ToggleFoldersFirst.OffContent = loc["Settings.Behavior.FoldersFirst.Off"];
+        }
+        if (ToggleFileExtensions is not null)
+        {
+            ToggleFileExtensions.Header = loc["Settings.Behavior.Extensions.Header"];
+            ToggleFileExtensions.OnContent = loc["Settings.Behavior.Extensions.On"];
+            ToggleFileExtensions.OffContent = loc["Settings.Behavior.Extensions.Off"];
+        }
+        if (ToggleHiddenFiles is not null)
+        {
+            ToggleHiddenFiles.Header = loc["Settings.Behavior.Hidden.Header"];
+            ToggleHiddenFiles.OnContent = loc["Settings.Behavior.Hidden.On"];
+            ToggleHiddenFiles.OffContent = loc["Settings.Behavior.Hidden.Off"];
+        }
+        if (ToggleFolderSizeOnMark is not null)
+        {
+            ToggleFolderSizeOnMark.Header = loc["Settings.Behavior.FolderSize.Header"];
+            ToggleFolderSizeOnMark.OnContent = loc["Settings.Behavior.FolderSize.On"];
+            ToggleFolderSizeOnMark.OffContent = loc["Settings.Behavior.FolderSize.Off"];
+        }
+        if (ToggleConfirmRecycleBin is not null)
+        {
+            ToggleConfirmRecycleBin.Header = loc["Settings.Behavior.ConfirmDelete.Header"];
+            ToggleConfirmRecycleBin.OnContent = loc["Settings.Behavior.ConfirmDelete.On"];
+            ToggleConfirmRecycleBin.OffContent = loc["Settings.Behavior.ConfirmDelete.Off"];
+        }
+
+        // Category 4: Image Preview
+        if (PreviewHeaderTitle is not null) PreviewHeaderTitle.Text = loc["Settings.Preview.Header"];
+        if (PreviewHeaderSub is not null) PreviewHeaderSub.Text = loc["Settings.Preview.Sub"];
+        if (ToggleImageHoverPreview is not null)
+        {
+            ToggleImageHoverPreview.Header = loc["Settings.Preview.Hover.Header"];
+            ToggleImageHoverPreview.OnContent = loc["Settings.Preview.Hover.On"];
+            ToggleImageHoverPreview.OffContent = loc["Settings.Preview.Hover.Off"];
+        }
+        if (PreviewMaxSizeLabel is not null) PreviewMaxSizeLabel.Text = loc["Settings.Preview.MaxSize"];
+        if (PreviewFormatsNote is not null) PreviewFormatsNote.Text = loc["Settings.Preview.FormatsNote"];
+
+        // Category 5: Font Sizes
+        if (FontsHeaderTitle is not null) FontsHeaderTitle.Text = loc["Settings.Fonts.Header"];
+        if (FontsHeaderSub is not null) FontsHeaderSub.Text = loc["Settings.Fonts.Sub"];
+        if (FontFileListLabel is not null) FontFileListLabel.Text = loc["Settings.Fonts.FileList"];
+        if (FontFileListDetailsLabel is not null) FontFileListDetailsLabel.Text = loc["Settings.Fonts.FileListDetails"];
+        if (FontTabsLabel is not null) FontTabsLabel.Text = loc["Settings.Fonts.Tabs"];
+        if (FontDriveBarLabel is not null) FontDriveBarLabel.Text = loc["Settings.Fonts.DriveBar"];
+        if (FontAddressBarLabel is not null) FontAddressBarLabel.Text = loc["Settings.Fonts.AddressBar"];
+        if (FontBreadcrumbsLabel is not null) FontBreadcrumbsLabel.Text = loc["Settings.Fonts.Breadcrumbs"];
+        if (FontStatusBarLabel is not null) FontStatusBarLabel.Text = loc["Settings.Fonts.StatusBar"];
+        if (FontFunctionBarLabel is not null) FontFunctionBarLabel.Text = loc["Settings.Fonts.FunctionBar"];
+        if (ResetFontSizesButton is not null) ResetFontSizesButton.Content = loc["Settings.Fonts.ResetButton"];
+
+        // Category 6: Session, Updates & Windows
+        if (SessionHeaderTitle is not null) SessionHeaderTitle.Text = loc["Settings.Session.Header"];
+        if (SessionHeaderSub is not null) SessionHeaderSub.Text = loc["Settings.Session.Sub"];
         if (UpdateCardTitle is not null) UpdateCardTitle.Text = "🚀 " + loc["Settings.Update.Title"];
+        if (ToggleCheckUpdatesStartup is not null)
+        {
+            ToggleCheckUpdatesStartup.Header = loc["Settings.Update.Toggle.Header"];
+            ToggleCheckUpdatesStartup.OnContent = loc["Settings.Update.Toggle.On"];
+            ToggleCheckUpdatesStartup.OffContent = loc["Settings.Update.Toggle.Off"];
+        }
         if (CheckUpdatesNowButton is not null) CheckUpdatesNowButton.Content = loc["Settings.Update.CheckNow"];
+        if (SessionCardTitle is not null) SessionCardTitle.Text = loc["Settings.SessionCard.Title"];
+        if (ToggleSaveSession is not null)
+        {
+            ToggleSaveSession.Header = loc["Settings.SessionCard.Toggle.Header"];
+            ToggleSaveSession.OnContent = loc["Settings.SessionCard.Toggle.On"];
+            ToggleSaveSession.OffContent = loc["Settings.SessionCard.Toggle.Off"];
+        }
+        if (SessionCardDesc is not null) SessionCardDesc.Text = loc["Settings.SessionCard.Desc"];
+        if (SaveSessionNowButton is not null) SaveSessionNowButton.Content = loc["Settings.SessionCard.SaveNowButton"];
+        if (WindowBoundsCardTitle is not null) WindowBoundsCardTitle.Text = loc["Settings.BoundsCard.Title"];
+        if (WindowBoundsCardDesc is not null) WindowBoundsCardDesc.Text = loc["Settings.BoundsCard.Desc"];
+        if (BoundsMainWinLabel is not null) BoundsMainWinLabel.Text = loc["Settings.BoundsCard.MainWin"];
+        if (BoundsSettingsWinLabel is not null) BoundsSettingsWinLabel.Text = loc["Settings.BoundsCard.SettingsWin"];
+        if (BoundsChildWinLabel is not null) BoundsChildWinLabel.Text = loc["Settings.BoundsCard.ChildWin"];
+        if (ResetWindowBoundsButton is not null) ResetWindowBoundsButton.Content = loc["Settings.BoundsCard.ResetButton"];
+        if (FactoryResetCardTitle is not null) FactoryResetCardTitle.Text = loc["Settings.ResetCard.Title"];
+        if (FactoryResetCardDesc is not null) FactoryResetCardDesc.Text = loc["Settings.ResetCard.Desc"];
+        if (FactoryResetButton is not null) FactoryResetButton.Content = loc["Settings.ResetCard.Button"];
+
+        // Footer
+        if (SettingsFooterNote is not null) SettingsFooterNote.Text = loc["Settings.Footer.AutoSaveNote"];
         if (CloseSettingsButton is not null) CloseSettingsButton.Content = $"{loc["Settings.Close"]} (Esc)";
     }
 
@@ -265,8 +416,8 @@ public sealed partial class SettingsWindow : Window
     {
         _owner.ViewModel.SaveSessionImmediately();
         _owner.ViewModel.StatusNotification = Settings.SaveSession
-            ? "Session saved"
-            : "Session saving is disabled in settings";
+            ? LocalizationService.T("Notify.SessionSaved")
+            : LocalizationService.T("Notify.SessionDisabled");
     }
 
     private void OnResetWindowBoundsClick(object sender, RoutedEventArgs e)
@@ -283,13 +434,13 @@ public sealed partial class SettingsWindow : Window
         }
         catch { }
         Bindings.Update();
-        _owner.ViewModel.StatusNotification = "Window bounds reset to defaults";
+        _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.BoundsReset");
     }
 
     private void OnResetFontSizesClick(object sender, RoutedEventArgs e)
     {
         Settings.ResetFontSizesToDefaults();
-        _owner.ViewModel.StatusNotification = "Font sizes reset to defaults";
+        _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.FontsReset");
     }
 
     private void OnResetAllSettingsClick(object sender, RoutedEventArgs e)
@@ -299,8 +450,9 @@ public sealed partial class SettingsWindow : Window
         BorderColorHexBox.Text = Settings.SelectionBorderColor;
         MarkedTextColorHexBox.Text = Settings.MarkedItemTextColor;
         PopulateLanguageComboBox();
+        ApplyLocalization();
         Bindings.Update();
-        _owner.ViewModel.StatusNotification = "All settings reset to factory defaults";
+        _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.FactoryReset");
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

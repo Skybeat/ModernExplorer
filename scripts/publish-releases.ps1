@@ -1,10 +1,64 @@
 param(
-    [string]$Version = "1.0.0",
-    [string]$ReleaseNotes = "Multi-OS release of Modern Explorer for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
+    [string]$Version = "auto",
+    [string]$ReleaseNotes = ""
 )
 
 $ErrorActionPreference = "Stop"
-$TagName = if ($Version.StartsWith("v")) { $Version } else { "v$Version" }
+
+$credInput = "protocol=https`nhost=github.com`n`n"
+$credOutput = $credInput | git credential fill
+$tokenLine = ($credOutput | Where-Object { $_ -match '^password=' })
+if (-not $tokenLine) { throw "Could not retrieve GitHub token from git credential manager." }
+$token = $tokenLine.Substring(9).Trim()
+
+$headers = @{
+    "Authorization"        = "Bearer $token"
+    "Accept"               = "application/vnd.github+json"
+    "User-Agent"           = "ModernExplorer-ReleasePublisher"
+    "X-GitHub-Api-Version" = "2022-11-28"
+}
+
+if ([string]::IsNullOrWhiteSpace($Version) -or $Version -eq "auto") {
+    $latestVer = [version]"1.0.0"
+    try {
+        $latestRel = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/latest" -Method Get -Headers $headers
+        if ($latestRel -and $latestRel.tag_name) {
+            $cleanTag = $latestRel.tag_name.TrimStart('v', 'V')
+            $parsed = $null
+            if ([version]::TryParse($cleanTag, [ref]$parsed)) {
+                $latestVer = $parsed
+            }
+        }
+    } catch { }
+
+    $nextPatch = [Math]::Max(0, $latestVer.Build) + 1
+    $Version = "$($latestVer.Major).$($latestVer.Minor).$nextPatch"
+    Write-Output "Auto-incremented release version: $latestVer -> $Version"
+} else {
+    $Version = $Version.TrimStart('v', 'V')
+}
+
+$TagName = "v$Version"
+
+if ([string]::IsNullOrWhiteSpace($ReleaseNotes)) {
+    $ReleaseNotes = "Multi-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
+}
+
+# Sync project version numbers
+$csprojFiles = @(
+    "src/ModernExplorer.App/ModernExplorer.App.csproj",
+    "src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj",
+    "src/ModernExplorer.Core/ModernExplorer.Core.csproj"
+)
+foreach ($proj in $csprojFiles) {
+    if (Test-Path $proj) {
+        $content = Get-Content $proj -Raw
+        $updated = [regex]::Replace($content, '<Version>[^<]+</Version>', "<Version>$Version</Version>")
+        if ($updated -ne $content) {
+            Set-Content -Path $proj -Value $updated -Encoding UTF8 -NoNewline
+        }
+    }
+}
 
 $DistDir = Join-Path $env:TEMP "ModernExplorer_Release_$TagName"
 if (Test-Path $DistDir) { Remove-Item $DistDir -Recurse -Force }
@@ -38,19 +92,6 @@ Write-Output "=== 3. Pushing Git Tag & Uploading All Assets to GitHub Release $T
 git tag -f $TagName
 git push origin main
 git push origin $TagName --force
-
-$credInput = "protocol=https`nhost=github.com`n`n"
-$credOutput = $credInput | git credential fill
-$tokenLine = ($credOutput | Where-Object { $_ -match '^password=' })
-if (-not $tokenLine) { throw "Could not retrieve GitHub token from git credential manager." }
-$token = $tokenLine.Substring(9).Trim()
-
-$headers = @{
-    "Authorization"        = "Bearer $token"
-    "Accept"               = "application/vnd.github+json"
-    "User-Agent"           = "ModernExplorer-ReleasePublisher"
-    "X-GitHub-Api-Version" = "2022-11-28"
-}
 
 $release = $null
 try {
@@ -89,4 +130,3 @@ foreach ($zipFile in Get-ChildItem -Path $DistDir -Filter "*.zip") {
 
 Remove-Item $DistDir -Recurse -Force -ErrorAction SilentlyContinue
 Write-Output "=== Multi-OS Release $TagName Complete! ==="
-

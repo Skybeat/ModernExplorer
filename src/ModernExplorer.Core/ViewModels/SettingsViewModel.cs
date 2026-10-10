@@ -138,7 +138,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool IsDarkTheme => Theme == AppTheme.Dark;
     public bool IsLightTheme => Theme == AppTheme.Light;
-    public string ThemeDisplayName => Theme == AppTheme.Light ? "Light Theme (Hell)" : "Dark Theme (Dunkel)";
+    public string ThemeDisplayName => Theme == AppTheme.Light
+        ? LocalizationService.T("Settings.Theme.LightName")
+        : LocalizationService.T("Settings.Theme.DarkName");
 
     public IReadOnlyList<LanguageOption> AvailableLanguages => LocalizationService.SupportedLanguages;
 
@@ -149,16 +151,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     public double ImageHoverCardMaxWidth => ImageHoverPreviewSize + 40.0;
 
     public string MainWindowBoundsSummary => MainWindowIsMaximized
-        ? $"{MainWindowWidth} × {MainWindowHeight} px (Maximized)"
-        : $"{MainWindowWidth} × {MainWindowHeight} px";
+        ? LocalizationService.Format("Settings.Bounds.Maximized", MainWindowWidth, MainWindowHeight)
+        : LocalizationService.Format("Settings.Bounds.Normal", MainWindowWidth, MainWindowHeight);
 
     public string SettingsWindowBoundsSummary => SettingsWindowIsMaximized
-        ? $"{SettingsWindowWidth} × {SettingsWindowHeight} px (Maximized)"
-        : $"{SettingsWindowWidth} × {SettingsWindowHeight} px";
+        ? LocalizationService.Format("Settings.Bounds.Maximized", SettingsWindowWidth, SettingsWindowHeight)
+        : LocalizationService.Format("Settings.Bounds.Normal", SettingsWindowWidth, SettingsWindowHeight);
 
     public string ChildWindowBoundsSummary => ChildWindowIsMaximized
-        ? $"{ChildWindowWidth} × {ChildWindowHeight} px (Maximized)"
-        : $"{ChildWindowWidth} × {ChildWindowHeight} px";
+        ? LocalizationService.Format("Settings.Bounds.Maximized", ChildWindowWidth, ChildWindowHeight)
+        : LocalizationService.Format("Settings.Bounds.Normal", ChildWindowWidth, ChildWindowHeight);
 
     public string FileListFontSizeText => $"{FileListFontSize:0.#} pt";
     public string FileListDetailsFontSizeText => $"{FileListDetailsFontSize:0.#} pt";
@@ -184,6 +186,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _store = store;
         Current = this;
+        LocalizationService.Instance.LanguageChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(ThemeDisplayName));
+            OnPropertyChanged(nameof(MainWindowBoundsSummary));
+            OnPropertyChanged(nameof(SettingsWindowBoundsSummary));
+            OnPropertyChanged(nameof(ChildWindowBoundsSummary));
+        };
         if (store is not null)
             ApplyFromModel(store.Load(), persist: false);
     }

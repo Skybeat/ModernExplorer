@@ -1,0 +1,170 @@
+using System.IO;
+using System.Net;
+using System.Text;
+using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
+using ModernExplorer.Core.Settings;
+using ModernExplorer.Core.Update;
+using ModernExplorer.Core.ViewModels;
+using Xunit;
+
+namespace ModernExplorer.Core.Tests;
+
+public sealed class AboutAndLocalizationTests
+{
+    private sealed class FakeHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(responder(request));
+    }
+
+    [Fact]
+    public async Task AboutViewModel_ShowsInstalledAndFoundUpdateVersion_AndEnablesUpdateButton()
+    {
+        LocalizationService.Instance.SetLanguage("de");
+
+        const string json = """
+        {
+          "tag_name": "v1.0.2",
+          "name": "Modern Explorer v1.0.2",
+          "html_url": "https://github.com/Skybeat/ModernExplorer/releases/tag/v1.0.2",
+          "body": "Bug fixes and improvements",
+          "assets": [
+            {
+              "name": "ModernExplorer-Setup-win-x64.exe",
+              "browser_download_url": "https://github.com/Skybeat/ModernExplorer/releases/download/v1.0.2/ModernExplorer-Setup-win-x64.exe",
+              "size": 1048576
+            }
+          ]
+        }
+        """;
+
+        using var http = new HttpClient(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        }));
+
+        var service = new GitHubUpdateService(http);
+        using var vm = new AboutViewModel(service, new Version(1, 0, 1));
+
+        Assert.Equal("https://github.com/Skybeat/ModernExplorer", vm.RepositoryUrl);
+        Assert.Equal("1.0.1", vm.InstalledVersion);
+
+        await vm.CheckForUpdateAsync(new Version(1, 0, 1));
+
+        Assert.True(vm.IsUpdateAvailable);
+        Assert.True(vm.ShowUpdateButton);
+        Assert.Equal("1.0.2", vm.LatestVersionText);
+        Assert.Contains("1.0.2", vm.StatusMessage);
+
+        // Switching language dynamically updates StatusMessage and button texts
+        LocalizationService.Instance.SetLanguage("en");
+        Assert.Contains("1.0.2", vm.StatusMessage);
+        Assert.Equal("Update Now", vm.UpdateNowButtonText);
+        Assert.Equal("1.0.2", vm.LatestVersionText);
+    }
+
+    [Fact]
+    public async Task AboutViewModel_WhenUpToDate_HidesUpdateButton()
+    {
+        LocalizationService.Instance.SetLanguage("en");
+
+        const string json = """
+        {
+          "tag_name": "v1.0.1",
+          "name": "Modern Explorer v1.0.1",
+          "html_url": "https://github.com/Skybeat/ModernExplorer/releases/tag/v1.0.1",
+          "body": "Release 1.0.1",
+          "assets": []
+        }
+        """;
+
+        using var http = new HttpClient(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        }));
+
+        var service = new GitHubUpdateService(http);
+        using var vm = new AboutViewModel(service, new Version(1, 0, 1));
+
+        await vm.CheckForUpdateAsync(new Version(1, 0, 1));
+
+        Assert.False(vm.IsUpdateAvailable);
+        Assert.False(vm.ShowUpdateButton);
+        Assert.Equal("1.0.1", vm.LatestVersionText);
+        Assert.Equal(LocalizationService.T("About.UpToDate"), vm.StatusMessage);
+    }
+
+    [Fact]
+    public void FileItemViewModel_And_SettingsViewModel_UpdateOnLanguageSwitch()
+    {
+        LocalizationService.Instance.SetLanguage("de");
+
+        var folderItem = new FileItemViewModel(new FileEntry(
+            Name: "TestFolder",
+            FullPath: @"C:\TestFolder",
+            IsDirectory: true,
+            Size: 0,
+            LastWriteTime: DateTime.Now,
+            Attributes: FileAttributes.Directory));
+
+        var fileWithoutExt = new FileItemViewModel(new FileEntry(
+            Name: "Makefile",
+            FullPath: @"C:\Makefile",
+            IsDirectory: false,
+            Size: 128,
+            LastWriteTime: DateTime.Now,
+            Attributes: FileAttributes.Normal));
+
+        Assert.Equal("<Ordner>", folderItem.SizeText);
+        Assert.Equal("Ordner", folderItem.TypeText);
+        Assert.Equal("Datei", fileWithoutExt.TypeText);
+
+        var tempSettingsPath = Path.Combine(Path.GetTempPath(), $"modernexplorer-settings-{Guid.NewGuid():N}.json");
+        try
+        {
+            var settingsVm = new SettingsViewModel(new SettingsStore(tempSettingsPath));
+            settingsVm.UpdateMainWindowBounds(1480, 900, isMaximized: true);
+            settingsVm.Language = "de";
+            Assert.Contains("Dunkel", settingsVm.ThemeDisplayName);
+            Assert.Contains("Maximiert", settingsVm.MainWindowBoundsSummary);
+
+            // Switch to English
+            settingsVm.Language = "en";
+            folderItem.RefreshLocalization();
+            fileWithoutExt.RefreshLocalization();
+
+            Assert.Equal("<Folder>", folderItem.SizeText);
+            Assert.Equal("Folder", folderItem.TypeText);
+            Assert.Equal("File", fileWithoutExt.TypeText);
+            Assert.Contains("Dark", settingsVm.ThemeDisplayName);
+            Assert.Contains("Maximized", settingsVm.MainWindowBoundsSummary);
+        }
+        finally
+        {
+            if (File.Exists(tempSettingsPath))
+                File.Delete(tempSettingsPath);
+        }
+    }
+
+    [Theory]
+    [InlineData("de", "Über", "Über Modern Explorer", "Jetzt aktualisieren")]
+    [InlineData("en", "About", "About Modern Explorer", "Update Now")]
+    [InlineData("es", "Acerca de", "Acerca de Modern Explorer", "Actualizar ahora")]
+    [InlineData("fr", "À propos", "À propos de Modern Explorer", "Mettre à jour maintenant")]
+    public void LocalizationService_HasTranslatedAboutAndSettingsKeys(
+        string code,
+        string expectedToolbarAbout,
+        string expectedWindowTitle,
+        string expectedUpdateBtn)
+    {
+        LocalizationService.Instance.SetLanguage(code);
+        Assert.Equal(expectedToolbarAbout, LocalizationService.T("Toolbar.About"));
+        Assert.Equal(expectedWindowTitle, LocalizationService.T("About.WindowTitle"));
+        Assert.Equal(expectedUpdateBtn, LocalizationService.T("About.UpdateNowButton"));
+        Assert.NotEqual("Settings.Nav.Colors.Title", LocalizationService.T("Settings.Nav.Colors.Title"));
+        Assert.NotEqual("Menu.OpenFolder", LocalizationService.T("Menu.OpenFolder"));
+        Assert.NotEqual("Menu.Tab.New", LocalizationService.T("Menu.Tab.New"));
+    }
+}
+

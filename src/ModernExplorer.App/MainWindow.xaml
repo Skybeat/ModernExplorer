@@ -64,9 +64,9 @@
                            TextTrimming="CharacterEllipsis" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Padding="6,0">
-                    <Button x:Name="OperationsTitleButton" Content="Vorgänge" Click="OnToggleOperationsClick" Padding="9,3" FontSize="11.5" />
-                    <Button x:Name="DualToggleTitleButton" Content="1/2 Panels (F12)" Click="OnToggleDualClick" Padding="9,3" FontSize="11.5" />
-                    <Button x:Name="CommandPaletteTitleButton" Content="Command Palette (F10)" Click="OnCommandPaletteClick" Padding="9,3" FontSize="11.5" />
+                    <Button x:Name="OperationsTitleButton" Content="⚙ Vorgänge" Click="OnToggleOperationsClick" Padding="9,3" FontSize="11.5" />
+                    <Button x:Name="DualToggleTitleButton" Content="⇄ Dual / Single (F12)" Click="OnToggleDualClick" Padding="9,3" FontSize="11.5" />
+                    <Button x:Name="CommandPaletteTitleButton" Content="⌘ Palette (F10)" Click="OnCommandPaletteClick" Padding="9,3" FontSize="11.5" />
                     <Button x:Name="SettingsTitleButton"
                             Content="⚙ Einstellungen"
                             ToolTipService.ToolTip="Einstellungen öffnen (Strg+,)"
@@ -74,6 +74,12 @@
                             Padding="9,3"
                             FontSize="11.5" />
                     <Button x:Name="HelpTitleButton" Content="Hilfe (F1)" Click="OnHelpClick" Padding="9,3" FontSize="11.5" />
+                    <Button x:Name="AboutTitleButton"
+                            Content="ℹ Über"
+                            ToolTipService.ToolTip="Über Modern Explorer, GitHub-Repository &amp; Update-Prüfung"
+                            Click="OnAboutClick"
+                            Padding="9,3"
+                            FontSize="11.5" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -194,8 +200,8 @@
                         </ListView>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <Button Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnLeftNewTabClick" Padding="8,2" />
-                            <Button Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnLeftCloseTabClick" Padding="8,2" />
+                            <Button x:Name="LeftNewTabButton" Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnLeftNewTabClick" Padding="8,2" />
+                            <Button x:Name="LeftCloseTabButton" Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnLeftCloseTabClick" Padding="8,2" />
                         </StackPanel>
                     </Grid>
 
@@ -208,17 +214,17 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnLeftBackClick" Padding="8,3" />
-                            <Button Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnLeftForwardClick" Padding="8,3" />
-                            <Button Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnLeftUpClick" Padding="8,3" />
-                            <Button Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnLeftRefreshClick" Padding="8,3" />
+                            <Button x:Name="LeftBackButton" Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnLeftBackClick" Padding="8,3" />
+                            <Button x:Name="LeftForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnLeftForwardClick" Padding="8,3" />
+                            <Button x:Name="LeftUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnLeftUpClick" Padding="8,3" />
+                            <Button x:Name="LeftRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnLeftRefreshClick" Padding="8,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="LeftAddressBox"
                                         Grid.Column="1"
                                         FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}"
                                         Text="{x:Bind ViewModel.Left.ActiveTab.AddressText, Mode=TwoWay}"
-                                        PlaceholderText="Pfad eingeben (z. B. C:\, %TEMP%, shell:Downloads oder >Befehl) …"
+                                        PlaceholderText="Pfad eingeben …"
                                         TextChanged="OnLeftAddressTextChanged"
                                         QuerySubmitted="OnLeftAddressQuerySubmitted" />
 
@@ -226,7 +232,7 @@
                                  Grid.Column="2"
                                  FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}"
                                  Text="{x:Bind ViewModel.Left.ActiveTab.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 PlaceholderText="Filter (Strg+F, z. B. *.md)" />
+                                 PlaceholderText="Filter (Strg+F)" />
                     </Grid>
 
                     <!-- Breadcrumbs Left -->
@@ -516,8 +522,8 @@
                         </ListView>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <Button Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnRightNewTabClick" Padding="8,2" />
-                            <Button Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnRightCloseTabClick" Padding="8,2" />
+                            <Button x:Name="RightNewTabButton" Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnRightNewTabClick" Padding="8,2" />
+                            <Button x:Name="RightCloseTabButton" Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnRightCloseTabClick" Padding="8,2" />
                         </StackPanel>
                     </Grid>
 
@@ -530,10 +536,10 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnRightBackClick" Padding="8,3" />
-                            <Button Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnRightForwardClick" Padding="8,3" />
-                            <Button Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnRightUpClick" Padding="8,3" />
-                            <Button Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnRightRefreshClick" Padding="8,3" />
+                            <Button x:Name="RightBackButton" Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnRightBackClick" Padding="8,3" />
+                            <Button x:Name="RightForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnRightForwardClick" Padding="8,3" />
+                            <Button x:Name="RightUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnRightUpClick" Padding="8,3" />
+                            <Button x:Name="RightRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnRightRefreshClick" Padding="8,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="RightAddressBox"
@@ -738,8 +744,9 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <Grid>
-                    <TextBlock Text="Hintergrund-Vorgänge" FontWeight="SemiBold" FontSize="12" />
-                    <Button Content="Ausblenden"
+                    <TextBlock x:Name="OperationsPanelTitleText" Text="Hintergrund-Vorgänge" FontWeight="SemiBold" FontSize="12" />
+                    <Button x:Name="OperationsHideButton"
+                            Content="Ausblenden"
                             HorizontalAlignment="Right"
                             Click="OnToggleOperationsClick"
                             Padding="6,1"
@@ -757,7 +764,7 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{x:Bind Title}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="0" Text="{x:Bind Title, Mode=OneWay}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                 <ProgressBar Grid.Column="1" Value="{x:Bind ProgressPercent, Mode=OneWay}" Maximum="100" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{x:Bind DetailText, Mode=OneWay}" FontSize="11.5" Opacity="0.8" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4">
@@ -766,7 +773,7 @@
                                             Visibility="{x:Bind CanPauseOrResume, Mode=OneWay}"
                                             Padding="6,2"
                                             FontSize="11" />
-                                    <Button Content="Abbrechen"
+                                    <Button Content="{x:Bind CancelLabel, Mode=OneWay}"
                                             Command="{x:Bind CancelCommand}"
                                             Visibility="{x:Bind CanCancel, Mode=OneWay}"
                                             Padding="6,2"
@@ -811,8 +818,8 @@
                 <Button Grid.Column="6" HorizontalAlignment="Stretch" Click="OnF7Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" FontWeight="SemiBold" Content="{x:Bind FormatFKey('F7', ViewModel.F7Label), Mode=OneWay}" />
                 <Button Grid.Column="7" HorizontalAlignment="Stretch" Click="OnF8Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F8', ViewModel.F8Label), Mode=OneWay}" />
                 <Button Grid.Column="8" HorizontalAlignment="Stretch" Click="OnF9Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F9', ViewModel.F9Label), Mode=OneWay}" />
-                <Button Grid.Column="9" HorizontalAlignment="Stretch" Click="OnF10Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="F10 Palette" />
-                <Button Grid.Column="10" HorizontalAlignment="Stretch" Click="OnF11Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="F11 Fullscreen" />
+                <Button Grid.Column="9" HorizontalAlignment="Stretch" Click="OnF10Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F10', ViewModel.F10Label), Mode=OneWay}" />
+                <Button Grid.Column="10" HorizontalAlignment="Stretch" Click="OnF11Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F11', ViewModel.F11Label), Mode=OneWay}" />
                 <Button Grid.Column="11" HorizontalAlignment="Stretch" Click="OnF12Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F12', ViewModel.F12Label), Mode=OneWay}" />
             </Grid>
         </Border>

@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Modern Explorer (Windows x64, ARM64, x86)
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 #ifndef TargetRid
   #define TargetRid "win-x64"
@@ -66,3 +66,4 @@ Name: "{autodesktop}\Modern Explorer"; Filename: "{app}\ModernExplorer.exe"; Ico
 
 [Run]
 Filename: "{app}\ModernExplorer.exe"; Description: "{cm:LaunchProgram,Modern Explorer}"; Flags: nowait postinstall skipifsilent
+

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Session;
 
 namespace ModernExplorer.Core.ViewModels;
@@ -37,6 +38,13 @@ public sealed partial class PanelViewModel : ObservableObject, IDisposable
                 StateChanged?.Invoke(this, EventArgs.Empty);
         };
         RefreshDrives();
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        if (!_isDisposing)
+            RefreshDrives();
     }
 
     public void RefreshDrives()
@@ -307,6 +315,7 @@ public sealed partial class PanelViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _isDisposing = true;
+        LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
         foreach (var t in Tabs)
         {
             UnwireTab(t);

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using ModernExplorer.Core.Localization;
 
 namespace ModernExplorer.Core.ViewModels;
 
@@ -38,13 +39,13 @@ public sealed partial class DriveItemViewModel : ObservableObject
                 {
                     var label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "" : d.VolumeLabel.Trim();
                     var display = string.IsNullOrEmpty(label) ? code : $"{code} {label}";
-                    var tip = $"{root}" + (string.IsNullOrEmpty(label) ? "" : $" ({label})") +
-                              $" · {Format.Size(d.AvailableFreeSpace)} frei von {Format.Size(d.TotalSize)}";
+                    var freeInfo = LocalizationService.Format("Drive.FreeOfTotal", Format.Size(d.AvailableFreeSpace), Format.Size(d.TotalSize));
+                    var tip = $"{root}" + (string.IsNullOrEmpty(label) ? "" : $" ({label})") + $" · {freeInfo}";
                     list.Add(new DriveItemViewModel(root, code, label, d.DriveType, display, tip));
                 }
                 else
                 {
-                    list.Add(new DriveItemViewModel(root, code, "", d.DriveType, code, $"{root} (Nicht bereit)"));
+                    list.Add(new DriveItemViewModel(root, code, "", d.DriveType, code, $"{root} ({LocalizationService.T("Drive.NotReady")})"));
                 }
             }
             catch

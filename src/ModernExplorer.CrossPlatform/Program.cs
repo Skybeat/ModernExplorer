@@ -245,6 +245,8 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
             return Task.CompletedTask;
         }));
         actionsStack.Children.Add(MakeToolbarBtn("Toolbar.Settings", async () => await ShowSettingsDialogAsync()));
+        actionsStack.Children.Add(MakeToolbarBtn("Fn.F1", () => { ShowHelp(); return Task.CompletedTask; }));
+        actionsStack.Children.Add(MakeToolbarBtn("Toolbar.About", async () => await ShowAboutDialogAsync()));
 
         Grid.SetColumn(brandStack, 0);
         Grid.SetColumn(actionsStack, 2);
@@ -364,9 +366,10 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
 
         var addrBox = new TextBox
         {
-            Watermark = "Path...",
+            Watermark = LocalizationService.T("Panel.AddressPlaceholder"),
             Margin = new Thickness(0, 0, 6, 0),
         };
+        LocalizationService.Instance.LanguageChanged += (_, _) => addrBox.Watermark = LocalizationService.T("Panel.AddressPlaceholder");
         addrBox.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter && panel.ActiveTab is { } t && !string.IsNullOrWhiteSpace(addrBox.Text))
@@ -378,8 +381,9 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
 
         var filterBox = new TextBox
         {
-            Watermark = LocalizationService.T("Panel.Filter.Placeholder"),
+            Watermark = LocalizationService.T("Panel.FilterPlaceholder"),
         };
+        LocalizationService.Instance.LanguageChanged += (_, _) => filterBox.Watermark = LocalizationService.T("Panel.FilterPlaceholder");
         filterBox.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.TextProperty && panel.ActiveTab is { } t)
@@ -424,7 +428,7 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
                 };
                 var extTxt = new TextBlock
                 {
-                    Text = item.TypeText,
+                    [!TextBlock.TextProperty] = new Binding(nameof(FileItemViewModel.TypeText)),
                     Foreground = SolidColorBrush.Parse("#8B95A7"),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
@@ -748,6 +752,114 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
         };
         stack.Children.Add(checkNowBtn);
 
+        win.Content = stack;
+        await win.ShowDialog(this);
+    }
+
+    private async Task ShowAboutDialogAsync()
+    {
+        var aboutVm = new AboutViewModel(_updateService);
+        var win = new Window
+        {
+            Title = LocalizationService.T("About.WindowTitle"),
+            Width = 560,
+            Height = 460,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = SolidColorBrush.Parse("#141922"),
+            DataContext = aboutVm,
+        };
+
+        var stack = new StackPanel { Margin = new Thickness(24), Spacing = 14 };
+        stack.Children.Add(new TextBlock
+        {
+            Text = "ModernExplorer",
+            FontWeight = FontWeight.Bold,
+            FontSize = 20,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.T("About.Subtitle"),
+            Opacity = 0.75,
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.T("About.Description"),
+            Opacity = 0.9,
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        var repoBtn = new Button
+        {
+            Content = $"{aboutVm.RepositoryLabel}: {aboutVm.RepositoryUrl}",
+            Padding = new Thickness(10, 6),
+        };
+        repoBtn.Click += (_, _) => aboutVm.OpenRepositoryInBrowser();
+        stack.Children.Add(repoBtn);
+
+        var installedRow = new TextBlock
+        {
+            Text = $"{aboutVm.InstalledVersionLabel} {aboutVm.InstalledVersion}",
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 13,
+        };
+        stack.Children.Add(installedRow);
+
+        var latestRow = new TextBlock
+        {
+            [!TextBlock.TextProperty] = new Binding(nameof(AboutViewModel.LatestVersionText)),
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 13,
+        };
+        stack.Children.Add(latestRow);
+
+        var statusRow = new TextBlock
+        {
+            [!TextBlock.TextProperty] = new Binding(nameof(AboutViewModel.StatusMessage)),
+            Opacity = 0.85,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        stack.Children.Add(statusRow);
+
+        var updateBtn = new Button
+        {
+            Content = aboutVm.UpdateNowButtonText,
+            [!Visual.IsVisibleProperty] = new Binding(nameof(AboutViewModel.ShowUpdateButton)),
+            Padding = new Thickness(14, 7),
+        };
+        updateBtn.Click += async (_, _) =>
+        {
+            bool shouldExit = await aboutVm.InstallFoundUpdateAsync();
+            if (shouldExit)
+            {
+                win.Close();
+                Close();
+            }
+        };
+        stack.Children.Add(updateBtn);
+
+        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var checkAgainBtn = new Button
+        {
+            Content = aboutVm.CheckAgainButtonText,
+            Padding = new Thickness(12, 6),
+        };
+        checkAgainBtn.Click += async (_, _) => await aboutVm.CheckForUpdateAsync();
+        var closeBtn = new Button
+        {
+            Content = aboutVm.CloseButtonText,
+            Padding = new Thickness(12, 6),
+        };
+        closeBtn.Click += (_, _) => win.Close();
+        btnRow.Children.Add(checkAgainBtn);
+        btnRow.Children.Add(closeBtn);
+        stack.Children.Add(btnRow);
+
+        win.Opened += async (_, _) => await aboutVm.CheckForUpdateAsync();
+        win.Closed += (_, _) => aboutVm.Dispose();
         win.Content = stack;
         await win.ShowDialog(this);
     }

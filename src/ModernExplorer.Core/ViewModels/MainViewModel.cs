@@ -57,7 +57,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private bool _isSettingsOpen;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(F1Label), nameof(F2Label), nameof(F3Label), nameof(F4Label), nameof(F5Label), nameof(F6Label), nameof(F7Label), nameof(F8Label), nameof(F9Label), nameof(F12Label))]
+    [NotifyPropertyChangedFor(nameof(F1Label), nameof(F2Label), nameof(F3Label), nameof(F4Label), nameof(F5Label), nameof(F6Label), nameof(F7Label), nameof(F8Label), nameof(F9Label), nameof(F10Label), nameof(F11Label), nameof(F12Label))]
     private bool _isShiftPressed;
 
     public PanelViewModel ActivePanel => ActiveSide == PanelSide.Left ? Left : Right;
@@ -72,7 +72,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public string F7Label => IsShiftPressed ? LocalizationService.T("Toolbar.NewFolder") : LocalizationService.T("Toolbar.NewFile");
     public string F8Label => IsShiftPressed ? $"{LocalizationService.T("Fn.F8")}!" : LocalizationService.T("Fn.F8");
     public string F9Label => IsShiftPressed ? $"Admin {LocalizationService.T("Fn.F9")}" : LocalizationService.T("Fn.F9");
-    public string F12Label => IsShiftPressed ? "Swap" : "1/2 Panels";
+    public string F10Label => LocalizationService.T("Fn.F10");
+    public string F11Label => LocalizationService.T("Fn.F11");
+    public string F12Label => IsShiftPressed ? LocalizationService.T("Fn.F12.Swap") : LocalizationService.T("Fn.F12");
 
     public MainViewModel(
         KeyBindingStore keyBindings,
@@ -136,6 +138,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             OnPropertyChanged(nameof(F7Label));
             OnPropertyChanged(nameof(F8Label));
             OnPropertyChanged(nameof(F9Label));
+            OnPropertyChanged(nameof(F10Label));
+            OnPropertyChanged(nameof(F11Label));
             OnPropertyChanged(nameof(F12Label));
         };
 

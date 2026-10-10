@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
     private readonly List<Window> _childWindows = new();
     private FileSystemWatcher? _keyBindingWatcher;
     private SettingsWindow? _settingsWindow;
+    private AboutWindow? _aboutWindow;
     private bool _isWindowReady;
     private string _quickSearchBuffer = "";
     private DateTime _lastQuickSearchKeyUtc;
@@ -142,6 +143,7 @@ public sealed partial class MainWindow : Window
         {
             SaveCurrentMainWindowBounds();
             CloseSettingsWindow();
+            CloseAboutWindow();
             CloseChildWindows();
             ViewModel.SaveSessionImmediately();
             _keyBindingWatcher?.Dispose();
@@ -154,11 +156,26 @@ public sealed partial class MainWindow : Window
 
     public string FormatFKey(string key, string label) => $"{key} {label}";
 
-    public string FormatActiveTheme(string themeName) => $"Theme: {themeName}";
+    public string FormatActiveTheme(string themeName) => LocalizationService.Format("Settings.ActiveThemePrefix", themeName);
 
     public void ApplyLocalization()
     {
         var loc = LocalizationService.Instance;
+        if (OperationsTitleButton is not null)
+        {
+            OperationsTitleButton.Content = loc["Toolbar.Operations"];
+            ToolTipService.SetToolTip(OperationsTitleButton, loc["Toolbar.Operations.Tip"]);
+        }
+        if (DualToggleTitleButton is not null)
+        {
+            DualToggleTitleButton.Content = loc["Toolbar.DualToggle"];
+            ToolTipService.SetToolTip(DualToggleTitleButton, loc["Toolbar.DualToggle.Tip"]);
+        }
+        if (CommandPaletteTitleButton is not null)
+        {
+            CommandPaletteTitleButton.Content = loc["Toolbar.Palette"];
+            ToolTipService.SetToolTip(CommandPaletteTitleButton, loc["Toolbar.Palette.Tip"]);
+        }
         if (SettingsTitleButton is not null)
         {
             SettingsTitleButton.Content = $"⚙ {loc["Toolbar.Settings"]}";
@@ -169,6 +186,30 @@ public sealed partial class MainWindow : Window
             HelpTitleButton.Content = $"{loc["Fn.F1"]} (F1)";
             ToolTipService.SetToolTip(HelpTitleButton, loc["Toolbar.Shortcuts.Tip"]);
         }
+        if (AboutTitleButton is not null)
+        {
+            AboutTitleButton.Content = loc["About.Button"];
+            ToolTipService.SetToolTip(AboutTitleButton, loc["Toolbar.About.Tip"]);
+        }
+
+        if (LeftNewTabButton is not null) ToolTipService.SetToolTip(LeftNewTabButton, loc["Panel.NewTab.Tip"]);
+        if (LeftCloseTabButton is not null) ToolTipService.SetToolTip(LeftCloseTabButton, loc["Panel.CloseTab.Tip"]);
+        if (LeftBackButton is not null) ToolTipService.SetToolTip(LeftBackButton, loc["Panel.Back.Tip"]);
+        if (LeftForwardButton is not null) ToolTipService.SetToolTip(LeftForwardButton, loc["Panel.Forward.Tip"]);
+        if (LeftUpButton is not null) ToolTipService.SetToolTip(LeftUpButton, loc["Panel.Up.Tip"]);
+        if (LeftRefreshButton is not null) ToolTipService.SetToolTip(LeftRefreshButton, loc["Panel.Refresh.Tip"]);
+        if (LeftAddressBox is not null) LeftAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
+        if (LeftFilterBox is not null) LeftFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
+
+        if (RightNewTabButton is not null) ToolTipService.SetToolTip(RightNewTabButton, loc["Panel.NewTab.Tip"]);
+        if (RightCloseTabButton is not null) ToolTipService.SetToolTip(RightCloseTabButton, loc["Panel.CloseTab.Tip"]);
+        if (RightBackButton is not null) ToolTipService.SetToolTip(RightBackButton, loc["Panel.Back.Tip"]);
+        if (RightForwardButton is not null) ToolTipService.SetToolTip(RightForwardButton, loc["Panel.Forward.Tip"]);
+        if (RightUpButton is not null) ToolTipService.SetToolTip(RightUpButton, loc["Panel.Up.Tip"]);
+        if (RightRefreshButton is not null) ToolTipService.SetToolTip(RightRefreshButton, loc["Panel.Refresh.Tip"]);
+        if (RightAddressBox is not null) RightAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
+        if (RightFilterBox is not null) RightFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
+
         if (LeftColNameText is not null) LeftColNameText.Text = loc["Col.Name"];
         if (LeftColSizeText is not null) LeftColSizeText.Text = loc["Col.Size"];
         if (LeftColModifiedText is not null) LeftColModifiedText.Text = loc["Col.Modified"];
@@ -179,8 +220,8 @@ public sealed partial class MainWindow : Window
         if (RightColModifiedText is not null) RightColModifiedText.Text = loc["Col.Modified"];
         if (RightColTypeText is not null) RightColTypeText.Text = loc["Col.Extension"];
 
-        if (LeftFilterBox is not null) LeftFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
-        if (RightFilterBox is not null) RightFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
+        if (OperationsPanelTitleText is not null) OperationsPanelTitleText.Text = loc["Ops.Title"];
+        if (OperationsHideButton is not null) OperationsHideButton.Content = loc["Ops.Hide"];
     }
 
     public async Task CheckForGitHubUpdatesAsync(bool manualTrigger = false)
@@ -411,6 +452,30 @@ public sealed partial class MainWindow : Window
         try { win.Close(); } catch { }
     }
 
+    private void OpenAboutWindow()
+    {
+        if (_aboutWindow is not null)
+        {
+            _aboutWindow.Activate();
+            return;
+        }
+
+        _aboutWindow = new AboutWindow(this, _updateService);
+        _aboutWindow.Closed += (_, _) =>
+        {
+            _aboutWindow = null;
+        };
+        _aboutWindow.Activate();
+    }
+
+    private void CloseAboutWindow()
+    {
+        if (_aboutWindow is null) return;
+        var win = _aboutWindow;
+        _aboutWindow = null;
+        try { win.Close(); } catch { }
+    }
+
     private void UpdateDualLayout()
     {
         if (ViewModel.IsDualMode)
@@ -585,7 +650,9 @@ public sealed partial class MainWindow : Window
             _keyBindingWatcher.Changed += (_, _) => dispatcher.Post(() =>
             {
                 store.Reload(_paths.KeyBindingsFile);
-                ViewModel.StatusNotification = "Tastenbelegung (keybindings.json) neu geladen";
+                ViewModel.StatusNotification = LocalizationService.Instance.EffectiveLanguage == "de"
+                    ? "Tastenbelegung (keybindings.json) neu geladen"
+                    : "Key bindings (keybindings.json) reloaded";
             });
         }
         catch { }
@@ -602,6 +669,7 @@ public sealed partial class MainWindow : Window
     private void OnCommandPaletteClick(object sender, RoutedEventArgs e) => ExecuteCommand("palette.open");
     private void OnSettingsClick(object sender, RoutedEventArgs e) => OpenSettingsWindow();
     private void OnHelpClick(object sender, RoutedEventArgs e) => ExecuteCommand("app.help");
+    private void OnAboutClick(object sender, RoutedEventArgs e) => OpenAboutWindow();
 
     private void OnF1Click(object sender, RoutedEventArgs e) => ExecuteCommand("app.help");
     private void OnF2Click(object sender, RoutedEventArgs e) => ExecuteCommand("file.rename");
@@ -831,15 +899,15 @@ public sealed partial class MainWindow : Window
         var openItem = new MenuFlyoutItem
         {
             Text = item.IsParentLink
-                ? "Übergeordneten Ordner öffnen (Backspace)"
-                : (item.IsDirectory ? "Ordner öffnen (Enter)" : "Öffnen (Enter)")
+                ? LocalizationService.T("Menu.OpenParent")
+                : (item.IsDirectory ? LocalizationService.T("Menu.OpenFolder") : LocalizationService.T("Menu.OpenFile"))
         };
         openItem.Click += async (_, _) => { await ViewModel.OpenFocusedEntryAsync(); Bindings.Update(); };
         menu.Items.Add(openItem);
 
         if (item.IsDirectory && !item.IsParentLink)
         {
-            var openNewTab = new MenuFlyoutItem { Text = "In neuem Tab öffnen" };
+            var openNewTab = new MenuFlyoutItem { Text = LocalizationService.T("Menu.OpenInNewTab") };
             openNewTab.Click += async (_, _) => { await panel.CreateTabAsync(item.FullPath); Bindings.Update(); };
             menu.Items.Add(openNewTab);
         }
@@ -850,36 +918,36 @@ public sealed partial class MainWindow : Window
 
             if (!item.IsDirectory)
             {
-                var viewItem = new MenuFlyoutItem { Text = "Schnellansicht (F3)" };
+                var viewItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.QuickView") };
                 viewItem.Click += (_, _) => ExecuteCommand("file.view");
                 menu.Items.Add(viewItem);
 
-                var editItem = new MenuFlyoutItem { Text = "Bearbeiten (F4)" };
+                var editItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Edit") };
                 editItem.Click += (_, _) => ExecuteCommand("file.edit");
                 menu.Items.Add(editItem);
 
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            var copyItem = new MenuFlyoutItem { Text = "Kopieren ins Gegenpanel (F5)" };
+            var copyItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.CopyToOpposite") };
             copyItem.Click += async (_, _) => await ViewModel.CopyOrMoveAsync(OpKind.Copy, false);
             menu.Items.Add(copyItem);
 
-            var moveItem = new MenuFlyoutItem { Text = "Verschieben ins Gegenpanel (F6)" };
+            var moveItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.MoveToOpposite") };
             moveItem.Click += async (_, _) => await ViewModel.CopyOrMoveAsync(OpKind.Move, false);
             menu.Items.Add(moveItem);
 
-            var renameItem = new MenuFlyoutItem { Text = "Umbenennen (F2)" };
+            var renameItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Rename") };
             renameItem.Click += async (_, _) => await ViewModel.RenameFocusedAsync();
             menu.Items.Add(renameItem);
 
-            var deleteItem = new MenuFlyoutItem { Text = "Löschen (F8)" };
+            var deleteItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Delete") };
             deleteItem.Click += async (_, _) => await ViewModel.DeleteTargetsAsync(recycle: true);
             menu.Items.Add(deleteItem);
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            var copyPathItem = new MenuFlyoutItem { Text = "Pfad kopieren (Strg+Shift+C)" };
+            var copyPathItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.CopyPath") };
             copyPathItem.Click += (_, _) => ExecuteCommand("clip.copyPaths");
             menu.Items.Add(copyPathItem);
         }
@@ -1086,29 +1154,29 @@ public sealed partial class MainWindow : Window
 
         var menu = new MenuFlyout();
 
-        var newItem = new MenuFlyoutItem { Text = "Neuer Tab (Strg+T)" };
+        var newItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Tab.New") };
         newItem.Click += async (_, _) => { await panel.CreateTabAsync(); Bindings.Update(); };
         menu.Items.Add(newItem);
 
-        var dupItem = new MenuFlyoutItem { Text = "Tab duplizieren (Strg+Shift+D)" };
+        var dupItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Tab.Duplicate") };
         dupItem.Click += async (_, _) => { await panel.DuplicateActiveTabAsync(); Bindings.Update(); };
         menu.Items.Add(dupItem);
 
-        var pinItem = new MenuFlyoutItem { Text = tab.IsPinned ? "Tab lösen (Strg+K Strg+P)" : "Tab anheften (Strg+K Strg+P)" };
+        var pinItem = new MenuFlyoutItem { Text = tab.IsPinned ? LocalizationService.T("Menu.Tab.Unpin") : LocalizationService.T("Menu.Tab.Pin") };
         pinItem.Click += (_, _) => { panel.TogglePinActiveTab(); Bindings.Update(); };
         menu.Items.Add(pinItem);
 
-        var lockItem = new MenuFlyoutItem { Text = tab.IsLocked ? "Tab entsperren (Strg+K Strg+L)" : "Tab sperren (Strg+K Strg+L)" };
+        var lockItem = new MenuFlyoutItem { Text = tab.IsLocked ? LocalizationService.T("Menu.Tab.Unlock") : LocalizationService.T("Menu.Tab.Lock") };
         lockItem.Click += (_, _) => { panel.ToggleLockActiveTab(); Bindings.Update(); };
         menu.Items.Add(lockItem);
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var moveOppItem = new MenuFlyoutItem { Text = "Ins Gegenpanel verschieben (Strg+Shift+←/→)" };
+        var moveOppItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Tab.MoveOpposite") };
         moveOppItem.Click += async (_, _) => { await ViewModel.MoveActiveTabToOppositePanelAsync(tab); Bindings.Update(); };
         menu.Items.Add(moveOppItem);
 
-        var tearOutItem = new MenuFlyoutItem { Text = "In neues Fenster herauslösen (Strg+Shift+N)" };
+        var tearOutItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Tab.TearOut") };
         tearOutItem.Click += (_, _) =>
         {
             var state = panel.DetachTab(tab);
@@ -1119,7 +1187,7 @@ public sealed partial class MainWindow : Window
 
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var closeItem = new MenuFlyoutItem { Text = "Tab schließen (Strg+W)", IsEnabled = !tab.IsPinned };
+        var closeItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Tab.Close"), IsEnabled = !tab.IsPinned };
         closeItem.Click += async (_, _) => { await panel.CloseTabAsync(tab); Bindings.Update(); };
         menu.Items.Add(closeItem);
 
