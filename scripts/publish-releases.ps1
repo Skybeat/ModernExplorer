@@ -7,7 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$credOutput = @("protocol=https", "host=github.com", "") | git credential fill
+$credOutput = "protocol=https`nhost=github.com`n`n" | git credential fill
 $tokenLine = ($credOutput | Where-Object { $_ -match '^password=' })
 if (-not $tokenLine) { throw "Could not retrieve GitHub token from git credential manager." }
 $token = $tokenLine.Substring(9).Trim()
