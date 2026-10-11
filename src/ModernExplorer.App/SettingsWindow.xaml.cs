@@ -681,7 +681,7 @@ public sealed partial class SettingsWindow : Window
         var resetDefaultBtn = new Button
         {
             Content = $"{LocalizationService.T("Settings.Colors.PickerResetDefault")} ({defaultHex})",
-            Padding = new Thickness(10, 5),
+            Padding = new Thickness(10, 5, 10, 5),
             FontSize = 12,
         };
         resetDefaultBtn.Click += (_, _) =>
@@ -706,7 +706,7 @@ public sealed partial class SettingsWindow : Window
         var doneBtn = new Button
         {
             Content = LocalizationService.T("Settings.Colors.PickerDone"),
-            Padding = new Thickness(14, 5),
+            Padding = new Thickness(14, 5, 14, 5),
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Right,
         };

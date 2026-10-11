@@ -138,6 +138,7 @@ if (Test-Path "src\ModernExplorer.App\bin\x64\Release") { Remove-Item "src\Moder
 if (Test-Path "src\ModernExplorer.App\bin\ARM64\Release") { Remove-Item "src\ModernExplorer.App\bin\ARM64\Release" -Recurse -Force }
 
 dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
+if ($LASTEXITCODE -ne 0) { throw "win-x64 build failed with exit code $LASTEXITCODE" }
 $x64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64").Path
 Remove-Item "$x64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
 $vcDlls64 = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
@@ -151,6 +152,7 @@ if ($iscc) {
 }
 
 dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
+if ($LASTEXITCODE -ne 0) { throw "win-arm64 build failed with exit code $LASTEXITCODE" }
 $arm64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64").Path
 Remove-Item "$arm64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path "$arm64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-arm64.zip" -Force
