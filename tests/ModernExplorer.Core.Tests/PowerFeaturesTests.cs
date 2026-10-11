@@ -339,7 +339,7 @@ public sealed class PowerFeaturesTests : IDisposable
         await File.WriteAllBytesAsync(csFile, new byte[10_000]);
 
         var progressUpdates = new List<StorageScanProgress>();
-        var progress = new Progress<StorageScanProgress>(p => progressUpdates.Add(p));
+        var progress = new SynchronousProgress<StorageScanProgress>(p => progressUpdates.Add(p));
 
         var tree = await StorageTreemapService.ScanDirectoryTreeAsync(root, progress);
 

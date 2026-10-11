@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.1.0)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.4.0)'
         required: true
-        default: 'v1.1.0'
+        default: 'v1.4.0'
 
 permissions:
   contents: write
@@ -189,8 +189,8 @@ jobs:
             ## What's New in Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Changelog
-            - **Windows Explorer View Modes (8 Modes):** Added full support for switching the explorer view mode per tab, matching all 8 classic Windows Explorer view modes: **Extra large icons** (`Ctrl+Shift+1`), **Large icons** (`Ctrl+Shift+2`), **Medium icons** (`Ctrl+Shift+3`), **Small icons** (`Ctrl+Shift+4`), **List** (`Ctrl+Shift+5`), **Details** (`Ctrl+Shift+6`), **Tiles** (`Ctrl+Shift+7`), and **Content** (`Ctrl+Shift+8`). Accessible via the toolbar **View** button in each panel, the right-click context menu, keyboard shortcuts, and the Command Palette, with per-tab session persistence and a configurable default view mode for new tabs in Settings.
-            - **Semantic Versioning (SemVer 2.0.0) Release Pipeline:** Updated the release automation and version management to follow strict Semantic Versioning (`MAJOR.MINOR.PATCH`), automatically determining `Major`, `Minor`, or `Patch` version increments and synchronizing all project, installer, and metadata version numbers.
+            - **Graphical Storage Analyzer & Interactive Squarified Treemap (WinDirStat / WizTree Style):** Integrated a multi-panel disk space analyzer (`🗺 Treemap` button in the toolbar, `Ctrl+Shift+W`, and Command Palette `tools.storageTreemap`) with an interactive 2D Squarified Treemap, 7 color-coded file categories, double-click drill-down navigation (`⬆ Up` / `🏠 Root`), top space-consumer directory hierarchy, file extension statistics with live tile highlighting, and direct explorer actions (Reveal in Explorer Tab, Open as New Tab, Delete with instant in-place treemap recalculation).
+            - **Reliable Foreground Activation after Auto-Update Restart:** Fixed an issue where `ModernExplorer.exe` could start behind other windows after an automatic self-update by combining `AllowSetForegroundWindow`, `AttachThreadInput`, `SetForegroundWindow`, `SwitchToThisWindow`, and `OverlappedPresenter` activation.
           generate_release_notes: true
           files: |
             release-assets/*.zip
