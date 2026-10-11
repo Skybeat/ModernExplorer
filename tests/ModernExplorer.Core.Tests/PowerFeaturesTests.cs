@@ -468,4 +468,30 @@ public sealed class PowerFeaturesTests : IDisposable
             loc.SetLanguage(prevLang);
         }
     }
+
+    [Fact]
+    public void SettingsViewModel_ColorPickerTargets_SupportAllTenColorSettings_RgbUpdate_And_ResetToDefault()
+    {
+        var vm = new SettingsViewModel();
+        var allTargets = Enum.GetValues<ColorSettingTarget>();
+        Assert.Equal(10, allTargets.Length);
+
+        foreach (var target in allTargets)
+        {
+            string defaultHex = SettingsViewModel.GetDefaultColorSettingHex(target);
+            Assert.Equal(defaultHex, vm.GetColorSettingHex(target));
+
+            vm.SetColorSettingRgb(target, 0x1A, 0xBC, 0x9C);
+            Assert.Equal("#1ABC9C", vm.GetColorSettingHex(target));
+
+            Assert.True(AppSettings.TryParseHexRgb(vm.GetColorSettingHex(target), out byte r, out byte g, out byte b));
+            Assert.Equal((byte)0x1A, r);
+            Assert.Equal((byte)0xBC, g);
+            Assert.Equal((byte)0x9C, b);
+
+            vm.ResetColorSettingToDefault(target);
+            Assert.Equal(defaultHex, vm.GetColorSettingHex(target));
+        }
+    }
 }
+

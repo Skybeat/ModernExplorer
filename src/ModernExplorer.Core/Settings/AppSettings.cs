@@ -331,4 +331,51 @@ public sealed class AppSettings
 
         return "#" + hex.ToUpperInvariant();
     }
+
+    public static string FormatHexRgb(byte r, byte g, byte b) =>
+        $"#{r:X2}{g:X2}{b:X2}";
+
+    public static bool TryParseHexRgb(string? input, out byte r, out byte g, out byte b, string fallback = DefaultSelectionBorderColor)
+    {
+        var normalized = NormalizeHexColor(input, fallback);
+        var hex = normalized.TrimStart('#');
+        if (hex.Length == 6 &&
+            byte.TryParse(hex[..2], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out r) &&
+            byte.TryParse(hex[2..4], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out g) &&
+            byte.TryParse(hex[4..6], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out b))
+        {
+            return true;
+        }
+
+        if (hex.Length == 8 &&
+            byte.TryParse(hex[2..4], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out r) &&
+            byte.TryParse(hex[4..6], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out g) &&
+            byte.TryParse(hex[6..8], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out b))
+        {
+            return true;
+        }
+
+        r = 255;
+        g = 255;
+        b = 255;
+        return false;
+    }
 }
+
+/// <summary>
+/// Identifies each customizable color setting in ModernExplorer for the interactive ColorPicker.
+/// </summary>
+public enum ColorSettingTarget
+{
+    ActivePanelBorder,
+    SelectionBorder,
+    MarkedItemText,
+    TreemapVideoMedia,
+    TreemapArchiveImage,
+    TreemapVirtualDiskSystem,
+    TreemapCodeDocument,
+    TreemapPictureGraphic,
+    TreemapBinaryExecutable,
+    TreemapOtherTemp,
+}
+

@@ -488,6 +488,11 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["Settings.Colors.Treemap.CatBin"] = "⚙️ Programme & Bibliotheken (.exe, .dll, .msi, .pdb …)",
             ["Settings.Colors.Treemap.CatOther"] = "📄 Sonstige & Temporäre Dateien",
             ["Settings.Colors.Treemap.ResetButton"] = "Treemap-Farben auf Standardwerte zurücksetzen",
+            ["Settings.Colors.PickerButton"] = "🎨 Farbpicker",
+            ["Settings.Colors.PickerTooltip"] = "Interaktiven Farbpicker öffnen, um eine beliebige Farbe auszuwählen",
+            ["Settings.Colors.PickerDialogTitle"] = "Farbpicker — {0}",
+            ["Settings.Colors.PickerResetDefault"] = "↺ Standardfarbe",
+            ["Settings.Colors.PickerDone"] = "✓ Fertig",
             ["Notify.TreemapColorsReset"] = "Treemap-Kategoriefarben auf Standardwerte zurückgesetzt",
             // Settings Category 5: Global & Child Window Font Sizes
             ["Settings.Fonts.GlobalCardTitle"] = "Globale Schriftgröße (Alle Fenster & Dialoge gemeinsam)",
@@ -1087,6 +1092,11 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["Settings.Colors.Treemap.CatBin"] = "⚙️ Programs & Libraries (.exe, .dll, .msi, .pdb …)",
             ["Settings.Colors.Treemap.CatOther"] = "📄 Other & Temporary Files",
             ["Settings.Colors.Treemap.ResetButton"] = "Reset Treemap colors to default values",
+            ["Settings.Colors.PickerButton"] = "🎨 Color Picker",
+            ["Settings.Colors.PickerTooltip"] = "Open interactive color picker to choose any custom color",
+            ["Settings.Colors.PickerDialogTitle"] = "Color Picker — {0}",
+            ["Settings.Colors.PickerResetDefault"] = "↺ Default Color",
+            ["Settings.Colors.PickerDone"] = "✓ Done",
             ["Notify.TreemapColorsReset"] = "Treemap category colors reset to defaults",
             // Settings Category 5: Global & Child Window Font Sizes
             ["Settings.Fonts.GlobalCardTitle"] = "Global Font Size (All Windows & Dialogs Together)",

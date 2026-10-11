@@ -498,6 +498,77 @@ public sealed partial class SettingsViewModel : ObservableObject
         TreemapOtherTempColor = AppSettings.DefaultTreemapOtherTempColor;
     }
 
+    public string GetColorSettingHex(ColorSettingTarget target) => target switch
+    {
+        ColorSettingTarget.ActivePanelBorder => ActivePanelBorderColor,
+        ColorSettingTarget.SelectionBorder => SelectionBorderColor,
+        ColorSettingTarget.MarkedItemText => MarkedItemTextColor,
+        ColorSettingTarget.TreemapVideoMedia => TreemapVideoMediaColor,
+        ColorSettingTarget.TreemapArchiveImage => TreemapArchiveImageColor,
+        ColorSettingTarget.TreemapVirtualDiskSystem => TreemapVirtualDiskSystemColor,
+        ColorSettingTarget.TreemapCodeDocument => TreemapCodeDocumentColor,
+        ColorSettingTarget.TreemapPictureGraphic => TreemapPictureGraphicColor,
+        ColorSettingTarget.TreemapBinaryExecutable => TreemapBinaryExecutableColor,
+        _ => TreemapOtherTempColor,
+    };
+
+    public static string GetDefaultColorSettingHex(ColorSettingTarget target) => target switch
+    {
+        ColorSettingTarget.ActivePanelBorder => AppSettings.DefaultActivePanelBorderColor,
+        ColorSettingTarget.SelectionBorder => AppSettings.DefaultSelectionBorderColor,
+        ColorSettingTarget.MarkedItemText => AppSettings.DefaultMarkedItemTextColor,
+        ColorSettingTarget.TreemapVideoMedia => AppSettings.DefaultTreemapVideoMediaColor,
+        ColorSettingTarget.TreemapArchiveImage => AppSettings.DefaultTreemapArchiveImageColor,
+        ColorSettingTarget.TreemapVirtualDiskSystem => AppSettings.DefaultTreemapVirtualDiskSystemColor,
+        ColorSettingTarget.TreemapCodeDocument => AppSettings.DefaultTreemapCodeDocumentColor,
+        ColorSettingTarget.TreemapPictureGraphic => AppSettings.DefaultTreemapPictureGraphicColor,
+        ColorSettingTarget.TreemapBinaryExecutable => AppSettings.DefaultTreemapBinaryExecutableColor,
+        _ => AppSettings.DefaultTreemapOtherTempColor,
+    };
+
+    public void SetColorSettingHex(ColorSettingTarget target, string hexColor)
+    {
+        switch (target)
+        {
+            case ColorSettingTarget.ActivePanelBorder:
+                SetActivePanelBorderColor(hexColor);
+                break;
+            case ColorSettingTarget.SelectionBorder:
+                SetSelectionBorderColor(hexColor);
+                break;
+            case ColorSettingTarget.MarkedItemText:
+                SetMarkedItemTextColor(hexColor);
+                break;
+            case ColorSettingTarget.TreemapVideoMedia:
+                SetTreemapCategoryColor(StorageCategory.VideoMedia, hexColor);
+                break;
+            case ColorSettingTarget.TreemapArchiveImage:
+                SetTreemapCategoryColor(StorageCategory.ArchiveImage, hexColor);
+                break;
+            case ColorSettingTarget.TreemapVirtualDiskSystem:
+                SetTreemapCategoryColor(StorageCategory.VirtualDiskSystem, hexColor);
+                break;
+            case ColorSettingTarget.TreemapCodeDocument:
+                SetTreemapCategoryColor(StorageCategory.CodeDocument, hexColor);
+                break;
+            case ColorSettingTarget.TreemapPictureGraphic:
+                SetTreemapCategoryColor(StorageCategory.PictureGraphic, hexColor);
+                break;
+            case ColorSettingTarget.TreemapBinaryExecutable:
+                SetTreemapCategoryColor(StorageCategory.BinaryExecutable, hexColor);
+                break;
+            default:
+                SetTreemapCategoryColor(StorageCategory.OtherTemp, hexColor);
+                break;
+        }
+    }
+
+    public void SetColorSettingRgb(ColorSettingTarget target, byte r, byte g, byte b) =>
+        SetColorSettingHex(target, AppSettings.FormatHexRgb(r, g, b));
+
+    public void ResetColorSettingToDefault(ColorSettingTarget target) =>
+        SetColorSettingHex(target, GetDefaultColorSettingHex(target));
+
     public double GetChildWindowFontSize(ChildWindowFontTarget target)
     {
         if (UseGlobalFontSize)

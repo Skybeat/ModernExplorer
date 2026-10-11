@@ -339,19 +339,32 @@
 
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="135" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
+                                    <Button x:Name="ColorActivePanelPickerBtn"
+                                            Grid.Column="0"
+                                            Tag="ActivePanelBorder"
+                                            Click="OnOpenColorPickerClick"
+                                            Padding="10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3"
+                                                    BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.ActivePanelBorderColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="ColorActivePanelPickerLabel" Text="🎨 Farbpicker" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                     <TextBox x:Name="ActivePanelBorderHexBox"
-                                             Grid.Column="0"
+                                             Grid.Column="1"
                                              Text="{x:Bind Settings.ActivePanelBorderColor, Mode=OneWay}"
                                              PlaceholderText="#0078D4" />
                                     <Button x:Name="ColorActivePanelApplyBtn"
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Content="Übernehmen"
                                             Click="OnApplyActivePanelColorClick" />
-                                    <Border Grid.Column="2"
+                                    <Border Grid.Column="3"
                                             CornerRadius="6"
                                             Padding="10,6"
                                             BorderThickness="2"
@@ -408,19 +421,32 @@
 
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="135" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
+                                    <Button x:Name="ColorSelectionPickerBtn"
+                                            Grid.Column="0"
+                                            Tag="SelectionBorder"
+                                            Click="OnOpenColorPickerClick"
+                                            Padding="10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3"
+                                                    BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.SelectionBorderColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="ColorSelectionPickerLabel" Text="🎨 Farbpicker" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                     <TextBox x:Name="BorderColorHexBox"
-                                             Grid.Column="0"
+                                             Grid.Column="1"
                                              Text="{x:Bind Settings.SelectionBorderColor, Mode=OneWay}"
                                              PlaceholderText="#38BDF8" />
                                     <Button x:Name="ColorSelectionApplyBtn"
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Content="Übernehmen"
                                             Click="OnApplyCustomColorClick" />
-                                    <Border Grid.Column="2"
+                                    <Border Grid.Column="3"
                                             CornerRadius="4"
                                             Padding="10,5"
                                             BorderThickness="1.5"
@@ -475,19 +501,32 @@
 
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="135" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
+                                    <Button x:Name="ColorMarkedTextPickerBtn"
+                                            Grid.Column="0"
+                                            Tag="MarkedItemText"
+                                            Click="OnOpenColorPickerClick"
+                                            Padding="10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3"
+                                                    BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.MarkedItemTextColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="ColorMarkedTextPickerLabel" Text="🎨 Farbpicker" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                     <TextBox x:Name="MarkedTextColorHexBox"
-                                             Grid.Column="0"
+                                             Grid.Column="1"
                                              Text="{x:Bind Settings.MarkedItemTextColor, Mode=OneWay}"
                                              PlaceholderText="#F59E0B" />
                                     <Button x:Name="ColorMarkedTextApplyBtn"
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Content="Übernehmen"
                                             Click="OnApplyMarkedTextColorClick" />
-                                    <Border Grid.Column="2"
+                                    <Border Grid.Column="3"
                                             CornerRadius="4"
                                             Padding="10,5"
                                             BorderThickness="1"
@@ -529,15 +568,20 @@
                                 <!-- Category 0: Video & Audio -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVideoMediaColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatVideoLabel" Grid.Column="1" Text="🎬 Video &amp; Audio (.mp4, .mp3 …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn1" Grid.Column="0" Tag="TreemapVideoMedia" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVideoMediaColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel1" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatVideoLabel" Grid.Column="1" Text="🎬 Video &amp; Audio (.mp4, .mp3 …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="VideoMedia:#3B82F6" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#3B82F6" /></Button>
                                         <Button Tag="VideoMedia:#2563EB" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#2563EB" /></Button>
@@ -551,15 +595,20 @@
                                 <!-- Category 1: Archive & Disk-Images -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapArchiveImageColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatArchiveLabel" Grid.Column="1" Text="📦 Archive &amp; ISOs (.zip, .7z, .iso …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn2" Grid.Column="0" Tag="TreemapArchiveImage" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapArchiveImageColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel2" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatArchiveLabel" Grid.Column="1" Text="📦 Archive &amp; ISOs (.zip, .7z, .iso …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="ArchiveImage:#8B5CF6" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#8B5CF6" /></Button>
                                         <Button Tag="ArchiveImage:#A855F7" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#A855F7" /></Button>
@@ -573,15 +622,20 @@
                                 <!-- Category 2: Virtuelle Disks, DB & System -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVirtualDiskSystemColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatVdiskLabel" Grid.Column="1" Text="💽 Virt. Disks, DB &amp; System (.vhdx, .db)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn3" Grid.Column="0" Tag="TreemapVirtualDiskSystem" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVirtualDiskSystemColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel3" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatVdiskLabel" Grid.Column="1" Text="💽 Virt. Disks, DB &amp; System (.vhdx, .db)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="VirtualDiskSystem:#F97316" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F97316" /></Button>
                                         <Button Tag="VirtualDiskSystem:#EF4444" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EF4444" /></Button>
@@ -595,15 +649,20 @@
                                 <!-- Category 3: Code, Text & Dokumente -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapCodeDocumentColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatCodeLabel" Grid.Column="1" Text="📄 Code, Text &amp; Dokumente (.cs, .pdf …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn4" Grid.Column="0" Tag="TreemapCodeDocument" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapCodeDocumentColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel4" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatCodeLabel" Grid.Column="1" Text="📄 Code, Text &amp; Dokumente (.cs, .pdf …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="CodeDocument:#10B981" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#10B981" /></Button>
                                         <Button Tag="CodeDocument:#22C55E" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#22C55E" /></Button>
@@ -617,15 +676,20 @@
                                 <!-- Category 4: Bilder & Grafiken -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapPictureGraphicColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatPictureLabel" Grid.Column="1" Text="🖼️ Bilder &amp; Grafiken (.png, .jpg, .psd)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn5" Grid.Column="0" Tag="TreemapPictureGraphic" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapPictureGraphicColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel5" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatPictureLabel" Grid.Column="1" Text="🖼️ Bilder &amp; Grafiken (.png, .jpg, .psd)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="PictureGraphic:#06B6D4" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#06B6D4" /></Button>
                                         <Button Tag="PictureGraphic:#38BDF8" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#38BDF8" /></Button>
@@ -639,15 +703,20 @@
                                 <!-- Category 5: Programme & Bibliotheken -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapBinaryExecutableColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatBinaryLabel" Grid.Column="1" Text="⚙️ Programme &amp; Binaries (.exe, .dll …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn6" Grid.Column="0" Tag="TreemapBinaryExecutable" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapBinaryExecutableColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel6" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatBinaryLabel" Grid.Column="1" Text="⚙️ Programme &amp; Binaries (.exe, .dll …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="BinaryExecutable:#EAB308" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EAB308" /></Button>
                                         <Button Tag="BinaryExecutable:#F59E0B" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F59E0B" /></Button>
@@ -661,15 +730,20 @@
                                 <!-- Category 6: Sonstige & Temp -->
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26" />
-                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="*" MinWidth="175" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
-                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapOtherTempColor), Mode=OneWay}" />
-                                    <TextBlock x:Name="TreemapCatOtherLabel" Grid.Column="1" Text="🗂️ Sonstige &amp; Temp-Dateien" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button x:Name="TreemapPickerBtn7" Grid.Column="0" Tag="TreemapOtherTemp" Click="OnOpenColorPickerClick" Padding="8,5">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="16" CornerRadius="3" BorderBrush="#66FFFFFF" BorderThickness="1"
+                                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapOtherTempColor), Mode=OneWay}" />
+                                            <TextBlock x:Name="TreemapPickerLabel7" Text="🎨 Farbpicker" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TreemapCatOtherLabel" Grid.Column="1" Text="🗂️ Sonstige &amp; Temp-Dateien" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                         <Button Tag="OtherTemp:#64748B" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#64748B" /></Button>
                                         <Button Tag="OtherTemp:#475569" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#475569" /></Button>

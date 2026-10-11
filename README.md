@@ -23,7 +23,7 @@ Every GitHub Release automatically builds and publishes both **100% self-contain
 ## Feature Overview
 
 ### 1. Dual-Pane & Multi-Tab File Management
-- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.6.0`).
+- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.7.0`).
 - **Dual-Pane & Single-Pane Mode (`F10` / `Tab`)**: Instant switching between left and right file panels with a customizable active-panel border color and thickness.
 - **Per-Pane Drive Bar**: Displays all mounted drives (`Fixed`, `Removable`, `Network`, `CD-ROM`, `RAM`) with live free-space and capacity bars plus tooltips.
 - **Full Multi-Tab Support (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`)**:
@@ -68,12 +68,12 @@ All feature dialogs open as large, freely resizable and maximizable child window
 
 ### 5. Multi-Language Support & Configurable Feature Tooltips
 - **10 Built-in Languages**: Automatically detects the OS language (`system`) or lets you switch live between **Deutsch**, **English**, **Español**, **Français**, **Italiano**, **Nederlands**, **Polski**, **Português**, **日本語**, and **中文**.
-- **Complete Localization Across All Windows**: Main Window, Settings (including Treemap colors & Child Window font size cards), Storage Analyzer (`Treemap`), Quick Viewer (`F3`), Editor (`F4`), and all Power Tool child windows dynamically update in the selected UI language.
+- **Complete Localization Across All Windows**: Main Window, Settings (including Treemap colors, Color Pickers & Child Window font size cards), Storage Analyzer (`Treemap`), Quick Viewer (`F3`), Editor (`F4`), and all Power Tool child windows dynamically update in the selected UI language.
 - **Localized Feature Tooltips**: Every toolbar button, feature button, panel control, and function key (`F1`–`F12`) provides a concise, localized explanation of the feature in the active UI language.
 - **Tooltip Toggle in Settings**: Tooltips can be enabled or disabled at any time under **Settings → Appearance & Design → Tooltips**.
 
-### 6. Live Customization & Automatic Self-Updater
-- **Appearance, Treemap Colors & Font Scaling**: Switch live between Dark, Light, and System themes, customize selection/focus/marked-item/active-border colors and all **7 Storage Analyzer Treemap category colors**, and adjust font sizes either **individually per UI area and per Child Window** (Quick-Viewer, Editor, Storage Analyzer, Deep Search, Duplicate Finder, Directory Sync, Batch Rename, FTP Manager, Archive Packer, About Window) or via a **single simplified Global Font Size checkbox**.
+### 6. Live Customization, Interactive Color Picker & Automatic Self-Updater
+- **Appearance, Interactive Color Picker (`🎨 Farbpicker`), Treemap Colors & Font Scaling**: Switch live between Dark, Light, and System themes, customize all **10 color settings** (**Active Panel Border**, **Selection Border**, **Marked Item Text**, and all **7 Storage Analyzer Treemap category colors**) using either **quick presets**, **`#RRGGBB` hex codes**, or an **interactive WinUI 3 `ColorPicker` flyout (`🎨 Farbpicker`) with color spectrum, brightness slider, RGB/HSV channels, live preview, and one-click default reset** on every single color setting. Adjust font sizes either **individually per UI area and per Child Window** or via a **single simplified Global Font Size checkbox**.
 - **Elevated Self-Updater (`ModernExplorer.Updater`)**: Checks GitHub Releases on startup (or manually in the About window), downloads the matching architecture installer/package, closes Modern Explorer, launches a dedicated graphical progress window (`ProgressBar` + live status) with automatic UAC elevation support for per-machine (`Program Files`) installations, and automatically brings the restarted application window to the foreground.
 
 ---
@@ -110,6 +110,6 @@ All feature dialogs open as large, freely resizable and maximizable child window
 
 ## Building & Publishing Releases
 
-Pushing a version tag (`v*`, e.g. `v1.6.0`) or running `scripts/publish-releases.ps1 -Version "1.6.0"` builds and publishes all self-contained portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.
+Pushing a version tag (`v*`, e.g. `v1.7.0`) or running `scripts/publish-releases.ps1 -Version "1.7.0"` builds and publishes all self-contained portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.
 
 

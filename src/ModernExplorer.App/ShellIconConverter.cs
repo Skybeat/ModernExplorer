@@ -121,6 +121,9 @@ public sealed class ShellIconConverter : IValueConverter
     public static Brush HexToBrush(string? hexColor) =>
         new SolidColorBrush(ParseHexColor(hexColor));
 
+    public static string ColorToHex(Color color) =>
+        AppSettings.FormatHexRgb(color.R, color.G, color.B);
+
     public static object? OptionalToolTip(string? text, bool showToolTips) =>
         showToolTips && !string.IsNullOrWhiteSpace(text) ? text : null;
 

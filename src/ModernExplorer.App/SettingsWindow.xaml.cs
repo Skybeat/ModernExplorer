@@ -202,6 +202,27 @@ public sealed partial class SettingsWindow : Window
         if (TreemapApplyBtn7 is not null) TreemapApplyBtn7.Content = loc["Settings.Apply"];
         if (ResetTreemapColorsButton is not null) ResetTreemapColorsButton.Content = loc["Settings.Colors.Treemap.ResetButton"];
 
+        string pickerLabel = loc["Settings.Colors.PickerButton"];
+        object? pickerTip = ShellIconConverter.OptionalToolTip(loc["Settings.Colors.PickerTooltip"], Settings.ShowToolTips);
+        foreach (var lbl in new[]
+        {
+            ColorActivePanelPickerLabel, ColorSelectionPickerLabel, ColorMarkedTextPickerLabel,
+            TreemapPickerLabel1, TreemapPickerLabel2, TreemapPickerLabel3, TreemapPickerLabel4,
+            TreemapPickerLabel5, TreemapPickerLabel6, TreemapPickerLabel7
+        })
+        {
+            if (lbl is not null) lbl.Text = pickerLabel;
+        }
+        foreach (var btn in new[]
+        {
+            ColorActivePanelPickerBtn, ColorSelectionPickerBtn, ColorMarkedTextPickerBtn,
+            TreemapPickerBtn1, TreemapPickerBtn2, TreemapPickerBtn3, TreemapPickerBtn4,
+            TreemapPickerBtn5, TreemapPickerBtn6, TreemapPickerBtn7
+        })
+        {
+            if (btn is not null) ToolTipService.SetToolTip(btn, pickerTip);
+        }
+
         // Category 3: File List & Behavior
         if (BehaviorHeaderTitle is not null) BehaviorHeaderTitle.Text = loc["Settings.Behavior.Header"];
         if (BehaviorHeaderSub is not null) BehaviorHeaderSub.Text = loc["Settings.Behavior.Sub"];
@@ -534,6 +555,14 @@ public sealed partial class SettingsWindow : Window
         _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.TreemapColorsReset");
     }
 
+    private void SyncAllColorHexBoxes()
+    {
+        if (ActivePanelBorderHexBox is not null) ActivePanelBorderHexBox.Text = Settings.ActivePanelBorderColor;
+        if (BorderColorHexBox is not null) BorderColorHexBox.Text = Settings.SelectionBorderColor;
+        if (MarkedTextColorHexBox is not null) MarkedTextColorHexBox.Text = Settings.MarkedItemTextColor;
+        SyncTreemapColorHexBoxes();
+    }
+
     private void SyncTreemapColorHexBoxes()
     {
         if (TreemapVideoHexBox is not null) TreemapVideoHexBox.Text = Settings.TreemapVideoMediaColor;
@@ -543,6 +572,153 @@ public sealed partial class SettingsWindow : Window
         if (TreemapPictureHexBox is not null) TreemapPictureHexBox.Text = Settings.TreemapPictureGraphicColor;
         if (TreemapBinaryHexBox is not null) TreemapBinaryHexBox.Text = Settings.TreemapBinaryExecutableColor;
         if (TreemapOtherHexBox is not null) TreemapOtherHexBox.Text = Settings.TreemapOtherTempColor;
+    }
+
+    private void OnOpenColorPickerClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string targetStr } btn ||
+            !Enum.TryParse<ColorSettingTarget>(targetStr, ignoreCase: true, out var target))
+        {
+            return;
+        }
+
+        string settingName = target switch
+        {
+            ColorSettingTarget.ActivePanelBorder => ColorActivePanelTitle?.Text ?? LocalizationService.T("Settings.Colors.ActivePanel.Title"),
+            ColorSettingTarget.SelectionBorder => ColorSelectionTitle?.Text ?? LocalizationService.T("Settings.Colors.Selection.Title"),
+            ColorSettingTarget.MarkedItemText => ColorMarkedTextTitle?.Text ?? LocalizationService.T("Settings.Colors.Marked.Title"),
+            ColorSettingTarget.TreemapVideoMedia => TreemapCatVideoLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatVideo"),
+            ColorSettingTarget.TreemapArchiveImage => TreemapCatArchiveLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatArchive"),
+            ColorSettingTarget.TreemapVirtualDiskSystem => TreemapCatVdiskLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatVdisk"),
+            ColorSettingTarget.TreemapCodeDocument => TreemapCatCodeLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatCode"),
+            ColorSettingTarget.TreemapPictureGraphic => TreemapCatPictureLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatPic"),
+            ColorSettingTarget.TreemapBinaryExecutable => TreemapCatBinaryLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatBin"),
+            _ => TreemapCatOtherLabel?.Text ?? LocalizationService.T("Settings.Colors.Treemap.CatOther"),
+        };
+
+        string currentHex = Settings.GetColorSettingHex(target);
+        string defaultHex = SettingsViewModel.GetDefaultColorSettingHex(target);
+
+        var flyout = new Flyout
+        {
+            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+        };
+
+        var rootStack = new StackPanel
+        {
+            Spacing = 10,
+            MinWidth = 320,
+        };
+
+        var headerGrid = new Grid
+        {
+            ColumnSpacing = 10,
+        };
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var headerTitle = new TextBlock
+        {
+            Text = LocalizationService.Format("Settings.Colors.PickerDialogTitle", settingName),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 240,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(headerTitle, 0);
+
+        var hexBadge = new TextBlock
+        {
+            Text = currentHex,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+            FontSize = 12.5,
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0.9,
+        };
+        Grid.SetColumn(hexBadge, 1);
+
+        headerGrid.Children.Add(headerTitle);
+        headerGrid.Children.Add(hexBadge);
+        rootStack.Children.Add(headerGrid);
+
+        bool suppressColorChanged = true;
+        var colorPicker = new ColorPicker
+        {
+            Color = ShellIconConverter.ParseHexColor(currentHex, defaultHex),
+            ColorSpectrumShape = ColorSpectrumShape.Box,
+            IsMoreButtonVisible = true,
+            IsColorSliderVisible = true,
+            IsColorChannelTextInputVisible = true,
+            IsHexInputVisible = true,
+            IsAlphaEnabled = false,
+            IsColorPreviewVisible = true,
+        };
+        suppressColorChanged = false;
+
+        colorPicker.ColorChanged += (_, args) =>
+        {
+            if (suppressColorChanged) return;
+            var c = args.NewColor;
+            Settings.SetColorSettingRgb(target, c.R, c.G, c.B);
+            string updatedHex = Settings.GetColorSettingHex(target);
+            hexBadge.Text = updatedHex;
+            SyncAllColorHexBoxes();
+            Bindings.Update();
+        };
+        rootStack.Children.Add(colorPicker);
+
+        var footerGrid = new Grid
+        {
+            ColumnSpacing = 8,
+            Margin = new Thickness(0, 4, 0, 0),
+        };
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var resetDefaultBtn = new Button
+        {
+            Content = $"{LocalizationService.T("Settings.Colors.PickerResetDefault")} ({defaultHex})",
+            Padding = new Thickness(10, 5),
+            FontSize = 12,
+        };
+        resetDefaultBtn.Click += (_, _) =>
+        {
+            suppressColorChanged = true;
+            try
+            {
+                Settings.ResetColorSettingToDefault(target);
+                string defHex = Settings.GetColorSettingHex(target);
+                colorPicker.Color = ShellIconConverter.ParseHexColor(defHex, defaultHex);
+                hexBadge.Text = defHex;
+                SyncAllColorHexBoxes();
+                Bindings.Update();
+            }
+            finally
+            {
+                suppressColorChanged = false;
+            }
+        };
+        Grid.SetColumn(resetDefaultBtn, 0);
+
+        var doneBtn = new Button
+        {
+            Content = LocalizationService.T("Settings.Colors.PickerDone"),
+            Padding = new Thickness(14, 5),
+            FontSize = 12,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        doneBtn.Click += (_, _) => flyout.Hide();
+        Grid.SetColumn(doneBtn, 2);
+
+        footerGrid.Children.Add(resetDefaultBtn);
+        footerGrid.Children.Add(doneBtn);
+        rootStack.Children.Add(footerGrid);
+
+        flyout.Content = rootStack;
+        flyout.ShowAt(btn);
     }
 
     private void OnSaveSessionNowClick(object sender, RoutedEventArgs e)
