@@ -519,6 +519,27 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="DefaultViewModeTitle"
+                                           Text="Standard-Ansichtsmodus für neue Tabs"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock x:Name="DefaultViewModeDesc"
+                                           Text="Legt fest, mit welchem Ansichtsmodus neu geöffnete Explorer-Tabs starten."
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+                                <ComboBox x:Name="DefaultViewModeComboBox"
+                                          Width="340"
+                                          SelectionChanged="OnDefaultViewModeSelectionChanged" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
                             <StackPanel Spacing="14">
                                 <ToggleSwitch x:Name="ToggleFoldersFirst"
                                               Header="Ordner immer vor Dateien sortieren"

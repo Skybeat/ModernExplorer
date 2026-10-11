@@ -12,6 +12,428 @@
           KeyDown="OnRootKeyDown"
           KeyUp="OnRootKeyUp">
 
+        <Grid.Resources>
+            <!-- ItemsPanelTemplates for the 8 Windows Explorer View Modes -->
+            <ItemsPanelTemplate x:Key="VerticalStackItemsPanel">
+                <ItemsStackPanel Orientation="Vertical" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="ExtraLargeIconsItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="168" ItemHeight="180" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="LargeIconsItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="124" ItemHeight="132" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="MediumIconsItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="96" ItemHeight="104" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="SmallIconsItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="172" ItemHeight="32" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="ListItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="230" ItemHeight="28" />
+            </ItemsPanelTemplate>
+            <ItemsPanelTemplate x:Key="TilesItemsPanel">
+                <ItemsWrapGrid Orientation="Horizontal" ItemWidth="260" ItemHeight="64" />
+            </ItemsPanelTemplate>
+
+            <!-- 1. Details View (Details) -->
+            <DataTemplate x:Key="DetailsItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="4"
+                        Padding="4,1"
+                        MinHeight="{x:Bind Settings.FileListRowHeight, Mode=OneWay}"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="95" />
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="75" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="✓"
+                                   FontWeight="Bold"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
+                                   VerticalAlignment="Center" />
+                        <Image Grid.Column="1"
+                               Source="{x:Bind local:ShellIconConverter.ToImageSource(Entry), Mode=OneWay}"
+                               Width="16"
+                               Height="16"
+                               VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                        <TextBlock Grid.Column="3"
+                                   Text="{x:Bind SizeText, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.8"
+                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        <TextBlock Grid.Column="4"
+                                   Text="{x:Bind ModifiedText, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.8"
+                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        <TextBlock Grid.Column="5"
+                                   Text="{x:Bind TypeText, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.75"
+                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 2. Content View (Inhalt) -->
+            <DataTemplate x:Key="ContentItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="4"
+                        Padding="8,5"
+                        MinHeight="50"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="36" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="210" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="✓"
+                                   FontWeight="Bold"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
+                                   VerticalAlignment="Center" />
+                        <Image Grid.Column="1"
+                               Source="{x:Bind local:ShellIconConverter.ToLargeImageSource(Entry), Mode=OneWay}"
+                               Width="32"
+                               Height="32"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind TypeText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Opacity="0.7"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{x:Bind ContentModifiedLabelText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Opacity="0.8"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind ContentSizeLabelText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Opacity="0.75"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 3. Tiles View (Kacheln) -->
+            <DataTemplate x:Key="TilesItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="6"
+                        Padding="6,4"
+                        Width="252"
+                        Height="58"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="44" Height="44" VerticalAlignment="Center">
+                            <Image Source="{x:Bind local:ShellIconConverter.ToLargeImageSource(Entry), Mode=OneWay}"
+                                   Width="40"
+                                   Height="40"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                            <TextBlock Text="✓"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Visibility="{x:Bind IsMarked, Mode=OneWay}" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                            <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind TypeText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Opacity="0.72"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="11.5" />
+                            <TextBlock Text="{x:Bind TileSecondaryText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Opacity="0.62"
+                                       TextTrimming="CharacterEllipsis"
+                                       FontSize="11" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 4. Extra Large Icons View (Extra große Symbole) -->
+            <DataTemplate x:Key="ExtraLargeIconsItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="6"
+                        Padding="6"
+                        Width="160"
+                        Height="172"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="112" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Image Source="{x:Bind local:ShellIconConverter.ToLargeImageSource(Entry), Mode=OneWay}"
+                                   Width="96"
+                                   Height="96"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                            <TextBlock Text="✓"
+                                       FontWeight="Bold"
+                                       FontSize="15"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"
+                                       Margin="0,2,4,0"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Visibility="{x:Bind IsMarked, Mode=OneWay}" />
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Top"
+                                   MaxLines="2"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 5. Large Icons View (Große Symbole) -->
+            <DataTemplate x:Key="LargeIconsItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="6"
+                        Padding="6,4"
+                        Width="116"
+                        Height="124"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="72" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Image Source="{x:Bind local:ShellIconConverter.ToLargeImageSource(Entry), Mode=OneWay}"
+                                   Width="60"
+                                   Height="60"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                            <TextBlock Text="✓"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"
+                                       Margin="0,0,2,0"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Visibility="{x:Bind IsMarked, Mode=OneWay}" />
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Top"
+                                   MaxLines="2"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 6. Medium Icons View (Mittelgroße Symbole) -->
+            <DataTemplate x:Key="MediumIconsItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="6"
+                        Padding="4"
+                        Width="88"
+                        Height="96"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="46" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Image Source="{x:Bind local:ShellIconConverter.ToLargeImageSource(Entry), Mode=OneWay}"
+                                   Width="38"
+                                   Height="38"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                            <TextBlock Text="✓"
+                                       FontWeight="Bold"
+                                       FontSize="12"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       Visibility="{x:Bind IsMarked, Mode=OneWay}" />
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Top"
+                                   MaxLines="2"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="12" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 7. Small Icons View (Kleine Symbole) -->
+            <DataTemplate x:Key="SmallIconsItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="4"
+                        Padding="4,2"
+                        Width="164"
+                        Height="28"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="✓"
+                                   FontWeight="Bold"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
+                                   VerticalAlignment="Center" />
+                        <Image Grid.Column="1"
+                               Source="{x:Bind local:ShellIconConverter.ToImageSource(Entry), Mode=OneWay}"
+                               Width="18"
+                               Height="18"
+                               VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- 8. List View (Liste) -->
+            <DataTemplate x:Key="ListItemTemplate" x:DataType="vm:FileItemViewModel">
+                <Border BorderThickness="1.5"
+                        CornerRadius="4"
+                        Padding="4,1"
+                        Width="222"
+                        Height="24"
+                        Background="Transparent"
+                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
+                        PointerEntered="OnFileItemPointerEntered"
+                        PointerMoved="OnFileItemPointerMoved"
+                        PointerExited="OnFileItemPointerExited"
+                        RightTapped="OnFileItemRightTapped">
+                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="✓"
+                                   FontWeight="Bold"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
+                                   VerticalAlignment="Center" />
+                        <Image Grid.Column="1"
+                               Source="{x:Bind local:ShellIconConverter.ToImageSource(Entry), Mode=OneWay}"
+                               Width="16"
+                               Height="16"
+                               VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="38" />
             <RowDefinition Height="*" />
@@ -205,12 +627,13 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Navigation + Address + Filter Left -->
+                    <!-- Navigation + Address + Filter + View Mode Left -->
                     <Grid Grid.Row="2" Padding="6,4" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="155" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
@@ -233,6 +656,14 @@
                                  FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}"
                                  Text="{x:Bind ViewModel.Left.ActiveTab.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  PlaceholderText="Filter (Strg+F)" />
+
+                        <Button x:Name="LeftViewModeButton"
+                                Grid.Column="3"
+                                Content="{x:Bind ViewModel.Left.ActiveTab.ViewModeButtonLabel, Mode=OneWay}"
+                                ToolTipService.ToolTip="Anzeigeoptionen umschalten (Strg+Umschalt+1..8)"
+                                Click="OnLeftViewModeButtonClick"
+                                Padding="8,3"
+                                FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}" />
                     </Grid>
 
                     <!-- Breadcrumbs Left -->
@@ -260,7 +691,8 @@
                     </ScrollViewer>
 
                     <!-- Column Headers Left -->
-                    <Grid Grid.Row="4"
+                    <Grid x:Name="LeftColumnHeaderGrid"
+                          Grid.Row="4"
                           Padding="10,4"
                           Background="{ThemeResource ExplorerColumnHeaderBackgroundBrush}"
                           BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
@@ -309,6 +741,8 @@
                               ItemsSource="{x:Bind ViewModel.Left.ActiveTab.Items, Mode=OneWay}"
                               SelectedItem="{x:Bind ViewModel.Left.ActiveTab.FocusedItem, Mode=TwoWay}"
                               SelectionMode="Single"
+                              ItemsPanel="{StaticResource VerticalStackItemsPanel}"
+                              ItemTemplate="{StaticResource DetailsItemTemplate}"
                               DoubleTapped="OnLeftListDoubleTapped"
                               GotFocus="OnLeftListGotFocus"
                               CharacterReceived="OnLeftListCharacterReceived">
@@ -320,67 +754,6 @@
                                 <Setter Property="UseSystemFocusVisuals" Value="False" />
                             </Style>
                         </ListView.ItemContainerStyle>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:FileItemViewModel">
-                                <Border BorderThickness="1.5"
-                                        CornerRadius="4"
-                                        Padding="4,1"
-                                        MinHeight="{x:Bind Settings.FileListRowHeight, Mode=OneWay}"
-                                        Background="Transparent"
-                                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
-                                        PointerEntered="OnFileItemPointerEntered"
-                                        PointerMoved="OnFileItemPointerMoved"
-                                        PointerExited="OnFileItemPointerExited"
-                                        RightTapped="OnFileItemRightTapped">
-                                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="18" />
-                                            <ColumnDefinition Width="20" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="95" />
-                                            <ColumnDefinition Width="130" />
-                                            <ColumnDefinition Width="75" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   Text="✓"
-                                                   FontWeight="Bold"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
-                                                   VerticalAlignment="Center" />
-                                        <Image Grid.Column="1"
-                                               Source="{x:Bind local:ShellIconConverter.ToImageSource(Entry), Mode=OneWay}"
-                                               Width="16"
-                                               Height="16"
-                                               VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{x:Bind DisplayName, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{x:Bind SizeText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.8"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="4"
-                                                   Text="{x:Bind ModifiedText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.8"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="5"
-                                                   Text="{x:Bind TypeText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.75"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
                     </ListView>
 
                     <!-- Status Bar Left -->
@@ -527,12 +900,13 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Navigation + Address + Filter Right -->
+                    <!-- Navigation + Address + Filter + View Mode Right -->
                     <Grid Grid.Row="2" Padding="6,4" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="155" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
@@ -555,6 +929,14 @@
                                  FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}"
                                  Text="{x:Bind ViewModel.Right.ActiveTab.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  PlaceholderText="Filter (Strg+F)" />
+
+                        <Button x:Name="RightViewModeButton"
+                                Grid.Column="3"
+                                Content="{x:Bind ViewModel.Right.ActiveTab.ViewModeButtonLabel, Mode=OneWay}"
+                                ToolTipService.ToolTip="Anzeigeoptionen umschalten (Strg+Umschalt+1..8)"
+                                Click="OnRightViewModeButtonClick"
+                                Padding="8,3"
+                                FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}" />
                     </Grid>
 
                     <!-- Breadcrumbs Right -->
@@ -582,7 +964,8 @@
                     </ScrollViewer>
 
                     <!-- Column Headers Right -->
-                    <Grid Grid.Row="4"
+                    <Grid x:Name="RightColumnHeaderGrid"
+                          Grid.Row="4"
                           Padding="10,4"
                           Background="{ThemeResource ExplorerColumnHeaderBackgroundBrush}"
                           BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
@@ -631,6 +1014,8 @@
                               ItemsSource="{x:Bind ViewModel.Right.ActiveTab.Items, Mode=OneWay}"
                               SelectedItem="{x:Bind ViewModel.Right.ActiveTab.FocusedItem, Mode=TwoWay}"
                               SelectionMode="Single"
+                              ItemsPanel="{StaticResource VerticalStackItemsPanel}"
+                              ItemTemplate="{StaticResource DetailsItemTemplate}"
                               DoubleTapped="OnRightListDoubleTapped"
                               GotFocus="OnRightListGotFocus"
                               CharacterReceived="OnRightListCharacterReceived">
@@ -642,67 +1027,6 @@
                                 <Setter Property="UseSystemFocusVisuals" Value="False" />
                             </Style>
                         </ListView.ItemContainerStyle>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:FileItemViewModel">
-                                <Border BorderThickness="1.5"
-                                        CornerRadius="4"
-                                        Padding="4,1"
-                                        MinHeight="{x:Bind Settings.FileListRowHeight, Mode=OneWay}"
-                                        Background="Transparent"
-                                        BorderBrush="{x:Bind local:ShellIconConverter.SelectionBorderBrush(IsFocused, Settings.SelectionBorderColor), Mode=OneWay}"
-                                        PointerEntered="OnFileItemPointerEntered"
-                                        PointerMoved="OnFileItemPointerMoved"
-                                        PointerExited="OnFileItemPointerExited"
-                                        RightTapped="OnFileItemRightTapped">
-                                    <Grid Opacity="{x:Bind Opacity, Mode=OneWay}" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="18" />
-                                            <ColumnDefinition Width="20" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="95" />
-                                            <ColumnDefinition Width="130" />
-                                            <ColumnDefinition Width="75" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   Text="✓"
-                                                   FontWeight="Bold"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   Visibility="{x:Bind IsMarked, Mode=OneWay}"
-                                                   VerticalAlignment="Center" />
-                                        <Image Grid.Column="1"
-                                               Source="{x:Bind local:ShellIconConverter.ToImageSource(Entry), Mode=OneWay}"
-                                               Width="16"
-                                               Height="16"
-                                               VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{x:Bind DisplayName, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{x:Bind SizeText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.8"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="4"
-                                                   Text="{x:Bind ModifiedText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.8"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                        <TextBlock Grid.Column="5"
-                                                   Text="{x:Bind TypeText, Mode=OneWay}"
-                                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                                   VerticalAlignment="Center"
-                                                   Opacity="0.75"
-                                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
                     </ListView>
 
                     <!-- Status Bar Right -->

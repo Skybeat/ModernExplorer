@@ -29,6 +29,19 @@ public sealed record GitHubReleaseInfo(
     IReadOnlyList<GitHubReleaseAsset> Assets);
 
 /// <summary>
+/// Semantic Versioning (SemVer 2.0.0) increment level: MAJOR.MINOR.PATCH.
+/// </summary>
+public enum SemVerBumpType
+{
+    /// <summary>Backwards-compatible bug fixes (PATCH: x.y.Z+1).</summary>
+    Patch = 0,
+    /// <summary>Backwards-compatible new functionality (MINOR: x.Y+1.0).</summary>
+    Minor = 1,
+    /// <summary>Incompatible / breaking API or architectural changes (MAJOR: X+1.0.0).</summary>
+    Major = 2,
+}
+
+/// <summary>
 /// Result of checking GitHub Releases for an application update.
 /// </summary>
 public sealed record UpdateCheckResult(
@@ -76,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 0, 3);
+        return new Version(1, 1, 0);
     }
 
     public static string GetCurrentVersionString()
@@ -128,6 +141,54 @@ public sealed class GitHubUpdateService
             Math.Max(0, candidateVersion.Build));
 
         return normCandidate > normCurrent;
+    }
+
+    /// <summary>
+    /// Calculates the next Semantic Version (SemVer 2.0.0: MAJOR.MINOR.PATCH) according to <paramref name="bumpType"/>.
+    /// </summary>
+    public static Version CalculateNextSemanticVersion(Version currentVersion, SemVerBumpType bumpType)
+    {
+        int major = Math.Max(0, currentVersion.Major);
+        int minor = Math.Max(0, currentVersion.Minor);
+        int patch = Math.Max(0, currentVersion.Build);
+
+        return bumpType switch
+        {
+            SemVerBumpType.Major => new Version(major + 1, 0, 0),
+            SemVerBumpType.Minor => new Version(major, minor + 1, 0),
+            _                    => new Version(major, minor, patch + 1),
+        };
+    }
+
+    /// <summary>
+    /// Determines the appropriate Semantic Version bump level from commit messages using Conventional Commits / SemVer rules.
+    /// </summary>
+    public static SemVerBumpType DetermineSemanticVersionBump(IEnumerable<string>? commitMessages)
+    {
+        if (commitMessages is null)
+            return SemVerBumpType.Patch;
+
+        bool hasMinor = false;
+        foreach (var raw in commitMessages)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            var msg = raw.Trim();
+            if (msg.Contains("BREAKING CHANGE", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("BREAKING-CHANGE", StringComparison.OrdinalIgnoreCase) ||
+                System.Text.RegularExpressions.Regex.IsMatch(msg, @"^[a-zA-Z]+(\([^)]+\))?!:"))
+            {
+                return SemVerBumpType.Major;
+            }
+
+            if (System.Text.RegularExpressions.Regex.IsMatch(msg, @"^(feat|feature|add)(\([^)]+\))?:", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                hasMinor = true;
+            }
+        }
+
+        return hasMinor ? SemVerBumpType.Minor : SemVerBumpType.Patch;
     }
 
     /// <summary>

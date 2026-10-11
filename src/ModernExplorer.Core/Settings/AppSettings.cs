@@ -1,4 +1,5 @@
 using ModernExplorer.Core.Localization;
+using ModernExplorer.Core.Session;
 
 namespace ModernExplorer.Core.Settings;
 
@@ -67,6 +68,11 @@ public sealed class AppSettings
     /// and restored on the next launch. Enabled by default (<c>true</c>).
     /// </summary>
     public bool SaveSession { get; set; } = true;
+
+    /// <summary>
+    /// Default file view mode for newly opened tabs (Details, List, Tiles, LargeIcons, etc.).
+    /// </summary>
+    public FileViewMode DefaultViewMode { get; set; } = FileViewMode.Details;
 
     /// <summary>
     /// Indicates whether hidden and system files are shown by default.
@@ -183,6 +189,7 @@ public sealed class AppSettings
         Language = LocalizationService.NormalizeLanguageCode(Language),
         CheckForUpdatesOnStartup = CheckForUpdatesOnStartup,
         SaveSession = SaveSession,
+        DefaultViewMode = Enum.IsDefined(typeof(FileViewMode), DefaultViewMode) ? DefaultViewMode : FileViewMode.Details,
         ShowHiddenFilesByDefault = ShowHiddenFilesByDefault,
         ShowFileExtensions = ShowFileExtensions,
         SortFoldersFirst = SortFoldersFirst,

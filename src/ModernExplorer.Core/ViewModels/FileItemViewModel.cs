@@ -11,7 +11,7 @@ public sealed partial class FileItemViewModel : ObservableObject
     public SettingsViewModel Settings => SettingsViewModel.Current;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Name), nameof(DisplayName), nameof(SizeText), nameof(ModifiedText), nameof(TypeText), nameof(Glyph), nameof(Opacity))]
+    [NotifyPropertyChangedFor(nameof(Name), nameof(DisplayName), nameof(SizeText), nameof(ModifiedText), nameof(TypeText), nameof(TileSecondaryText), nameof(ContentModifiedLabelText), nameof(ContentSizeLabelText), nameof(Glyph), nameof(Opacity))]
     private FileEntry _entry;
 
     /// <summary>Commander mark state (Space/Insert), independent of the cursor focus.</summary>
@@ -24,7 +24,7 @@ public sealed partial class FileItemViewModel : ObservableObject
 
     /// <summary>Calculated folder size (after marking a folder with Space).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SizeText))]
+    [NotifyPropertyChangedFor(nameof(SizeText), nameof(TileSecondaryText), nameof(ContentSizeLabelText))]
     private long? _computedFolderSize;
 
     public string Name => Entry.Name;
@@ -46,6 +46,9 @@ public sealed partial class FileItemViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(SizeText));
         OnPropertyChanged(nameof(TypeText));
+        OnPropertyChanged(nameof(TileSecondaryText));
+        OnPropertyChanged(nameof(ContentModifiedLabelText));
+        OnPropertyChanged(nameof(ContentSizeLabelText));
     }
 
     public string FullPath => Entry.FullPath;
@@ -67,6 +70,19 @@ public sealed partial class FileItemViewModel : ObservableObject
 
     public string TypeText => Entry.IsParentLink ? "" : Entry.IsDirectory ? LocalizationService.T("File.FolderType") :
         Entry.Extension.Length > 1 ? Entry.Extension[1..].ToUpperInvariant() : LocalizationService.T("File.FileType");
+
+    public string TileSecondaryText =>
+        Entry.IsParentLink ? "" :
+        Entry.IsDirectory ? (ComputedFolderSize is { } s ? Format.Size(s) : ModifiedText) :
+        SizeText;
+
+    public string ContentModifiedLabelText =>
+        Entry.IsParentLink ? "" : $"{LocalizationService.T("Col.Modified")}: {ModifiedText}";
+
+    public string ContentSizeLabelText =>
+        Entry.IsParentLink ? "" :
+        Entry.IsDirectory && ComputedFolderSize is null ? "" :
+        $"{LocalizationService.T("Col.Size")}: {SizeText}";
 
     public double Opacity => Entry.IsHidden ? 0.55 : 1.0;
 

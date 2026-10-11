@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using ModernExplorer.Core.Localization;
+using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 using ModernExplorer.Core.Update;
 using ModernExplorer.Core.ViewModels;
@@ -15,6 +16,7 @@ public sealed partial class SettingsWindow : Window
 {
     private readonly MainWindow _owner;
     private bool _suppressLanguageEvent;
+    private bool _suppressViewModeEvent;
 
     public SettingsViewModel Settings { get; }
 
@@ -27,6 +29,7 @@ public sealed partial class SettingsWindow : Window
         ConfigureWindowAndCenterOverOwner();
 
         PopulateLanguageComboBox();
+        PopulateDefaultViewModeComboBox();
         InstalledVersionLabel.Text = $"v{GitHubUpdateService.GetCurrentVersionString()}";
 
         ApplyTheme(Settings.Theme);
@@ -62,6 +65,7 @@ public sealed partial class SettingsWindow : Window
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         PopulateLanguageComboBox();
+        PopulateDefaultViewModeComboBox();
         ApplyLocalization();
         Bindings.Update();
     }
@@ -81,6 +85,33 @@ public sealed partial class SettingsWindow : Window
         finally
         {
             _suppressLanguageEvent = false;
+        }
+    }
+
+    private void PopulateDefaultViewModeComboBox()
+    {
+        if (DefaultViewModeComboBox is null) return;
+        _suppressViewModeEvent = true;
+        try
+        {
+            DefaultViewModeComboBox.Items.Clear();
+            ComboBoxItem? selectedItem = null;
+            foreach (var mode in TabViewModel.AllViewModes)
+            {
+                var item = new ComboBoxItem
+                {
+                    Tag = mode,
+                    Content = $"{TabViewModel.GetViewModeDisplayName(mode)} ({TabViewModel.GetViewModeShortcutText(mode)})"
+                };
+                DefaultViewModeComboBox.Items.Add(item);
+                if (mode == Settings.DefaultViewMode)
+                    selectedItem = item;
+            }
+            DefaultViewModeComboBox.SelectedItem = selectedItem ?? DefaultViewModeComboBox.Items.FirstOrDefault();
+        }
+        finally
+        {
+            _suppressViewModeEvent = false;
         }
     }
 
@@ -151,6 +182,8 @@ public sealed partial class SettingsWindow : Window
         // Category 3: File List & Behavior
         if (BehaviorHeaderTitle is not null) BehaviorHeaderTitle.Text = loc["Settings.Behavior.Header"];
         if (BehaviorHeaderSub is not null) BehaviorHeaderSub.Text = loc["Settings.Behavior.Sub"];
+        if (DefaultViewModeTitle is not null) DefaultViewModeTitle.Text = loc["Settings.Behavior.DefaultViewModeTitle"];
+        if (DefaultViewModeDesc is not null) DefaultViewModeDesc.Text = loc["Settings.Behavior.DefaultViewModeDesc"];
         if (ToggleFoldersFirst is not null)
         {
             ToggleFoldersFirst.Header = loc["Settings.Behavior.FoldersFirst.Header"];
@@ -248,6 +281,15 @@ public sealed partial class SettingsWindow : Window
         if (LanguageComboBox.SelectedItem is LanguageOption opt)
         {
             Settings.SetLanguage(opt.Code);
+        }
+    }
+
+    private void OnDefaultViewModeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressViewModeEvent) return;
+        if (DefaultViewModeComboBox.SelectedItem is ComboBoxItem { Tag: FileViewMode mode })
+        {
+            Settings.DefaultViewMode = mode;
         }
     }
 
@@ -450,6 +492,7 @@ public sealed partial class SettingsWindow : Window
         BorderColorHexBox.Text = Settings.SelectionBorderColor;
         MarkedTextColorHexBox.Text = Settings.MarkedItemTextColor;
         PopulateLanguageComboBox();
+        PopulateDefaultViewModeComboBox();
         ApplyLocalization();
         Bindings.Update();
         _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.FactoryReset");

@@ -25,6 +25,9 @@ public sealed class ShellIconConverter : IValueConverter
     public static ImageSource? ToImageSource(FileEntry? entry) =>
         entry is null ? null : GetOrCreateBitmap(ShellIconExtractor.GetIconForEntry(entry));
 
+    public static ImageSource? ToLargeImageSource(FileEntry? entry) =>
+        entry is null ? null : GetOrCreateBitmap(ShellIconExtractor.GetLargeIconForEntry(entry));
+
     public static ImageSource? DriveToImageSource(string? rootPath) =>
         string.IsNullOrEmpty(rootPath) ? null : GetOrCreateBitmap(ShellIconExtractor.GetDriveIcon(rootPath));
 

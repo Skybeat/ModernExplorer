@@ -397,6 +397,51 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             {
                 if (ActivePanel.ActiveTab is { } t) await t.ToggleHiddenAsync();
             })
+            .Register("view.mode.cycle", "Ansichtsmodus durchschalten", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.CycleViewMode();
+                RequestSessionSave();
+            })
+            .Register("view.mode.extraLargeIcons", "Ansicht: Extra große Symbole (Ctrl+Shift+1)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.ExtraLargeIcons);
+                RequestSessionSave();
+            })
+            .Register("view.mode.largeIcons", "Ansicht: Große Symbole (Ctrl+Shift+2)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.LargeIcons);
+                RequestSessionSave();
+            })
+            .Register("view.mode.mediumIcons", "Ansicht: Mittelgroße Symbole (Ctrl+Shift+3)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.MediumIcons);
+                RequestSessionSave();
+            })
+            .Register("view.mode.smallIcons", "Ansicht: Kleine Symbole (Ctrl+Shift+4)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.SmallIcons);
+                RequestSessionSave();
+            })
+            .Register("view.mode.list", "Ansicht: Liste (Ctrl+Shift+5)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.List);
+                RequestSessionSave();
+            })
+            .Register("view.mode.details", "Ansicht: Details (Ctrl+Shift+6)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.Details);
+                RequestSessionSave();
+            })
+            .Register("view.mode.tiles", "Ansicht: Kacheln (Ctrl+Shift+7)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.Tiles);
+                RequestSessionSave();
+            })
+            .Register("view.mode.content", "Ansicht: Inhalt (Ctrl+Shift+8)", "Ansicht", _ =>
+            {
+                ActivePanel.ActiveTab?.SetViewMode(FileViewMode.Content);
+                RequestSessionSave();
+            })
 
             // Selection & clipboard
             .Register("select.toggle", "Eintrag markieren / abwählen", "Auswahl", _ => ActivePanel.ActiveTab?.ToggleMarkFocusedAndAdvance())

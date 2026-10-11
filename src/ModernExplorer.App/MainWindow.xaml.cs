@@ -40,6 +40,10 @@ public sealed partial class MainWindow : Window
     private DateTime _lastQuickSearchKeyUtc;
     private string? _hoveredImagePath;
     private int _hoverLoadVersion;
+    private TabViewModel? _subscribedLeftTab;
+    private TabViewModel? _subscribedRightTab;
+    private FileViewMode? _currentLeftViewMode;
+    private FileViewMode? _currentRightViewMode;
 
     public MainViewModel ViewModel { get; }
     public FrameworkElement RootElement => RootGrid;
@@ -102,6 +106,24 @@ public sealed partial class MainWindow : Window
             }
         };
 
+        ViewModel.Left.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PanelViewModel.ActiveTab))
+            {
+                AttachPanelTabSubscription(PanelSide.Left);
+                UpdatePanelViewMode(PanelSide.Left);
+            }
+        };
+
+        ViewModel.Right.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PanelViewModel.ActiveTab))
+            {
+                AttachPanelTabSubscription(PanelSide.Right);
+                UpdatePanelViewMode(PanelSide.Right);
+            }
+        };
+
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsDualMode))
@@ -128,6 +150,10 @@ public sealed partial class MainWindow : Window
             ApplyTheme(ViewModel.Settings.Theme);
             ApplyLocalization();
             await ViewModel.InitializeAsync(tearOutTab);
+            AttachPanelTabSubscription(PanelSide.Left);
+            AttachPanelTabSubscription(PanelSide.Right);
+            UpdatePanelViewMode(PanelSide.Left);
+            UpdatePanelViewMode(PanelSide.Right);
             UpdateDualLayout();
             UpdateActivePanelVisuals();
             Bindings.Update();
@@ -215,6 +241,7 @@ public sealed partial class MainWindow : Window
         if (LeftForwardButton is not null) ToolTipService.SetToolTip(LeftForwardButton, loc["Panel.Forward.Tip"]);
         if (LeftUpButton is not null) ToolTipService.SetToolTip(LeftUpButton, loc["Panel.Up.Tip"]);
         if (LeftRefreshButton is not null) ToolTipService.SetToolTip(LeftRefreshButton, loc["Panel.Refresh.Tip"]);
+        if (LeftViewModeButton is not null) ToolTipService.SetToolTip(LeftViewModeButton, loc["Panel.View.Tip"]);
         if (LeftAddressBox is not null) LeftAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
         if (LeftFilterBox is not null) LeftFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
 
@@ -224,6 +251,7 @@ public sealed partial class MainWindow : Window
         if (RightForwardButton is not null) ToolTipService.SetToolTip(RightForwardButton, loc["Panel.Forward.Tip"]);
         if (RightUpButton is not null) ToolTipService.SetToolTip(RightUpButton, loc["Panel.Up.Tip"]);
         if (RightRefreshButton is not null) ToolTipService.SetToolTip(RightRefreshButton, loc["Panel.Refresh.Tip"]);
+        if (RightViewModeButton is not null) ToolTipService.SetToolTip(RightViewModeButton, loc["Panel.View.Tip"]);
         if (RightAddressBox is not null) RightAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
         if (RightFilterBox is not null) RightFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
 
@@ -576,9 +604,38 @@ public sealed partial class MainWindow : Window
         bool isAddressBar = IsDescendantOf(focused, LeftAddressBox) || IsDescendantOf(focused, RightAddressBox);
         bool isFileList = !isTextInput;
 
-        // Move Up/Down/Home/End/PageUp/PageDown deterministically relative to FocusedItem
+        // Windows Explorer shortcuts Ctrl+Shift+1..8 to switch view modes directly
+        if (chord.Modifiers == (KeyModifiers.Ctrl | KeyModifiers.Shift) &&
+            chord.Key is "1" or "2" or "3" or "4" or "5" or "6" or "7" or "8")
+        {
+            var activeTab = ViewModel.ActivePanel.ActiveTab;
+            if (activeTab is not null)
+            {
+                var mode = chord.Key switch
+                {
+                    "1" => FileViewMode.ExtraLargeIcons,
+                    "2" => FileViewMode.LargeIcons,
+                    "3" => FileViewMode.MediumIcons,
+                    "4" => FileViewMode.SmallIcons,
+                    "5" => FileViewMode.List,
+                    "6" => FileViewMode.Details,
+                    "7" => FileViewMode.Tiles,
+                    "8" => FileViewMode.Content,
+                    _ => FileViewMode.Details
+                };
+                activeTab.SetViewMode(mode);
+                UpdatePanelViewMode(ViewModel.ActiveSide);
+                ViewModel.RequestSessionSave();
+                Bindings.Update();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Move Up/Down/Left/Right/Home/End/PageUp/PageDown deterministically relative to FocusedItem
         if (isFileList && chord.Modifiers == KeyModifiers.None &&
-            chord.Key is "Up" or "Down" or "Home" or "End" or "PageUp" or "PageDown")
+            (chord.Key is "Up" or "Down" or "Home" or "End" or "PageUp" or "PageDown" ||
+             (chord.Key is "Left" or "Right" && ViewModel.ActivePanel.ActiveTab is { ViewMode: not FileViewMode.Details and not FileViewMode.Content })))
         {
             var activeTab = ViewModel.ActivePanel.ActiveTab;
             var activeList = ViewModel.ActiveSide == PanelSide.Left ? LeftFileList : RightFileList;
@@ -587,9 +644,11 @@ public sealed partial class MainWindow : Window
                 switch (chord.Key)
                 {
                     case "Up":
+                    case "Left":
                         activeTab.MoveFocus(-1);
                         break;
                     case "Down":
+                    case "Right":
                         activeTab.MoveFocus(1);
                         break;
                     case "Home":
@@ -969,6 +1028,15 @@ public sealed partial class MainWindow : Window
             menu.Items.Add(copyPathItem);
         }
 
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var viewSubMenu = new MenuFlyoutSubItem
+        {
+            Text = LocalizationService.T("Panel.View.Button"),
+            Icon = new FontIcon { Glyph = TabViewModel.GetViewModeGlyph(tab.ViewMode) }
+        };
+        PopulateViewModeMenuItems(viewSubMenu.Items, panel.Side, tab);
+        menu.Items.Add(viewSubMenu);
+
         menu.ShowAt(anchor, position);
     }
 
@@ -1074,6 +1142,7 @@ public sealed partial class MainWindow : Window
     private async void OnLeftForwardClick(object sender, RoutedEventArgs e) { if (ViewModel.Left.ActiveTab is { } t) await t.GoForwardAsync(); Bindings.Update(); }
     private async void OnLeftUpClick(object sender, RoutedEventArgs e) { if (ViewModel.Left.ActiveTab is { } t) await t.GoUpAsync(); Bindings.Update(); }
     private async void OnLeftRefreshClick(object sender, RoutedEventArgs e) { if (ViewModel.Left.ActiveTab is { } t) await t.ReloadAsync(); Bindings.Update(); }
+    private void OnLeftViewModeButtonClick(object sender, RoutedEventArgs e) => ShowViewModeFlyout(PanelSide.Left, LeftViewModeButton);
 
     private async void OnRightNewTabClick(object sender, RoutedEventArgs e) { await ViewModel.Right.CreateTabAsync(); Bindings.Update(); }
     private async void OnRightCloseTabClick(object sender, RoutedEventArgs e) { await ViewModel.Right.CloseTabAsync(); Bindings.Update(); }
@@ -1081,6 +1150,134 @@ public sealed partial class MainWindow : Window
     private async void OnRightForwardClick(object sender, RoutedEventArgs e) { if (ViewModel.Right.ActiveTab is { } t) await t.GoForwardAsync(); Bindings.Update(); }
     private async void OnRightUpClick(object sender, RoutedEventArgs e) { if (ViewModel.Right.ActiveTab is { } t) await t.GoUpAsync(); Bindings.Update(); }
     private async void OnRightRefreshClick(object sender, RoutedEventArgs e) { if (ViewModel.Right.ActiveTab is { } t) await t.ReloadAsync(); Bindings.Update(); }
+    private void OnRightViewModeButtonClick(object sender, RoutedEventArgs e) => ShowViewModeFlyout(PanelSide.Right, RightViewModeButton);
+
+    // ====================================================================
+    // VIEW MODES (8 WINDOWS EXPLORER VIEW MODES)
+    // ====================================================================
+
+    private void AttachPanelTabSubscription(PanelSide side)
+    {
+        if (side == PanelSide.Left)
+        {
+            if (_subscribedLeftTab is not null)
+                _subscribedLeftTab.PropertyChanged -= OnLeftActiveTabPropertyChanged;
+            _subscribedLeftTab = ViewModel.Left.ActiveTab;
+            if (_subscribedLeftTab is not null)
+                _subscribedLeftTab.PropertyChanged += OnLeftActiveTabPropertyChanged;
+        }
+        else
+        {
+            if (_subscribedRightTab is not null)
+                _subscribedRightTab.PropertyChanged -= OnRightActiveTabPropertyChanged;
+            _subscribedRightTab = ViewModel.Right.ActiveTab;
+            if (_subscribedRightTab is not null)
+                _subscribedRightTab.PropertyChanged += OnRightActiveTabPropertyChanged;
+        }
+    }
+
+    private void OnLeftActiveTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TabViewModel.ViewMode))
+        {
+            UpdatePanelViewMode(PanelSide.Left);
+            ViewModel.RequestSessionSave();
+            Bindings.Update();
+        }
+    }
+
+    private void OnRightActiveTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TabViewModel.ViewMode))
+        {
+            UpdatePanelViewMode(PanelSide.Right);
+            ViewModel.RequestSessionSave();
+            Bindings.Update();
+        }
+    }
+
+    public void UpdatePanelViewMode(PanelSide side)
+    {
+        var panel = side == PanelSide.Left ? ViewModel.Left : ViewModel.Right;
+        var list = side == PanelSide.Left ? LeftFileList : RightFileList;
+        var headerGrid = side == PanelSide.Left ? LeftColumnHeaderGrid : RightColumnHeaderGrid;
+        if (list is null || headerGrid is null) return;
+
+        var mode = panel.ActiveTab?.ViewMode ?? ViewModel.Settings.DefaultViewMode;
+        headerGrid.Visibility = mode == FileViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+
+        var currentApplied = side == PanelSide.Left ? _currentLeftViewMode : _currentRightViewMode;
+        if (currentApplied == mode)
+            return;
+
+        var (panelKey, templateKey) = mode switch
+        {
+            FileViewMode.ExtraLargeIcons => ("ExtraLargeIconsItemsPanel", "ExtraLargeIconsItemTemplate"),
+            FileViewMode.LargeIcons      => ("LargeIconsItemsPanel", "LargeIconsItemTemplate"),
+            FileViewMode.MediumIcons     => ("MediumIconsItemsPanel", "MediumIconsItemTemplate"),
+            FileViewMode.SmallIcons      => ("SmallIconsItemsPanel", "SmallIconsItemTemplate"),
+            FileViewMode.List            => ("ListItemsPanel", "ListItemTemplate"),
+            FileViewMode.Details         => ("VerticalStackItemsPanel", "DetailsItemTemplate"),
+            FileViewMode.Tiles           => ("TilesItemsPanel", "TilesItemTemplate"),
+            FileViewMode.Content         => ("VerticalStackItemsPanel", "ContentItemTemplate"),
+            _                            => ("VerticalStackItemsPanel", "DetailsItemTemplate")
+        };
+
+        if (RootGrid.Resources.TryGetValue(panelKey, out var panelObj) && panelObj is ItemsPanelTemplate itemsPanel)
+            list.ItemsPanel = itemsPanel;
+
+        if (RootGrid.Resources.TryGetValue(templateKey, out var templateObj) && templateObj is DataTemplate itemTemplate)
+            list.ItemTemplate = itemTemplate;
+
+        if (side == PanelSide.Left)
+            _currentLeftViewMode = mode;
+        else
+            _currentRightViewMode = mode;
+
+        Bindings.Update();
+    }
+
+    private void ShowViewModeFlyout(PanelSide side, FrameworkElement anchor)
+    {
+        ViewModel.ActiveSide = side;
+        var panel = side == PanelSide.Left ? ViewModel.Left : ViewModel.Right;
+        var tab = panel.ActiveTab;
+        if (tab is null) return;
+
+        var flyout = new MenuFlyout();
+        PopulateViewModeMenuItems(flyout.Items, side, tab);
+        flyout.ShowAt(anchor);
+    }
+
+    private void PopulateViewModeMenuItems(IList<MenuFlyoutItemBase> menuItems, PanelSide side, TabViewModel tab)
+    {
+        foreach (var mode in TabViewModel.AllViewModes)
+        {
+            var capturedMode = mode;
+            var item = new ToggleMenuFlyoutItem
+            {
+                Text = TabViewModel.GetViewModeDisplayName(capturedMode),
+                IsChecked = tab.ViewMode == capturedMode,
+                Icon = new FontIcon { Glyph = TabViewModel.GetViewModeGlyph(capturedMode) },
+                KeyboardAcceleratorTextOverride = TabViewModel.GetViewModeShortcutText(capturedMode)
+            };
+            item.Click += (_, _) =>
+            {
+                ViewModel.ActiveSide = side;
+                tab.SetViewMode(capturedMode);
+                UpdatePanelViewMode(side);
+                ViewModel.RequestSessionSave();
+                Bindings.Update();
+                FocusFileList(side);
+            };
+            menuItems.Add(item);
+
+            if (capturedMode is FileViewMode.SmallIcons or FileViewMode.Details)
+            {
+                menuItems.Add(new MenuFlyoutSeparator());
+            }
+        }
+    }
 
     // Breadcrumbs
     private async void OnLeftBreadcrumbClick(object sender, RoutedEventArgs e)

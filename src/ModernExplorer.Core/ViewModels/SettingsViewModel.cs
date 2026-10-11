@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using ModernExplorer.Core.Localization;
+using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 
 namespace ModernExplorer.Core.ViewModels;
@@ -26,6 +27,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _saveSession = true;
+
+    [ObservableProperty]
+    private FileViewMode _defaultViewMode = FileViewMode.Details;
 
     [ObservableProperty]
     private bool _showHiddenFilesByDefault;
@@ -181,6 +185,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public event EventHandler? ShowHiddenFilesByDefaultChanged;
     public event EventHandler? SortFoldersFirstChanged;
     public event EventHandler? ShowFileExtensionsChanged;
+    public event EventHandler? DefaultViewModeChanged;
 
     public SettingsViewModel(SettingsStore? store = null)
     {
@@ -215,6 +220,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             LocalizationService.Instance.SetLanguage(norm.Language);
             CheckForUpdatesOnStartup = norm.CheckForUpdatesOnStartup;
             SaveSession = norm.SaveSession;
+            DefaultViewMode = norm.DefaultViewMode;
             ShowHiddenFilesByDefault = norm.ShowHiddenFilesByDefault;
             ShowFileExtensions = norm.ShowFileExtensions;
             SortFoldersFirst = norm.SortFoldersFirst;
@@ -262,6 +268,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Language = LocalizationService.NormalizeLanguageCode(Language),
         CheckForUpdatesOnStartup = CheckForUpdatesOnStartup,
         SaveSession = SaveSession,
+        DefaultViewMode = DefaultViewMode,
         ShowHiddenFilesByDefault = ShowHiddenFilesByDefault,
         ShowFileExtensions = ShowFileExtensions,
         SortFoldersFirst = SortFoldersFirst,
@@ -420,6 +427,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ShowHiddenFilesByDefaultChanged?.Invoke(this, EventArgs.Empty);
         SortFoldersFirstChanged?.Invoke(this, EventArgs.Empty);
         ShowFileExtensionsChanged?.Invoke(this, EventArgs.Empty);
+        DefaultViewModeChanged?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnThemeChanged(AppTheme value)
@@ -441,6 +449,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         Persist();
         SaveSessionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    partial void OnDefaultViewModeChanged(FileViewMode value)
+    {
+        Persist();
+        DefaultViewModeChanged?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnShowHiddenFilesByDefaultChanged(bool value)

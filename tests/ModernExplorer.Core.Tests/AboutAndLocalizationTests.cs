@@ -212,6 +212,78 @@ public sealed class AboutAndLocalizationTests
                 Directory.Delete(tempRoot, recursive: true);
         }
     }
+
+    [Fact]
+    public void TabViewModel_AllEightWindowsExplorerViewModes_CyclePersistAndLocalizeCorrectly()
+    {
+        var watcherHub = new ModernExplorer.Core.FileSystem.WatcherHub();
+        var dispatcher = new ImmediateTestDispatcher();
+        var tab = new TabViewModel(watcherHub, dispatcher);
+
+        // Default view mode is Details
+        Assert.Equal(ModernExplorer.Core.Session.FileViewMode.Details, tab.ViewMode);
+        Assert.True(tab.IsDetailsView);
+        Assert.Equal(8, TabViewModel.AllViewModes.Count);
+
+        // Verify German display names match Windows Explorer
+        LocalizationService.Instance.SetLanguage("de");
+        Assert.Equal("Extra große Symbole", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.ExtraLargeIcons));
+        Assert.Equal("Große Symbole", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.LargeIcons));
+        Assert.Equal("Mittelgroße Symbole", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.MediumIcons));
+        Assert.Equal("Kleine Symbole", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.SmallIcons));
+        Assert.Equal("Liste", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.List));
+        Assert.Equal("Details", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Details));
+        Assert.Equal("Kacheln", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Tiles));
+        Assert.Equal("Inhalt", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Content));
+
+        // Verify English display names match Windows Explorer
+        LocalizationService.Instance.SetLanguage("en");
+        Assert.Equal("Extra large icons", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.ExtraLargeIcons));
+        Assert.Equal("Large icons", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.LargeIcons));
+        Assert.Equal("Medium icons", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.MediumIcons));
+        Assert.Equal("Small icons", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.SmallIcons));
+        Assert.Equal("List", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.List));
+        Assert.Equal("Details", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Details));
+        Assert.Equal("Tiles", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Tiles));
+        Assert.Equal("Content", TabViewModel.GetViewModeDisplayName(ModernExplorer.Core.Session.FileViewMode.Content));
+
+        // Verify SetViewMode, CycleViewMode, and ToState() persistence
+        tab.SetViewMode(ModernExplorer.Core.Session.FileViewMode.ExtraLargeIcons);
+        Assert.False(tab.IsDetailsView);
+        Assert.Equal("Ctrl+Shift+1", TabViewModel.GetViewModeShortcutText(tab.ViewMode));
+
+        var state = tab.ToState();
+        Assert.Equal(ModernExplorer.Core.Session.FileViewMode.ExtraLargeIcons, state.ViewMode);
+
+        // Cycle through all 8 modes and verify we return to ExtraLargeIcons
+        for (int i = 0; i < 8; i++)
+        {
+            tab.CycleViewMode();
+        }
+        Assert.Equal(ModernExplorer.Core.Session.FileViewMode.ExtraLargeIcons, tab.ViewMode);
+    }
+
+    [Fact]
+    public void GitHubUpdateService_SemanticVersioning_CalculatesNextVersionAndDeterminesBumpCorrectly()
+    {
+        var baseVer = new Version(1, 0, 3);
+
+        Assert.Equal(new Version(1, 0, 4), GitHubUpdateService.CalculateNextSemanticVersion(baseVer, SemVerBumpType.Patch));
+        Assert.Equal(new Version(1, 1, 0), GitHubUpdateService.CalculateNextSemanticVersion(baseVer, SemVerBumpType.Minor));
+        Assert.Equal(new Version(2, 0, 0), GitHubUpdateService.CalculateNextSemanticVersion(baseVer, SemVerBumpType.Major));
+
+        Assert.Equal(SemVerBumpType.Patch, GitHubUpdateService.DetermineSemanticVersionBump(["fix: resolve update bug", "chore: cleanup"]));
+        Assert.Equal(SemVerBumpType.Minor, GitHubUpdateService.DetermineSemanticVersionBump(["fix: minor tweak", "feat: add 8 Windows Explorer view modes"]));
+        Assert.Equal(SemVerBumpType.Major, GitHubUpdateService.DetermineSemanticVersionBump(["feat: new view mode", "feat!: redesign session format"]));
+        Assert.Equal(SemVerBumpType.Major, GitHubUpdateService.DetermineSemanticVersionBump(["refactor: update API\n\nBREAKING CHANGE: session v2"]));
+    }
+
+    private sealed class ImmediateTestDispatcher : IUiDispatcher
+    {
+        public bool HasThreadAccess => true;
+        public void Post(Action action) => action();
+    }
 }
+
 
 

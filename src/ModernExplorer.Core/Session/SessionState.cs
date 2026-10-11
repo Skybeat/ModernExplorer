@@ -4,6 +4,21 @@ namespace ModernExplorer.Core.Session;
 
 public enum SortColumn { Name, Size, Modified, Type }
 
+/// <summary>
+/// File list display modes matching the 8 view modes of Windows Explorer.
+/// </summary>
+public enum FileViewMode
+{
+    ExtraLargeIcons,
+    LargeIcons,
+    MediumIcons,
+    SmallIcons,
+    List,
+    Details,
+    Tiles,
+    Content,
+}
+
 public sealed record SortSpec
 {
     public SortColumn Column { get; init; } = SortColumn.Name;
@@ -18,6 +33,7 @@ public sealed class TabState
     public bool Pinned { get; set; }
     public bool Locked { get; set; }
     public bool ShowHidden { get; set; }
+    public FileViewMode ViewMode { get; set; } = FileViewMode.Details;
     public SortSpec Sort { get; set; } = new();
     public string? Filter { get; set; }
     public string? FocusedName { get; set; }

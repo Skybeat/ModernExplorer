@@ -15,6 +15,7 @@ public sealed record ShellIconData(int Width, int Height, byte[] BgraPixels);
 public static class ShellIconExtractor
 {
     private const uint SHGFI_ICON = 0x000000100;
+    private const uint SHGFI_LARGEICON = 0x000000000;
     private const uint SHGFI_SMALLICON = 0x000000001;
     private const uint SHGFI_USEFILEATTRIBUTES = 0x000000010;
 
@@ -28,51 +29,73 @@ public static class ShellIconExtractor
         ".exe", ".lnk", ".ico", ".url", ".cur", ".ani", ".scr", ".cpl", ".msc",
     };
 
-    public static ShellIconData? GetIconForEntry(FileEntry entry)
+    public static ShellIconData? GetIconForEntry(FileEntry entry) =>
+        GetIconForEntryCore(entry, small: true);
+
+    public static ShellIconData? GetLargeIconForEntry(FileEntry entry) =>
+        GetIconForEntryCore(entry, small: false);
+
+    private static ShellIconData? GetIconForEntryCore(FileEntry entry, bool small)
     {
+        string prefix = small ? "S:" : "L:";
         if (entry.IsDirectory)
         {
             if (entry.IsParentLink)
-                return GetStandardFolderIcon();
+                return small ? GetStandardFolderIcon() : GetLargeStandardFolderIcon();
 
             // Special folders (Downloads, Desktop, Documents, etc.) have ReadOnly or System attributes on Windows
             bool isCustomizedFolder = (entry.Attributes & (FileAttributes.ReadOnly | FileAttributes.System)) != 0;
             if (isCustomizedFolder)
-                return Cache.GetOrAdd("PATH:" + entry.FullPath, _ => ExtractIcon(entry.FullPath, FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: false) ?? GetStandardFolderIcon());
+            {
+                return Cache.GetOrAdd(prefix + "PATH:" + entry.FullPath,
+                    _ => ExtractIcon(entry.FullPath, FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: false, small: small)
+                         ?? (small ? GetStandardFolderIcon() : GetLargeStandardFolderIcon()));
+            }
 
-            return GetStandardFolderIcon();
+            return small ? GetStandardFolderIcon() : GetLargeStandardFolderIcon();
         }
 
         var ext = entry.Extension;
         if (!string.IsNullOrEmpty(ext) && PerInstanceExtensions.Contains(ext))
         {
-            return Cache.GetOrAdd("FILE:" + entry.FullPath,
-                _ => ExtractIcon(entry.FullPath, FILE_ATTRIBUTE_NORMAL, useFileAttributes: false) ?? GetExtensionIcon(ext));
+            return Cache.GetOrAdd(prefix + "FILE:" + entry.FullPath,
+                _ => ExtractIcon(entry.FullPath, FILE_ATTRIBUTE_NORMAL, useFileAttributes: false, small: small)
+                     ?? (small ? GetExtensionIcon(ext) : GetLargeExtensionIcon(ext)));
         }
 
-        return GetExtensionIcon(ext);
+        return small ? GetExtensionIcon(ext) : GetLargeExtensionIcon(ext);
     }
 
     public static ShellIconData? GetDriveIcon(string rootPath) =>
-        Cache.GetOrAdd("DRIVE:" + rootPath, _ => ExtractIcon(rootPath, FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: false));
+        Cache.GetOrAdd("DRIVE:" + rootPath, _ => ExtractIcon(rootPath, FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: false, small: true));
 
     public static ShellIconData? GetStandardFolderIcon() =>
-        Cache.GetOrAdd("DIR:__STANDARD__", _ => ExtractIcon("Folder", FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: true));
+        Cache.GetOrAdd("DIR:__STANDARD__", _ => ExtractIcon("Folder", FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: true, small: true));
+
+    public static ShellIconData? GetLargeStandardFolderIcon() =>
+        Cache.GetOrAdd("L:DIR:__STANDARD__", _ => ExtractIcon("Folder", FILE_ATTRIBUTE_DIRECTORY, useFileAttributes: true, small: false));
 
     public static ShellIconData? GetExtensionIcon(string extension)
     {
         var key = string.IsNullOrEmpty(extension) ? "EXT:__NONE__" : "EXT:" + extension.ToLowerInvariant();
         var dummyName = string.IsNullOrEmpty(extension) ? "file" : "file" + extension.ToLowerInvariant();
-        return Cache.GetOrAdd(key, _ => ExtractIcon(dummyName, FILE_ATTRIBUTE_NORMAL, useFileAttributes: true));
+        return Cache.GetOrAdd(key, _ => ExtractIcon(dummyName, FILE_ATTRIBUTE_NORMAL, useFileAttributes: true, small: true));
     }
 
-    private static ShellIconData? ExtractIcon(string pathOrName, uint fileAttributes, bool useFileAttributes)
+    public static ShellIconData? GetLargeExtensionIcon(string extension)
+    {
+        var key = string.IsNullOrEmpty(extension) ? "L:EXT:__NONE__" : "L:EXT:" + extension.ToLowerInvariant();
+        var dummyName = string.IsNullOrEmpty(extension) ? "file" : "file" + extension.ToLowerInvariant();
+        return Cache.GetOrAdd(key, _ => ExtractIcon(dummyName, FILE_ATTRIBUTE_NORMAL, useFileAttributes: true, small: false));
+    }
+
+    private static ShellIconData? ExtractIcon(string pathOrName, uint fileAttributes, bool useFileAttributes, bool small = true)
     {
         if (!OperatingSystem.IsWindows())
             return null;
 
         var shfi = new SHFILEINFO();
-        uint flags = SHGFI_ICON | SHGFI_SMALLICON;
+        uint flags = SHGFI_ICON | (small ? SHGFI_SMALLICON : SHGFI_LARGEICON);
         if (useFileAttributes) flags |= SHGFI_USEFILEATTRIBUTES;
 
         IntPtr res = SHGetFileInfoW(pathOrName, fileAttributes, ref shfi, (uint)Marshal.SizeOf<SHFILEINFO>(), flags);

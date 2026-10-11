@@ -44,6 +44,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private bool _showHidden;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailsView), nameof(ViewModeDisplayName), nameof(ViewModeIconGlyph), nameof(ViewModeButtonLabel))]
+    private FileViewMode _viewMode = FileViewMode.Details;
+
+    [ObservableProperty]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -71,6 +75,62 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<FileItemViewModel> Items { get; } = [];
     public ObservableCollection<BreadcrumbSegment> Breadcrumbs { get; } = [];
+
+    public static IReadOnlyList<FileViewMode> AllViewModes { get; } =
+    [
+        FileViewMode.ExtraLargeIcons,
+        FileViewMode.LargeIcons,
+        FileViewMode.MediumIcons,
+        FileViewMode.SmallIcons,
+        FileViewMode.List,
+        FileViewMode.Details,
+        FileViewMode.Tiles,
+        FileViewMode.Content,
+    ];
+
+    public bool IsDetailsView => ViewMode == FileViewMode.Details;
+    public string ViewModeIconGlyph => GetViewModeGlyph(ViewMode);
+    public string ViewModeDisplayName => GetViewModeDisplayName(ViewMode);
+    public string ViewModeButtonLabel => $"{ViewModeIconGlyph} {ViewModeDisplayName} ▾";
+
+    public static string GetViewModeGlyph(FileViewMode mode) => mode switch
+    {
+        FileViewMode.ExtraLargeIcons => "🖼",
+        FileViewMode.LargeIcons => "⊞",
+        FileViewMode.MediumIcons => "⊡",
+        FileViewMode.SmallIcons => "∷",
+        FileViewMode.List => "≣",
+        FileViewMode.Details => "☰",
+        FileViewMode.Tiles => "▦",
+        FileViewMode.Content => "▤",
+        _ => "☰",
+    };
+
+    public static string GetViewModeDisplayName(FileViewMode mode) => mode switch
+    {
+        FileViewMode.ExtraLargeIcons => LocalizationService.T("ViewMode.ExtraLargeIcons"),
+        FileViewMode.LargeIcons => LocalizationService.T("ViewMode.LargeIcons"),
+        FileViewMode.MediumIcons => LocalizationService.T("ViewMode.MediumIcons"),
+        FileViewMode.SmallIcons => LocalizationService.T("ViewMode.SmallIcons"),
+        FileViewMode.List => LocalizationService.T("ViewMode.List"),
+        FileViewMode.Details => LocalizationService.T("ViewMode.Details"),
+        FileViewMode.Tiles => LocalizationService.T("ViewMode.Tiles"),
+        FileViewMode.Content => LocalizationService.T("ViewMode.Content"),
+        _ => LocalizationService.T("ViewMode.Details"),
+    };
+
+    public static string GetViewModeShortcutText(FileViewMode mode) => mode switch
+    {
+        FileViewMode.ExtraLargeIcons => "Ctrl+Shift+1",
+        FileViewMode.LargeIcons => "Ctrl+Shift+2",
+        FileViewMode.MediumIcons => "Ctrl+Shift+3",
+        FileViewMode.SmallIcons => "Ctrl+Shift+4",
+        FileViewMode.List => "Ctrl+Shift+5",
+        FileViewMode.Details => "Ctrl+Shift+6",
+        FileViewMode.Tiles => "Ctrl+Shift+7",
+        FileViewMode.Content => "Ctrl+Shift+8",
+        _ => "",
+    };
 
     public bool CanGoBack => _back.Count > 0;
     public bool CanGoForward => _forward.Count > 0;
@@ -118,6 +178,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             IsPinned = state.Pinned;
             IsLocked = state.Locked;
             ShowHidden = state.ShowHidden;
+            ViewMode = Enum.IsDefined(typeof(FileViewMode), state.ViewMode) ? state.ViewMode : FileViewMode.Details;
             Sort = state.Sort;
             Filter = state.Filter ?? "";
             foreach (var b in Enumerable.Reverse(state.Back)) _back.Push(b);
@@ -126,6 +187,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         else
         {
             ShowHidden = SettingsViewModel.Current.ShowHiddenFilesByDefault;
+            ViewMode = SettingsViewModel.Current.DefaultViewMode;
             Sort = new SortSpec
             {
                 Column = SortColumn.Name,
@@ -139,12 +201,40 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
+        OnPropertyChanged(nameof(ViewModeDisplayName));
+        OnPropertyChanged(nameof(ViewModeButtonLabel));
         UpdateStatusSummary();
         UpdateDriveSummary(CurrentPath);
         foreach (var item in _allItems)
             item.RefreshLocalization();
         foreach (var item in Items)
             item.RefreshLocalization();
+    }
+
+    partial void OnViewModeChanged(FileViewMode value)
+    {
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetViewMode(FileViewMode mode)
+    {
+        if (Enum.IsDefined(typeof(FileViewMode), mode))
+            ViewMode = mode;
+    }
+
+    public void CycleViewMode(bool forward = true)
+    {
+        var list = AllViewModes;
+        int idx = -1;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] == ViewMode) { idx = i; break; }
+        }
+        if (idx < 0) idx = 5; // Details
+        int nextIdx = forward
+            ? (idx + 1) % list.Count
+            : (idx - 1 + list.Count) % list.Count;
+        ViewMode = list[nextIdx];
     }
 
     partial void OnFocusedItemChanged(FileItemViewModel? oldValue, FileItemViewModel? newValue)
@@ -443,6 +533,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Pinned = IsPinned,
         Locked = IsLocked,
         ShowHidden = ShowHidden,
+        ViewMode = ViewMode,
         Sort = Sort,
         Filter = string.IsNullOrEmpty(Filter) ? null : Filter,
         FocusedName = FocusedItem?.Name,
