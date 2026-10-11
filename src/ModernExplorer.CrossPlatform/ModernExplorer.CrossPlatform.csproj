@@ -6,11 +6,13 @@
     <RootNamespace>ModernExplorer.CrossPlatform</RootNamespace>
     <AssemblyName>ModernExplorer</AssemblyName>
     <ApplicationIcon>..\ModernExplorer.App\Assets\AppIcon.ico</ApplicationIcon>
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>

@@ -508,6 +508,185 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <!-- 4. Storage Analyzer Treemap Category Colors Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock x:Name="ColorTreemapTitle"
+                                           Text="4. Farben der Dateikategorien im Speicherplatz-Analysator (Treemap)"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock x:Name="ColorTreemapDesc"
+                                           Text="Passen Sie die Farben für die grafisch dargestellten Dateikategorien in der WinDirStat/WizTree-Treemap individuell an (#RRGGBB oder Direktwahl)."
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <!-- Category 0: Video & Audio -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVideoMediaColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatVideoLabel" Grid.Column="1" Text="🎬 Video &amp; Audio (.mp4, .mp3 …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="VideoMedia:#3B82F6" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#3B82F6" /></Button>
+                                        <Button Tag="VideoMedia:#2563EB" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#2563EB" /></Button>
+                                        <Button Tag="VideoMedia:#0EA5E9" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#0EA5E9" /></Button>
+                                        <Button Tag="VideoMedia:#EC4899" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EC4899" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapVideoHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapVideoMediaColor, Mode=OneWay}" PlaceholderText="#3B82F6" />
+                                    <Button Grid.Column="4" Tag="VideoMedia" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 1: Archive & Disk-Images -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapArchiveImageColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatArchiveLabel" Grid.Column="1" Text="📦 Archive &amp; ISOs (.zip, .7z, .iso …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="ArchiveImage:#8B5CF6" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#8B5CF6" /></Button>
+                                        <Button Tag="ArchiveImage:#A855F7" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#A855F7" /></Button>
+                                        <Button Tag="ArchiveImage:#D946EF" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#D946EF" /></Button>
+                                        <Button Tag="ArchiveImage:#6366F1" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#6366F1" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapArchiveHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapArchiveImageColor, Mode=OneWay}" PlaceholderText="#8B5CF6" />
+                                    <Button Grid.Column="4" Tag="ArchiveImage" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 2: Virtuelle Disks, DB & System -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapVirtualDiskSystemColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatVdiskLabel" Grid.Column="1" Text="💽 Virt. Disks, DB &amp; System (.vhdx, .db)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="VirtualDiskSystem:#F97316" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F97316" /></Button>
+                                        <Button Tag="VirtualDiskSystem:#EF4444" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EF4444" /></Button>
+                                        <Button Tag="VirtualDiskSystem:#EA580C" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EA580C" /></Button>
+                                        <Button Tag="VirtualDiskSystem:#DC2626" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#DC2626" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapVdiskHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapVirtualDiskSystemColor, Mode=OneWay}" PlaceholderText="#F97316" />
+                                    <Button Grid.Column="4" Tag="VirtualDiskSystem" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 3: Code, Text & Dokumente -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapCodeDocumentColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatCodeLabel" Grid.Column="1" Text="📄 Code, Text &amp; Dokumente (.cs, .pdf …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="CodeDocument:#10B981" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#10B981" /></Button>
+                                        <Button Tag="CodeDocument:#22C55E" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#22C55E" /></Button>
+                                        <Button Tag="CodeDocument:#14B8A6" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#14B8A6" /></Button>
+                                        <Button Tag="CodeDocument:#84CC16" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#84CC16" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapCodeHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapCodeDocumentColor, Mode=OneWay}" PlaceholderText="#10B981" />
+                                    <Button Grid.Column="4" Tag="CodeDocument" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 4: Bilder & Grafiken -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapPictureGraphicColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatPictureLabel" Grid.Column="1" Text="🖼️ Bilder &amp; Grafiken (.png, .jpg, .psd)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="PictureGraphic:#06B6D4" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#06B6D4" /></Button>
+                                        <Button Tag="PictureGraphic:#38BDF8" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#38BDF8" /></Button>
+                                        <Button Tag="PictureGraphic:#0284C7" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#0284C7" /></Button>
+                                        <Button Tag="PictureGraphic:#F43F5E" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F43F5E" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapPictureHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapPictureGraphicColor, Mode=OneWay}" PlaceholderText="#06B6D4" />
+                                    <Button Grid.Column="4" Tag="PictureGraphic" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 5: Programme & Bibliotheken -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapBinaryExecutableColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatBinaryLabel" Grid.Column="1" Text="⚙️ Programme &amp; Binaries (.exe, .dll …)" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="BinaryExecutable:#EAB308" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EAB308" /></Button>
+                                        <Button Tag="BinaryExecutable:#F59E0B" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F59E0B" /></Button>
+                                        <Button Tag="BinaryExecutable:#FACC15" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#FACC15" /></Button>
+                                        <Button Tag="BinaryExecutable:#D97706" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#D97706" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapBinaryHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapBinaryExecutableColor, Mode=OneWay}" PlaceholderText="#EAB308" />
+                                    <Button Grid.Column="4" Tag="BinaryExecutable" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <!-- Category 6: Sonstige & Temp -->
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="125" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" VerticalAlignment="Center"
+                                            Background="{x:Bind local:ShellIconConverter.HexToBrush(Settings.TreemapOtherTempColor), Mode=OneWay}" />
+                                    <TextBlock x:Name="TreemapCatOtherLabel" Grid.Column="1" Text="🗂️ Sonstige &amp; Temp-Dateien" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Button Tag="OtherTemp:#64748B" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#64748B" /></Button>
+                                        <Button Tag="OtherTemp:#475569" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#475569" /></Button>
+                                        <Button Tag="OtherTemp:#94A3B8" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#94A3B8" /></Button>
+                                        <Button Tag="OtherTemp:#78716C" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#78716C" /></Button>
+                                    </StackPanel>
+                                    <TextBox x:Name="TreemapOtherHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapOtherTempColor, Mode=OneWay}" PlaceholderText="#64748B" />
+                                    <Button Grid.Column="4" Tag="OtherTemp" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                </Grid>
+
+                                <Button x:Name="ResetTreemapColorsButton"
+                                        Content="Treemap-Farben auf Standardwerte zurücksetzen"
+                                        Click="OnResetTreemapColorsClick"
+                                        Padding="12,6"
+                                        FontSize="12.5" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- ========================================================= -->
@@ -629,23 +808,56 @@
                     <!-- ========================================================= -->
                     <StackPanel x:Name="CategoryFontsPanel" Spacing="18" Visibility="Collapsed">
                         <StackPanel Spacing="4">
-                            <TextBlock x:Name="FontsHeaderTitle" Text="Schriftgrößen der UI-Elemente" FontSize="20" FontWeight="SemiBold" />
-                            <TextBlock x:Name="FontsHeaderSub" Text="Passen Sie die Schriftgröße für die einzelnen Bereiche der Oberfläche individuell an."
+                            <TextBlock x:Name="FontsHeaderTitle" Text="Schriftgrößen (Global, Hauptfenster &amp; Child-Fenster)" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock x:Name="FontsHeaderSub" Text="Verwenden Sie vereinfacht eine globale Schriftgröße für die gesamte App oder passen Sie jedes UI-Element und jedes Child-Fenster einzeln an."
                                        FontSize="13" Opacity="0.75" TextWrapping="Wrap" />
                         </StackPanel>
 
+                        <!-- 1. Simplified Global Font Size Card (Optionshaken) -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock x:Name="FontGlobalCardTitle"
+                                           Text="🌐 Vereinfachte globale Schriftgröße (für gesamte App &amp; alle Child-Fenster)"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <CheckBox x:Name="UseGlobalFontSizeCheckBox"
+                                          Content="Vereinfacht nur eine Schriftgröße einstellen und global für das Hauptfenster sowie alle Child-Fenster verwenden"
+                                          IsChecked="{x:Bind Settings.UseGlobalFontSize, Mode=TwoWay}"
+                                          FontWeight="SemiBold" />
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontGlobalSliderLabel" Text="Globale Schriftgröße (wird überall angewendet, wenn Haken gesetzt)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.GlobalFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12.5" FontWeight="SemiBold" Opacity="0.9" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            Value="{x:Bind Settings.GlobalFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 2. Main Window UI Elements Card -->
                         <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
                                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="18">
                             <StackPanel Spacing="14">
+                                <TextBlock x:Name="FontMainWinCardTitle"
+                                           Text="🖥️ Hauptfenster – UI-Bereiche einzeln anpassen"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+
                                 <StackPanel Spacing="2">
                                     <Grid>
                                         <TextBlock x:Name="FontFileListLabel" Text="Dateiliste (Dateinamen &amp; Ordner)" FontSize="12.5" FontWeight="SemiBold" />
                                         <TextBlock Text="{x:Bind Settings.FileListFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="9" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.FileListFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -655,6 +867,7 @@
                                         <TextBlock Text="{x:Bind Settings.FileListDetailsFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="8" Maximum="22" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.FileListDetailsFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -664,6 +877,7 @@
                                         <TextBlock Text="{x:Bind Settings.TabFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.TabFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -673,6 +887,7 @@
                                         <TextBlock Text="{x:Bind Settings.DriveBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.DriveBarFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -682,6 +897,7 @@
                                         <TextBlock Text="{x:Bind Settings.AddressBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="9" Maximum="22" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.AddressBarFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -691,6 +907,7 @@
                                         <TextBlock Text="{x:Bind Settings.BreadcrumbFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.BreadcrumbFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -700,6 +917,7 @@
                                         <TextBlock Text="{x:Bind Settings.StatusBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.StatusBarFontSize, Mode=TwoWay}" />
                                 </StackPanel>
 
@@ -709,16 +927,136 @@
                                         <TextBlock Text="{x:Bind Settings.FunctionBarFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
                                     </Grid>
                                     <Slider Minimum="8" Maximum="20" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
                                             Value="{x:Bind Settings.FunctionBarFontSize, Mode=TwoWay}" />
                                 </StackPanel>
-
-                                <Button x:Name="ResetFontSizesButton"
-                                        Content="Schriftgrößen auf Standardwerte zurücksetzen"
-                                        Click="OnResetFontSizesClick"
-                                        Padding="12,6"
-                                        FontSize="12.5" />
                             </StackPanel>
                         </Border>
+
+                        <!-- 3. Child Windows Individual Font Sizes Card -->
+                        <Border Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock x:Name="FontChildWinCardTitle"
+                                           Text="🪟 Child-Fenster – Schriftgröße für jedes Child-Fenster einzeln anpassen"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+                                <TextBlock x:Name="FontChildWinCardDesc"
+                                           Text="Steuert die Schriftgröße in den einzelnen Werkzeug- und Vorschaufenstern (sofern oben nicht die globale Schriftgröße aktiviert ist)."
+                                           FontSize="12.5"
+                                           Opacity="0.75"
+                                           TextWrapping="Wrap" />
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontQuickViewerLabel" Text="👁️ Quick-Viewer / Schnellansicht (F3)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.QuickViewerFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.QuickViewerFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontEditorLabel" Text="✏️ Interner Text- &amp; Code-Editor (F4)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.EditorFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.EditorFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontStorageAnalyzerLabel" Text="🗺️ Speicherplatz-Analysator &amp; Treemap (Strg+Shift+W)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.StorageAnalyzerFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.StorageAnalyzerFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontDeepSearchLabel" Text="🔍 Rekursive Tiefensuche (Alt+F7)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.DeepSearchFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.DeepSearchFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontDuplicateFinderLabel" Text="🧹 Duplikat-Finder (SHA-256)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.DuplicateFinderFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.DuplicateFinderFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontDirectorySyncLabel" Text="⇄ Verzeichnisse vergleichen &amp; synchronisieren (Strg+Shift+S)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.DirectorySyncFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.DirectorySyncFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontBatchRenameLabel" Text="🏷️ Mehrfach-Umbenennungstool (Strg+M)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.BatchRenameFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.BatchRenameFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontFtpManagerLabel" Text="🌐 FTP / FTPS / SFTP Verbindungsmanager" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.FtpManagerFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.FtpManagerFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontArchiveDialogLabel" Text="📦 In Archiv packen (Alt+F5)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.ArchiveDialogFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.ArchiveDialogFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="2">
+                                    <Grid>
+                                        <TextBlock x:Name="FontAboutWindowLabel" Text="ℹ️ Über ModernExplorer &amp; Hilfe-Fenster (F1)" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Settings.AboutWindowFontSizeText, Mode=OneWay}" HorizontalAlignment="Right" FontSize="12" Opacity="0.8" />
+                                    </Grid>
+                                    <Slider Minimum="8" Maximum="24" StepFrequency="0.5"
+                                            IsEnabled="{x:Bind Settings.IsIndividualFontSizesEnabled, Mode=OneWay}"
+                                            Value="{x:Bind Settings.AboutWindowFontSize, Mode=TwoWay}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="ResetFontSizesButton"
+                                Content="Schriftgrößen auf Standardwerte zurücksetzen"
+                                Click="OnResetFontSizesClick"
+                                Padding="12,6"
+                                FontSize="12.5" />
                     </StackPanel>
 
                     <!-- ========================================================= -->

@@ -35,26 +35,26 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.1.0" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.5.0" }
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $distFull = (Resolve-Path dist).Path
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
-          # 1. Windows x64 (WinUI 3)
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:Version=$version
+          # 1. Windows x64 (WinUI 3 - Self-Contained .NET 9 + Windows App SDK)
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$version
           $x64Dir = (Resolve-Path "src/ModernExplorer.App/bin/x64/Release/net9.0-windows10.0.19041.0/win-x64").Path
           Compress-Archive -Path "$x64Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-x64.zip" -Force
           & $iscc "/DAppVersion=$version" "/DTargetRid=win-x64" "/DSourceDir=$x64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
 
-          # 2. Windows ARM64 (WinUI 3)
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:Version=$version
+          # 2. Windows ARM64 (WinUI 3 - Self-Contained .NET 9 + Windows App SDK)
+          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$version
           $arm64Dir = (Resolve-Path "src/ModernExplorer.App/bin/ARM64/Release/net9.0-windows10.0.19041.0/win-arm64").Path
           Compress-Archive -Path "$arm64Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-arm64.zip" -Force
           & $iscc "/DAppVersion=$version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
 
-          # 3. Windows x86 (CrossPlatform Desktop)
-          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:Version=$version -o publish/win-x86
+          # 3. Windows x86 (CrossPlatform Desktop - Self-Contained)
+          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:Version=$version -o publish/win-x86
           $x86Dir = (Resolve-Path "publish/win-x86").Path
           Compress-Archive -Path "$x86Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-x86.zip" -Force
           & $iscc "/DAppVersion=$version" "/DTargetRid=win-x86" "/DSourceDir=$x86Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
@@ -86,7 +86,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.1.0"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.5.0"; fi
 
           mkdir -p dist
           dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
@@ -95,6 +95,7 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:IncludeAllContentForSelfExtract=true \
             -p:Version="${VERSION}" \
             -o publish/${{ matrix.rid }}
 
@@ -137,7 +138,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.1.0"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.5.0"; fi
 
           mkdir -p dist
           dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
@@ -146,6 +147,7 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:IncludeAllContentForSelfExtract=true \
             -p:Version="${VERSION}" \
             -o publish/${{ matrix.rid }}
 
@@ -189,8 +191,11 @@ jobs:
             ## What's New in Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Changelog
-            - **Graphical Storage Analyzer & Interactive Squarified Treemap (WinDirStat / WizTree Style):** Integrated a multi-panel disk space analyzer (`🗺 Treemap` button in the toolbar, `Ctrl+Shift+W`, and Command Palette `tools.storageTreemap`) with an interactive 2D Squarified Treemap, 7 color-coded file categories, double-click drill-down navigation (`⬆ Up` / `🏠 Root`), top space-consumer directory hierarchy, file extension statistics with live tile highlighting, and direct explorer actions (Reveal in Explorer Tab, Open as New Tab, Delete with instant in-place treemap recalculation).
-            - **Reliable Foreground Activation after Auto-Update Restart:** Fixed an issue where `ModernExplorer.exe` could start behind other windows after an automatic self-update by combining `AllowSetForegroundWindow`, `AttachThreadInput`, `SetForegroundWindow`, `SwitchToThisWindow`, and `OverlappedPresenter` activation.
+            - **Explorer-Tree Dropdown in Storage Analyzer:** Added an interactive `🌳 Explorer-Baum ▾` dropdown next to the drive/directory path box in the Storage Analyzer (`Ctrl+Shift+W`), displaying all mounted drives (with free/total capacity) and expandable folder hierarchies for direct one-click selection and scanning.
+            - **Multi-Selection (`Ctrl+Click`), Right-Click Context Menu Delete & `Delete` (`Entf`) Key in Storage Analyzer:** Select single or multiple graphical tiles in the Squarified Treemap (and hierarchy list) using `Ctrl+Click`, and delete selected files/folders via the right-click context menu (`🗑 ... löschen [Entf]`) or by pressing the `Delete` (`Entf`) key with instant in-place Treemap recalculation.
+            - **Customizable Treemap Category Colors in Settings:** Customize all 7 file category colors used by the Storage Analyzer Treemap in **Settings -> Colors & Themes** with preset palettes, hex inputs, live preview swatches, and one-click reset.
+            - **Per-Child-Window Font Size & Global Font Size Checkbox in Settings:** Configure individual font sizes for every Child Window (Quick-Viewer, Editor, Storage Analyzer, Deep Search, Duplicate Finder, Directory Sync, Multi-Rename, FTP/SFTP Manager, Archive Dialog, About Window) or enable the **Global Font Size** checkbox to control the entire app and all child windows with a single slider.
+            - **100% Self-Contained Installers (All Runtimes Included):** All Windows (`win-x64`, `win-arm64`, `win-x86`), Linux (`linux-x64`, `linux-arm64`), and macOS (`osx-x64`, `osx-arm64`) installers and archives now bundle both the complete .NET 9 runtime and the Windows App SDK / native UI libraries (`SelfContained=true` & `WindowsAppSDKSelfContained=true`), requiring zero external runtime downloads.
           generate_release_notes: true
           files: |
             release-assets/*.zip

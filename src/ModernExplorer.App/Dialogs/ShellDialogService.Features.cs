@@ -205,7 +205,8 @@ public sealed partial class ShellDialogService
             "✏️",
             bodyGrid,
             defaultWidth: 1060,
-            defaultHeight: 720);
+            defaultHeight: 720,
+            fontTarget: ChildWindowFontTarget.BatchRename);
 
         bool renameConfirmed = false;
         renameBtn.Click += (_, _) =>
@@ -421,7 +422,8 @@ public sealed partial class ShellDialogService
             "⇄",
             bodyGrid,
             defaultWidth: 1080,
-            defaultHeight: 740);
+            defaultHeight: 740,
+            fontTarget: ChildWindowFontTarget.DirectorySync);
 
         bool syncConfirmed = false;
         int capturedDirIndex = 0;
@@ -642,7 +644,8 @@ public sealed partial class ShellDialogService
             "🔍",
             bodyGrid,
             defaultWidth: 1080,
-            defaultHeight: 740);
+            defaultHeight: 740,
+            fontTarget: ChildWindowFontTarget.DeepSearch);
 
         int actionChoice = 0;
         int capturedSelectedIndex = -1;
@@ -1013,7 +1016,8 @@ public sealed partial class ShellDialogService
             "🧹",
             bodyGrid,
             defaultWidth: 1080,
-            defaultHeight: 740);
+            defaultHeight: 740,
+            fontTarget: ChildWindowFontTarget.DuplicateFinder);
 
         deleteBtn.Click += async (_, _) =>
         {
@@ -1289,7 +1293,8 @@ public sealed partial class ShellDialogService
             "🌐",
             bodyGrid,
             defaultWidth: 880,
-            defaultHeight: 650);
+            defaultHeight: 650,
+            fontTarget: ChildWindowFontTarget.FtpManager);
 
         bool connectConfirmed = false;
         RemoteConnectionProfile? capturedProfile = null;
@@ -1424,7 +1429,8 @@ public sealed partial class ShellDialogService
             "📦",
             bodyGrid,
             defaultWidth: 880,
-            defaultHeight: 620);
+            defaultHeight: 620,
+            fontTarget: ChildWindowFontTarget.ArchiveDialog);
 
         bool createConfirmed = false;
         string capturedTargetArchive = "";

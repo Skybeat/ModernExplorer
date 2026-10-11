@@ -133,22 +133,22 @@ $isccCandidates = @(
 )
 $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-Write-Output "=== 1. Building Windows Native WinUI 3 Releases (win-x64, win-arm64) ==="
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:Version=$Version
+Write-Output "=== 1. Building Self-Contained Windows Native WinUI 3 Releases (win-x64, win-arm64) ==="
+dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$Version
 $x64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64").Path
 Compress-Archive -Path "$x64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-x64.zip" -Force
 if ($iscc) {
     & $iscc "/DAppVersion=$Version" "/DTargetRid=win-x64" "/DSourceDir=$x64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
 }
 
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:Version=$Version
+dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$Version
 $arm64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64").Path
 Compress-Archive -Path "$arm64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-arm64.zip" -Force
 if ($iscc) {
     & $iscc "/DAppVersion=$Version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
 }
 
-Write-Output "=== 2. Building Cross-Platform Desktop Releases (win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64) ==="
+Write-Output "=== 2. Building Self-Contained Cross-Platform Desktop Releases (win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64) ==="
 $CrossPlatformRids = @("win-x86", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")
 foreach ($rid in $CrossPlatformRids) {
     Write-Output "Publishing $rid..."
@@ -159,6 +159,7 @@ foreach ($rid in $CrossPlatformRids) {
         --self-contained true `
         -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:IncludeAllContentForSelfExtract=true `
         -p:Version=$Version `
         -o $pubDir
     $zipName = if ($rid -like "win-*") { "ModernExplorer-windows-$($rid.Substring(4)).zip" } else { "ModernExplorer-$rid.zip" }

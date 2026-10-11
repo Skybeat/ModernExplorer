@@ -470,7 +470,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             {
                 Text = helpText,
                 FontFamily = new FontFamily("Consolas"),
-                FontSize = 13,
+                FontSize = owner.ViewModel.Settings.GetChildWindowFontSize(ChildWindowFontTarget.AboutWindow),
                 IsTextSelectionEnabled = true,
             },
         };
@@ -606,13 +606,24 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         bodyGrid.Children.Add(editorBox);
         bodyGrid.Children.Add(footerGrid);
 
-        win = CreateResizableChildWindow($"Editor (F4) – {Path.GetFileName(path)}", "✏️", bodyGrid);
+        win = CreateResizableChildWindow(
+            $"Editor (F4) – {Path.GetFileName(path)}",
+            "✏️",
+            bodyGrid,
+            fontTarget: ChildWindowFontTarget.Editor);
         win.Activate();
     }
 
-    internal Window CreateResizableChildWindow(string title, string iconGlyph, UIElement bodyContent, int? defaultWidth = null, int? defaultHeight = null)
+    internal Window CreateResizableChildWindow(
+        string title,
+        string iconGlyph,
+        UIElement bodyContent,
+        int? defaultWidth = null,
+        int? defaultHeight = null,
+        ChildWindowFontTarget fontTarget = ChildWindowFontTarget.General)
     {
         var settings = owner.ViewModel.Settings;
+        var baselineFontSizes = new Dictionary<DependencyObject, double>();
 
         var root = new Grid
         {
@@ -703,9 +714,20 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             WindowChromeHelper.ApplyCustomTitleBarAndTheme(win, root, dragRegion, settings.Theme);
         }
 
-        ApplyChildTheme();
+        void ApplyChildFontScaling()
+        {
+            double targetFont = settings.GetChildWindowFontSize(fontTarget);
+            ApplyFontScalingToTree(bodyContent, targetFont, baselineFontSizes);
+        }
 
-        root.Loaded += (_, _) => ApplyChildTheme();
+        ApplyChildTheme();
+        ApplyChildFontScaling();
+
+        root.Loaded += (_, _) =>
+        {
+            ApplyChildTheme();
+            ApplyChildFontScaling();
+        };
 
         root.KeyDown += (_, e) =>
         {
@@ -717,8 +739,10 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         };
 
         void OnThemeChanged(object? s, EventArgs e) => ApplyChildTheme();
+        void OnFontSizesChanged(object? s, EventArgs e) => ApplyChildFontScaling();
 
         settings.ThemeChanged += OnThemeChanged;
+        settings.FontSizesChanged += OnFontSizesChanged;
         owner.RegisterChildWindow(win);
 
         try
@@ -774,6 +798,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         win.Closed += (_, _) =>
         {
             settings.ThemeChanged -= OnThemeChanged;
+            settings.FontSizesChanged -= OnFontSizesChanged;
             try
             {
                 if (win.AppWindow is { } aw)
@@ -793,6 +818,95 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         };
 
         return win;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DependencyObject, System.Runtime.CompilerServices.StrongBox<double>> SharedBaselineFontSizes = new();
+
+    internal static void ApplyFontScalingToTree(
+        DependencyObject? element,
+        double targetFontSize,
+        Dictionary<DependencyObject, double>? baselineSizes = null)
+    {
+        if (element is null) return;
+        double scale = Math.Clamp(targetFontSize / 13.0, 0.6, 2.2);
+        var visited = new HashSet<DependencyObject>();
+
+        double GetOrStoreBaseline(DependencyObject obj, double currentFontSize)
+        {
+            if (baselineSizes is not null)
+            {
+                if (!baselineSizes.TryGetValue(obj, out double b))
+                {
+                    b = currentFontSize > 0 ? currentFontSize : 13.0;
+                    baselineSizes[obj] = b;
+                }
+                return b;
+            }
+
+            if (!SharedBaselineFontSizes.TryGetValue(obj, out var box))
+            {
+                double b = currentFontSize > 0 ? currentFontSize : 13.0;
+                SharedBaselineFontSizes.Add(obj, new System.Runtime.CompilerServices.StrongBox<double>(b));
+                return b;
+            }
+            return box.Value;
+        }
+
+        void Walk(DependencyObject? node)
+        {
+            if (node is null || !visited.Add(node))
+                return;
+
+            if (node is TextBlock tb)
+            {
+                double baseSize = GetOrStoreBaseline(tb, tb.FontSize);
+                tb.FontSize = Math.Clamp(Math.Round(baseSize * scale * 2.0) / 2.0, 8.0, 32.0);
+            }
+            else if (node is Control ctrl)
+            {
+                double baseSize = GetOrStoreBaseline(ctrl, ctrl.FontSize);
+                ctrl.FontSize = Math.Clamp(Math.Round(baseSize * scale * 2.0) / 2.0, 8.0, 32.0);
+            }
+
+            if (node is Panel panel)
+            {
+                foreach (var child in panel.Children)
+                    Walk(child);
+            }
+            else if (node is Border border && border.Child is { } borderChild)
+            {
+                Walk(borderChild);
+            }
+            else if (node is ScrollViewer sv && sv.Content is DependencyObject svContent)
+            {
+                Walk(svContent);
+            }
+            else if (node is ContentControl cc && cc.Content is DependencyObject ccContent)
+            {
+                Walk(ccContent);
+            }
+
+            if (node is ItemsControl ic && ic.Items is { Count: > 0 })
+            {
+                foreach (var item in ic.Items)
+                {
+                    if (item is DependencyObject itemDo)
+                        Walk(itemDo);
+                }
+            }
+
+            try
+            {
+                int vCount = VisualTreeHelper.GetChildrenCount(node);
+                for (int i = 0; i < vCount; i++)
+                {
+                    Walk(VisualTreeHelper.GetChild(node, i));
+                }
+            }
+            catch { }
+        }
+
+        Walk(element);
     }
 
     /// <summary>

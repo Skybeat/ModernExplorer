@@ -6,7 +6,7 @@ A fast, keyboard-centric dual-pane file manager for **Windows**, **Linux**, and 
 
 ## Supported Operating Systems, Installers & Portable Releases
 
-Every GitHub Release automatically builds and publishes both **native installers** and **portable `.zip` packages** for all supported platforms and CPU architectures:
+Every GitHub Release automatically builds and publishes both **100% self-contained native installers** and **portable `.zip` packages** (bundling all required **.NET 9** and **Windows App SDK / Avalonia** runtimes so no external runtime downloads are ever needed) for all supported platforms and CPU architectures:
 
 | Operating System | Architecture | Native Installer(s) | Portable Package | UI Stack |
 | :--- | :--- | :--- | :--- | :--- |
@@ -42,7 +42,7 @@ All feature dialogs open as large, freely resizable and maximizable child window
 | **Directory Compare & Synchronize** | `Ctrl+Shift+S` / `⇄ Sync` | Compare left and right directories recursively by **Size & Timestamp**, **Size Only**, or **SHA-256 Content**. Supports **Bidirectional Merge (newer wins)**, **Left → Right Mirror**, and **Right → Left Mirror** with optional orphan deletion and live progress feedback. |
 | **Recursive Deep Search** | `Alt+F7` / `🔍 Deep Search` | High-speed recursive file search by wildcard (`*.cs;*.json`), Regular Expression, file size, date range, attributes, and **full-text content search** inside files. Results can be opened directly as a virtual tab or jumped to in the active pane. |
 | **Duplicate File Finder** | `🧹 Duplicates` | 3-stage duplicate scanner (**File Size grouping → 4 KB Partial Hash → Full SHA-256 Hash**) with a **real-time ProgressBar, percentage indicator, and live file counter**. Calculates wasted disk space and offers one-click selection of all duplicates (preserving the original per group). |
-| **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with a **real-time scan ProgressBar**. Color-codes files and folders by category (Video/Audio, Archives/Disk Images, Virtual Disks/Databases/System, Code/Documents, Images, Executables, Other), provides a **Top Space Consumers hierarchy list**, a **File Extension Statistics & Color Legend** (click an extension to highlight all matching tiles), **Drill-Down zooming** (`Double-Click` / `⬆ Up` / `🏠 Root`), rich hover tooltips, and direct actions (**Show in Explorer Tab**, **Open Folder as New Tab**, and **Delete Selected Space Hog with instant live Treemap recalculation**). |
+| **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with an **integrated `🌳 Explorer-Baum ▾` dropdown** (browse drives & expandable folder trees directly), a **real-time scan ProgressBar**, **7 customizable category colors**, a **Top Space Consumers hierarchy list**, a **File Extension Statistics & Color Legend** (click an extension to highlight all matching tiles), **Drill-Down zooming** (`Double-Click` / `⬆ Up` / `🏠 Root`), **Multi-Selection via `Ctrl+Click`**, and direct deletion via the **Right-Click Context Menu (`🗑 ... löschen [Entf]`)**, the **`Delete` (`Entf`) key**, or the footer bar with instant in-place Treemap recalculation. |
 | **Archive Browser & Packer** | `Alt+F5` (`📦 Pack`) / `Alt+F9` (Extract) | Browse inside archives (`.zip`, `.7z`, `.rar`, `.tar`, `.gz`, `.bz2`, `.xz`, `.tgz`, `.nupkg`, `.jar`) transparently like normal folders (`archive://`), extract individual or all entries, and pack selected files/folders into `.zip`, `.tar.gz`, or `.7z` archives. |
 | **Built-in FTP / FTPS / SFTP Client** | `Ctrl+Shift+C` / `🌐 FTP/SFTP` | Connect directly to remote servers via **SFTP (SSH)**, **FTPS (Explicit TLS)**, or **FTP** as virtual paths (`sftp://`, `ftps://`, `ftp://`). Includes a Connection Manager with **Windows DPAPI password encryption**, SSH private key authentication, and seamless upload/download/rename/delete/mkdir via `F5`/`F6`/`F7`/`F8`. |
 | **Branch View (Flat View)** | `Ctrl+B` / `🌿` | Flattens the current directory and all subdirectories into a single unified file list showing relative subpaths. |
@@ -71,7 +71,7 @@ All feature dialogs open as large, freely resizable and maximizable child window
 - **Tooltip Toggle in Settings**: Tooltips can be enabled or disabled at any time under **Settings → Appearance & Design → Tooltips**.
 
 ### 6. Live Customization & Automatic Self-Updater
-- **Appearance & Design**: Switch live between Dark, Light, and System themes, customize selection/focus/marked-item/active-border colors, adjust font sizes and row heights, and configure image hover previews.
+- **Appearance, Treemap Colors & Font Scaling**: Switch live between Dark, Light, and System themes, customize selection/focus/marked-item/active-border colors and all **7 Storage Analyzer Treemap category colors**, and adjust font sizes either **individually per UI area and per Child Window** (Quick-Viewer, Editor, Storage Analyzer, Deep Search, Duplicate Finder, Directory Sync, Batch Rename, FTP Manager, Archive Packer, About Window) or via a **single simplified Global Font Size checkbox**.
 - **Elevated Self-Updater (`ModernExplorer.Updater`)**: Checks GitHub Releases on startup (or manually in the About window), downloads the matching architecture installer/package, closes Modern Explorer, launches a dedicated graphical progress window (`ProgressBar` + live status) with automatic UAC elevation support for per-machine (`Program Files`) installations, and automatically brings the restarted application window to the foreground.
 
 ---
@@ -108,4 +108,5 @@ All feature dialogs open as large, freely resizable and maximizable child window
 
 ## Building & Publishing Releases
 
-Pushing a version tag (`v*`, e.g. `v1.3.0`) or running `scripts/publish-releases.ps1 -Version "1.3.0"` builds and publishes all portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.
+Pushing a version tag (`v*`, e.g. `v1.5.0`) or running `scripts/publish-releases.ps1 -Version "1.5.0"` builds and publishes all self-contained portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.
+

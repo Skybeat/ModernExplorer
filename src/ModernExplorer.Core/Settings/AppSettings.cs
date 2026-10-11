@@ -21,6 +21,14 @@ public sealed class AppSettings
     public const string DefaultActivePanelBorderColor = "#0078D4";
     public const string DefaultMarkedItemTextColor = "#38BDF8";
 
+    public const string DefaultTreemapVideoMediaColor = "#3B82F6";
+    public const string DefaultTreemapArchiveImageColor = "#8B5CF6";
+    public const string DefaultTreemapVirtualDiskSystemColor = "#F97316";
+    public const string DefaultTreemapCodeDocumentColor = "#10B981";
+    public const string DefaultTreemapPictureGraphicColor = "#06B6D4";
+    public const string DefaultTreemapBinaryExecutableColor = "#EAB308";
+    public const string DefaultTreemapOtherTempColor = "#64748B";
+
     public const double DefaultImageHoverPreviewSize = 320.0;
     public const double MinImageHoverPreviewSize = 160.0;
     public const double MaxImageHoverPreviewSize = 720.0;
@@ -36,6 +44,8 @@ public sealed class AppSettings
     public const int DefaultChildWindowWidth = 860;
     public const int DefaultChildWindowHeight = 640;
 
+    public const double DefaultGlobalFontSize = 13.0;
+    public const double DefaultChildWindowFontSize = 13.0;
     public const double DefaultFileListFontSize = 13.0;
     public const double DefaultFileListDetailsFontSize = 12.0;
     public const double DefaultTabFontSize = 12.0;
@@ -148,6 +158,15 @@ public sealed class AppSettings
     /// </summary>
     public string MarkedItemTextColor { get; set; } = DefaultMarkedItemTextColor;
 
+    /// <summary>Customizable colors for the 7 file categories in the Storage Analyzer Treemap.</summary>
+    public string TreemapVideoMediaColor { get; set; } = DefaultTreemapVideoMediaColor;
+    public string TreemapArchiveImageColor { get; set; } = DefaultTreemapArchiveImageColor;
+    public string TreemapVirtualDiskSystemColor { get; set; } = DefaultTreemapVirtualDiskSystemColor;
+    public string TreemapCodeDocumentColor { get; set; } = DefaultTreemapCodeDocumentColor;
+    public string TreemapPictureGraphicColor { get; set; } = DefaultTreemapPictureGraphicColor;
+    public string TreemapBinaryExecutableColor { get; set; } = DefaultTreemapBinaryExecutableColor;
+    public string TreemapOtherTempColor { get; set; } = DefaultTreemapOtherTempColor;
+
     /// <summary>Saved bounds of the main window.</summary>
     public int MainWindowWidth { get; set; } = DefaultMainWindowWidth;
     public int MainWindowHeight { get; set; } = DefaultMainWindowHeight;
@@ -162,6 +181,14 @@ public sealed class AppSettings
     public int ChildWindowWidth { get; set; } = DefaultChildWindowWidth;
     public int ChildWindowHeight { get; set; } = DefaultChildWindowHeight;
     public bool ChildWindowIsMaximized { get; set; }
+
+    /// <summary>
+    /// If enabled, a single global font size (<see cref="GlobalFontSize"/>) is used across the main window and all child windows.
+    /// </summary>
+    public bool UseGlobalFontSize { get; set; }
+
+    /// <summary>Global font size applied everywhere when <see cref="UseGlobalFontSize"/> is enabled.</summary>
+    public double GlobalFontSize { get; set; } = DefaultGlobalFontSize;
 
     /// <summary>Font size for file and folder names in the file list.</summary>
     public double FileListFontSize { get; set; } = DefaultFileListFontSize;
@@ -187,6 +214,18 @@ public sealed class AppSettings
     /// <summary>Font size for the F1–F12 function key bar.</summary>
     public double FunctionBarFontSize { get; set; } = DefaultFunctionBarFontSize;
 
+    /// <summary>Individual font sizes for each Child Window when <see cref="UseGlobalFontSize"/> is disabled.</summary>
+    public double QuickViewerFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double EditorFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double StorageAnalyzerFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double DeepSearchFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double DuplicateFinderFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double DirectorySyncFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double BatchRenameFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double FtpManagerFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double ArchiveDialogFontSize { get; set; } = DefaultChildWindowFontSize;
+    public double AboutWindowFontSize { get; set; } = DefaultChildWindowFontSize;
+
     public AppSettings CloneNormalized() => new()
     {
         Version = Version,
@@ -209,6 +248,13 @@ public sealed class AppSettings
         SelectionBorderColor = NormalizeHexColor(SelectionBorderColor, DefaultSelectionBorderColor),
         ActivePanelBorderColor = NormalizeHexColor(ActivePanelBorderColor, DefaultActivePanelBorderColor),
         MarkedItemTextColor = NormalizeHexColor(MarkedItemTextColor, DefaultMarkedItemTextColor),
+        TreemapVideoMediaColor = NormalizeHexColor(TreemapVideoMediaColor, DefaultTreemapVideoMediaColor),
+        TreemapArchiveImageColor = NormalizeHexColor(TreemapArchiveImageColor, DefaultTreemapArchiveImageColor),
+        TreemapVirtualDiskSystemColor = NormalizeHexColor(TreemapVirtualDiskSystemColor, DefaultTreemapVirtualDiskSystemColor),
+        TreemapCodeDocumentColor = NormalizeHexColor(TreemapCodeDocumentColor, DefaultTreemapCodeDocumentColor),
+        TreemapPictureGraphicColor = NormalizeHexColor(TreemapPictureGraphicColor, DefaultTreemapPictureGraphicColor),
+        TreemapBinaryExecutableColor = NormalizeHexColor(TreemapBinaryExecutableColor, DefaultTreemapBinaryExecutableColor),
+        TreemapOtherTempColor = NormalizeHexColor(TreemapOtherTempColor, DefaultTreemapOtherTempColor),
         MainWindowWidth = ClampDimension(MainWindowWidth, 640, 7680, DefaultMainWindowWidth),
         MainWindowHeight = ClampDimension(MainWindowHeight, 420, 4320, DefaultMainWindowHeight),
         MainWindowIsMaximized = MainWindowIsMaximized,
@@ -218,6 +264,8 @@ public sealed class AppSettings
         ChildWindowWidth = ClampDimension(ChildWindowWidth, 460, 3840, DefaultChildWindowWidth),
         ChildWindowHeight = ClampDimension(ChildWindowHeight, 340, 2160, DefaultChildWindowHeight),
         ChildWindowIsMaximized = ChildWindowIsMaximized,
+        UseGlobalFontSize = UseGlobalFontSize,
+        GlobalFontSize = ClampFont(GlobalFontSize, DefaultGlobalFontSize),
         FileListFontSize = ClampFont(FileListFontSize, DefaultFileListFontSize),
         FileListDetailsFontSize = ClampFont(FileListDetailsFontSize, DefaultFileListDetailsFontSize),
         TabFontSize = ClampFont(TabFontSize, DefaultTabFontSize),
@@ -226,6 +274,16 @@ public sealed class AppSettings
         BreadcrumbFontSize = ClampFont(BreadcrumbFontSize, DefaultBreadcrumbFontSize),
         StatusBarFontSize = ClampFont(StatusBarFontSize, DefaultStatusBarFontSize),
         FunctionBarFontSize = ClampFont(FunctionBarFontSize, DefaultFunctionBarFontSize),
+        QuickViewerFontSize = ClampFont(QuickViewerFontSize, DefaultChildWindowFontSize),
+        EditorFontSize = ClampFont(EditorFontSize, DefaultChildWindowFontSize),
+        StorageAnalyzerFontSize = ClampFont(StorageAnalyzerFontSize, DefaultChildWindowFontSize),
+        DeepSearchFontSize = ClampFont(DeepSearchFontSize, DefaultChildWindowFontSize),
+        DuplicateFinderFontSize = ClampFont(DuplicateFinderFontSize, DefaultChildWindowFontSize),
+        DirectorySyncFontSize = ClampFont(DirectorySyncFontSize, DefaultChildWindowFontSize),
+        BatchRenameFontSize = ClampFont(BatchRenameFontSize, DefaultChildWindowFontSize),
+        FtpManagerFontSize = ClampFont(FtpManagerFontSize, DefaultChildWindowFontSize),
+        ArchiveDialogFontSize = ClampFont(ArchiveDialogFontSize, DefaultChildWindowFontSize),
+        AboutWindowFontSize = ClampFont(AboutWindowFontSize, DefaultChildWindowFontSize),
     };
 
     public static double ClampFont(double value, double fallback)

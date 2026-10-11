@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Modern Explorer (Windows x64, ARM64, x86)
 #ifndef AppVersion
-  #define AppVersion "1.4.0"
+  #define AppVersion "1.5.0"
 #endif
 #ifndef TargetRid
   #define TargetRid "win-x64"

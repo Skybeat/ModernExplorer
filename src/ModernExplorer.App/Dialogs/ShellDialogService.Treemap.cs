@@ -1,14 +1,19 @@
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.ViewModels;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
+using Windows.System;
 using Windows.UI;
+using Windows.UI.Core;
 
 namespace ModernExplorer.App.Dialogs;
 
@@ -22,9 +27,16 @@ public sealed partial class ShellDialogService
         StorageTreemapNode? scannedRoot = null;
         StorageTreemapNode? currentRoot = null;
         StorageTreemapNode? selectedNode = null;
+        var selectedNodes = new List<StorageTreemapNode>();
         string? highlightedExtension = null;
         bool suppressHierarchySelection = false;
         bool suppressExtensionSelection = false;
+
+        static bool IsCtrlKeyDown()
+        {
+            var state = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+            return (state & CoreVirtualKeyStates.Down) == CoreVirtualKeyStates.Down;
+        }
 
         var rootBox = new TextBox
         {
@@ -33,6 +45,64 @@ public sealed partial class ShellDialogService
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Center,
         };
+
+        // ====================================================================
+        // EXPLORER-TREE DROPDOWN FLYOUT FOR DRIVE / FOLDER SELECTION
+        // ====================================================================
+        var treeRootStack = new StackPanel { Spacing = 2, Padding = new Thickness(4) };
+        var treeScrollViewer = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = 420,
+            Content = treeRootStack,
+        };
+
+        var treeFlyoutHeader = new TextBlock
+        {
+            Text = "🌳 Explorer-Baum: Laufwerk oder Ordner direkt auswählen (▶ = Unterordner aufklappen)",
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Opacity = 0.9,
+            Margin = new Thickness(4, 2, 4, 6),
+        };
+
+        var treeFlyoutContainer = new Grid
+        {
+            Width = 540,
+            Height = 440,
+            RowSpacing = 4,
+        };
+        treeFlyoutContainer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        treeFlyoutContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        Grid.SetRow(treeFlyoutHeader, 0);
+        Grid.SetRow(treeScrollViewer, 1);
+        treeFlyoutContainer.Children.Add(treeFlyoutHeader);
+        treeFlyoutContainer.Children.Add(treeScrollViewer);
+
+        var explorerTreeFlyout = new Flyout
+        {
+            Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft,
+            Content = treeFlyoutContainer,
+        };
+
+        var treeDropdownBtn = new Button
+        {
+            Content = "🌳 Explorer-Baum ▾",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(12, 6, 12, 6),
+            VerticalAlignment = VerticalAlignment.Center,
+            Flyout = explorerTreeFlyout,
+        };
+        ToolTipService.SetToolTip(treeDropdownBtn, "Öffnet den hierarchischen Explorer-Verzeichnisbaum zur direkten Auswahl eines Laufwerks oder Ordners");
+
+        var pathAndTreeGrid = new Grid { ColumnSpacing = 6 };
+        pathAndTreeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        pathAndTreeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(rootBox, 0);
+        Grid.SetColumn(treeDropdownBtn, 1);
+        pathAndTreeGrid.Children.Add(rootBox);
+        pathAndTreeGrid.Children.Add(treeDropdownBtn);
 
         var scanBtn = new Button
         {
@@ -68,12 +138,12 @@ public sealed partial class ShellDialogService
         topBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(rootBox, 0);
+        Grid.SetColumn(pathAndTreeGrid, 0);
         Grid.SetColumn(scanBtn, 1);
         Grid.SetColumn(cancelScanBtn, 2);
         Grid.SetColumn(zoomUpBtn, 3);
         Grid.SetColumn(zoomRootBtn, 4);
-        topBarGrid.Children.Add(rootBox);
+        topBarGrid.Children.Add(pathAndTreeGrid);
         topBarGrid.Children.Add(scanBtn);
         topBarGrid.Children.Add(cancelScanBtn);
         topBarGrid.Children.Add(zoomUpBtn);
@@ -129,7 +199,7 @@ public sealed partial class ShellDialogService
 
         var hierarchyHeaderText = new TextBlock
         {
-            Text = "📂 Ordner-Hierarchie & Top-Speicherfresser (Doppelklick = Hineinzoomen)",
+            Text = "📂 Ordner-Hierarchie & Top-Speicherfresser (Strg+Klick = Mehrfachauswahl · Doppelklick = Zoom)",
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
             VerticalAlignment = VerticalAlignment.Center,
@@ -137,7 +207,7 @@ public sealed partial class ShellDialogService
 
         var hierarchyList = new ListView
         {
-            SelectionMode = ListViewSelectionMode.Single,
+            SelectionMode = ListViewSelectionMode.Extended,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
         };
@@ -227,7 +297,7 @@ public sealed partial class ShellDialogService
 
         var treemapTitleText = new TextBlock
         {
-            Text = "🗺 Interaktive Squarified Treemap (Klick = Auswählen · Doppelklick = In Unterordner zoomen)",
+            Text = "🗺 Interaktive Squarified Treemap (Klick / Strg+Klick = Auswählen · Rechtsklick / Entf = Löschen · Doppelklick = Zoom)",
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
             VerticalAlignment = VerticalAlignment.Center,
@@ -240,35 +310,41 @@ public sealed partial class ShellDialogService
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        foreach (var cat in new[]
+        void RebuildCategoryLegendPills()
         {
-            StorageCategory.VideoAudio,
-            StorageCategory.ArchiveDiskImage,
-            StorageCategory.VirtualDiskDatabaseSystem,
-            StorageCategory.CodeTextDocument,
-            StorageCategory.ImageGraphics,
-            StorageCategory.ExecutableBinary,
-            StorageCategory.Other,
-        })
-        {
-            var pill = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-            pill.Children.Add(new Border
+            categoryLegendStack.Children.Clear();
+            foreach (var cat in new[]
             {
-                Width = 10,
-                Height = 10,
-                CornerRadius = new CornerRadius(2),
-                Background = new SolidColorBrush(ParseColorHex(StorageTreemapService.GetCategoryColorHex(cat))),
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            pill.Children.Add(new TextBlock
+                StorageCategory.VideoAudio,
+                StorageCategory.ArchiveDiskImage,
+                StorageCategory.VirtualDiskDatabaseSystem,
+                StorageCategory.CodeTextDocument,
+                StorageCategory.ImageGraphics,
+                StorageCategory.ExecutableBinary,
+                StorageCategory.Other,
+            })
             {
-                Text = StorageTreemapService.GetCategoryDisplayName(cat).Split(' ')[0],
-                FontSize = 11,
-                Opacity = 0.82,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            categoryLegendStack.Children.Add(pill);
+                var pill = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+                pill.Children.Add(new Border
+                {
+                    Width = 10,
+                    Height = 10,
+                    CornerRadius = new CornerRadius(2),
+                    Background = new SolidColorBrush(ParseColorHex(StorageTreemapService.GetCategoryColorHex(cat))),
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                pill.Children.Add(new TextBlock
+                {
+                    Text = StorageTreemapService.GetCategoryDisplayName(cat).Split(' ')[0],
+                    FontSize = 11,
+                    Opacity = 0.82,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                categoryLegendStack.Children.Add(pill);
+            }
         }
+
+        RebuildCategoryLegendPills();
 
         var treemapHeaderRow = new Grid { ColumnSpacing = 10 };
         treemapHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -331,7 +407,7 @@ public sealed partial class ShellDialogService
 
         var deleteSelectedBtn = new Button
         {
-            Content = "🗑 Markierte Datei(en) löschen",
+            Content = "🗑 Markierte Datei(en) löschen (Entf)",
             IsEnabled = false,
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(14, 7, 14, 7),
@@ -402,6 +478,22 @@ public sealed partial class ShellDialogService
         var currentHierarchyNodes = new List<StorageTreemapNode>();
         var currentExtStats = new List<StorageExtensionStat>();
 
+        List<StorageTreemapNode> GetDeletableSelectedNodes()
+        {
+            var raw = selectedNodes
+                .Where(n => n is not null && !ReferenceEquals(n, scannedRoot))
+                .Distinct()
+                .ToList();
+
+            if (raw.Count == 0 && selectedNode is not null && !ReferenceEquals(selectedNode, scannedRoot))
+                raw.Add(selectedNode);
+
+            // Filter out nodes whose ancestor is already in the deletion list
+            return raw
+                .Where(candidate => !raw.Any(other => !ReferenceEquals(other, candidate) && IsNodeOrDescendantOf(candidate, other)))
+                .ToList();
+        }
+
         void ResetDeleteConfirmState()
         {
             confirmDeleteBtn.Visibility = Visibility.Collapsed;
@@ -412,14 +504,29 @@ public sealed partial class ShellDialogService
         void UpdateSelectedNodeUi()
         {
             ResetDeleteConfirmState();
-            bool hasSelection = selectedNode is not null;
+            var deletable = GetDeletableSelectedNodes();
+            bool hasSelection = selectedNode is not null || deletable.Count > 0;
             bool hasRoot = currentRoot is not null;
 
             showInTabBtn.IsEnabled = hasSelection || hasRoot;
             openFolderTabBtn.IsEnabled = hasSelection || hasRoot;
-            deleteSelectedBtn.IsEnabled = hasSelection && selectedNode != scannedRoot;
+            deleteSelectedBtn.IsEnabled = deletable.Count > 0;
 
-            if (selectedNode is null)
+            deleteSelectedBtn.Content = deletable.Count > 1
+                ? $"🗑 {deletable.Count} markierte löschen (Entf)"
+                : "🗑 Markierte Datei(en) löschen (Entf)";
+
+            if (deletable.Count > 1)
+            {
+                long totalSelectedBytes = deletable.Sum(n => n.Size);
+                double pctTotal = scannedRoot is { Size: > 0 } ? (double)totalSelectedBytes * 100.0 / scannedRoot.Size : 0.0;
+                selectedInfoText.Text =
+                    $"Mehrfachauswahl: {deletable.Count} Elemente markiert  ·  Gesamtgröße: {Format.Size(totalSelectedBytes)} ({pctTotal:0.0}% Gesamt)  ·  Rechtsklick oder [Entf] zum Löschen";
+                return;
+            }
+
+            var active = deletable.FirstOrDefault() ?? selectedNode;
+            if (active is null)
             {
                 if (currentRoot is not null)
                 {
@@ -432,14 +539,246 @@ public sealed partial class ShellDialogService
                 return;
             }
 
-            double pctView = currentRoot is { Size: > 0 } ? (double)selectedNode.Size * 100.0 / currentRoot.Size : 100.0;
-            double pctTotal = scannedRoot is { Size: > 0 } ? (double)selectedNode.Size * 100.0 / scannedRoot.Size : pctView;
-            string kind = selectedNode.IsDirectory
-                ? $"Ordner ({selectedNode.FileCount:N0} Dateien, {selectedNode.FolderCount:N0} Unterordner)"
-                : $"Datei ({StorageTreemapService.GetCategoryDisplayName(selectedNode.Category)})";
+            double pctView = currentRoot is { Size: > 0 } ? (double)active.Size * 100.0 / currentRoot.Size : 100.0;
+            double pctRoot = scannedRoot is { Size: > 0 } ? (double)active.Size * 100.0 / scannedRoot.Size : pctView;
+            string kind = active.IsDirectory
+                ? $"Ordner ({active.FileCount:N0} Dateien, {active.FolderCount:N0} Unterordner)"
+                : $"Datei ({StorageTreemapService.GetCategoryDisplayName(active.Category)})";
 
             selectedInfoText.Text =
-                $"Ausgewählt: {selectedNode.Name}  ·  {Format.Size(selectedNode.Size)} ({pctView:0.0}% Ansicht / {pctTotal:0.0}% Gesamt)  ·  {kind}";
+                $"Ausgewählt: {active.Name}  ·  {Format.Size(active.Size)} ({pctView:0.0}% Ansicht / {pctRoot:0.0}% Gesamt)  ·  {kind}";
+        }
+
+        void HandleNodeSelectionClick(StorageTreemapNode clickedNode, bool isCtrlHeld)
+        {
+            if (isCtrlHeld)
+            {
+                int existingIdx = selectedNodes.FindIndex(n => ReferenceEquals(n, clickedNode));
+                if (existingIdx >= 0)
+                {
+                    selectedNodes.RemoveAt(existingIdx);
+                    selectedNode = selectedNodes.LastOrDefault();
+                }
+                else
+                {
+                    selectedNodes.Add(clickedNode);
+                    selectedNode = clickedNode;
+                }
+            }
+            else
+            {
+                selectedNodes.Clear();
+                selectedNodes.Add(clickedNode);
+                selectedNode = clickedNode;
+            }
+
+            SyncSelectionToHierarchyList();
+            UpdateSelectedNodeUi();
+            RenderTreemapCanvas();
+        }
+
+        async Task ExecuteDeleteNodesAsync(IReadOnlyList<StorageTreemapNode> nodesToDelete)
+        {
+            ResetDeleteConfirmState();
+            if (nodesToDelete.Count == 0)
+                return;
+
+            try
+            {
+                long freedBytes = 0;
+                int deletedCount = 0;
+                string firstDeletedName = nodesToDelete[0].Name;
+
+                var fileNodes = nodesToDelete.Where(n => !n.IsDirectory).ToList();
+                var dirNodes = nodesToDelete.Where(n => n.IsDirectory).ToList();
+
+                if (fileNodes.Count > 0)
+                {
+                    var filePaths = fileNodes.Select(n => n.FullPath).ToList();
+                    var delRes = await Task.Run(() => DuplicateFinderService.DeleteDuplicateFiles(filePaths));
+                    var deletedPathSet = new HashSet<string>(delRes.DeletedPaths, StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var fn in fileNodes)
+                    {
+                        if (deletedPathSet.Contains(fn.FullPath) || !File.Exists(fn.FullPath))
+                        {
+                            freedBytes += fn.Size;
+                            deletedCount++;
+                            StorageTreemapService.RemoveNodeAndRecalculate(fn);
+                        }
+                    }
+                }
+
+                foreach (var dn in dirNodes)
+                {
+                    if (Directory.Exists(dn.FullPath))
+                    {
+                        await Task.Run(() => Directory.Delete(dn.FullPath, recursive: true));
+                    }
+                    if (!Directory.Exists(dn.FullPath))
+                    {
+                        freedBytes += dn.Size;
+                        deletedCount++;
+                        var fallbackParent = dn.Parent ?? scannedRoot;
+                        if (currentRoot is not null && IsNodeOrDescendantOf(currentRoot, dn))
+                            currentRoot = fallbackParent;
+                        StorageTreemapService.RemoveNodeAndRecalculate(dn);
+                    }
+                }
+
+                selectedNodes.Clear();
+                selectedNode = currentRoot ?? scannedRoot;
+                PopulateUpperListsAndTreemap();
+
+                if (deletedCount > 0)
+                {
+                    string label = deletedCount == 1
+                        ? $"„{firstDeletedName}“ gelöscht"
+                        : $"{deletedCount} Elemente gelöscht";
+                    selectedInfoText.Text = $"✓ {label} ({Format.Size(freedBytes)} freigegeben)";
+                    owner.ViewModel.StatusNotification = $"Speicherplatz-Analysator: {label} ({Format.Size(freedBytes)} frei)";
+
+                    if (owner.ViewModel.Left.ActiveTab is not null)
+                        await owner.ViewModel.Left.ActiveTab.ReloadAsync();
+                    if (owner.ViewModel.Right.ActiveTab is not null)
+                        await owner.ViewModel.Right.ActiveTab.ReloadAsync();
+                }
+                else
+                {
+                    selectedInfoText.Text = "⚠ Es konnten keine Elemente gelöscht werden.";
+                }
+            }
+            catch (Exception ex)
+            {
+                selectedInfoText.Text = $"⚠ Löschen fehlgeschlagen: {ex.Message}";
+            }
+        }
+
+        async Task NavigateToNodeInExplorerTabAsync(StorageTreemapNode? targetNode)
+        {
+            var target = targetNode ?? selectedNode ?? currentRoot;
+            if (target is null) return;
+
+            var activeTab = owner.ViewModel.ActivePanel.ActiveTab;
+            if (activeTab is null) return;
+
+            string parentDir = Path.GetDirectoryName(target.FullPath.TrimEnd('\\', '/')) ?? "";
+            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+            {
+                await activeTab.NavigateAsync(parentDir, selectName: target.Name);
+            }
+            else if (Directory.Exists(target.FullPath))
+            {
+                await activeTab.NavigateAsync(target.FullPath);
+            }
+
+            WindowChromeHelper.BringWindowToForeground(owner);
+        }
+
+        async Task OpenNodeFolderAsNewTabAsync(StorageTreemapNode? targetNode)
+        {
+            var target = targetNode ?? selectedNode ?? currentRoot;
+            if (target is null) return;
+
+            string folderPath = target.IsDirectory
+                ? target.FullPath
+                : (Path.GetDirectoryName(target.FullPath) ?? currentRoot?.FullPath ?? "");
+
+            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+                return;
+
+            await owner.ViewModel.ActivePanel.CreateTabAsync(folderPath);
+            selectedInfoText.Text = $"✓ Neuer Tab geöffnet: {folderPath}";
+        }
+
+        MenuFlyout BuildNodeContextMenu(StorageTreemapNode contextNode)
+        {
+            var menu = new MenuFlyout();
+
+            menu.Opening += (_, _) =>
+            {
+                // Ensure the right-clicked node is part of the selection if not already selected
+                bool alreadySelected = selectedNodes.Any(n => ReferenceEquals(n, contextNode) || IsNodeOrDescendantOf(contextNode, n));
+                if (!alreadySelected)
+                {
+                    selectedNodes.Clear();
+                    selectedNodes.Add(contextNode);
+                    selectedNode = contextNode;
+                    SyncSelectionToHierarchyList();
+                    UpdateSelectedNodeUi();
+                    RenderTreemapCanvas();
+                }
+
+                menu.Items.Clear();
+                var deletable = GetDeletableSelectedNodes();
+                long totalDelSize = deletable.Sum(n => n.Size);
+
+                var deleteItem = new MenuFlyoutItem
+                {
+                    Text = deletable.Count > 1
+                        ? $"🗑 {deletable.Count} ausgewählte Elemente löschen ({Format.Size(totalDelSize)})   [Entf]"
+                        : $"🗑 „{contextNode.Name}“ löschen ({Format.Size(contextNode.Size)})   [Entf]",
+                    IsEnabled = deletable.Count > 0,
+                };
+                deleteItem.Click += async (_, _) =>
+                {
+                    var targets = GetDeletableSelectedNodes();
+                    await ExecuteDeleteNodesAsync(targets);
+                };
+                menu.Items.Add(deleteItem);
+
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                if (contextNode.IsDirectory)
+                {
+                    var zoomItem = new MenuFlyoutItem
+                    {
+                        Text = $"🔍 In Ordner „{contextNode.Name}“ hineinzoomen",
+                    };
+                    zoomItem.Click += (_, _) => ZoomToNode(contextNode);
+                    menu.Items.Add(zoomItem);
+                }
+
+                var showInExplorerItem = new MenuFlyoutItem
+                {
+                    Text = "🎯 Im aktiven Explorer-Tab zeigen",
+                };
+                showInExplorerItem.Click += async (_, _) => await NavigateToNodeInExplorerTabAsync(contextNode);
+                menu.Items.Add(showInExplorerItem);
+
+                var openNewTabItem = new MenuFlyoutItem
+                {
+                    Text = "📂 Ordner als neuen Tab öffnen",
+                };
+                openNewTabItem.Click += async (_, _) => await OpenNodeFolderAsNewTabAsync(contextNode);
+                menu.Items.Add(openNewTabItem);
+
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                var copyPathItem = new MenuFlyoutItem
+                {
+                    Text = deletable.Count > 1
+                        ? $"📋 {deletable.Count} Pfade in Zwischenablage kopieren"
+                        : "📋 Vollständigen Pfad kopieren",
+                };
+                copyPathItem.Click += (_, _) =>
+                {
+                    try
+                    {
+                        var pkg = new DataPackage();
+                        var paths = deletable.Count > 1
+                            ? string.Join(Environment.NewLine, deletable.Select(n => n.FullPath))
+                            : contextNode.FullPath;
+                        pkg.SetText(paths);
+                        Clipboard.SetContent(pkg);
+                        selectedInfoText.Text = "✓ Pfad(e) in die Zwischenablage kopiert.";
+                    }
+                    catch { }
+                };
+                menu.Items.Add(copyPathItem);
+            };
+
+            return menu;
         }
 
         void RenderTreemapCanvas()
@@ -476,6 +815,11 @@ public sealed partial class ShellDialogService
 
             foreach (var r in rects)
             {
+                bool isNodeSelected = selectedNodes.Any(sel => ReferenceEquals(sel, r.Node) || IsNodeOrDescendantOf(r.Node, sel)) ||
+                                      ReferenceEquals(selectedNode, r.Node) ||
+                                      (selectedNode is not null && IsNodeOrDescendantOf(r.Node, selectedNode));
+                bool isDirectlyInMultiSelect = selectedNodes.Count > 1 && selectedNodes.Any(sel => ReferenceEquals(sel, r.Node));
+
                 if (r.IsGroupContainer)
                 {
                     var groupBorder = new Border
@@ -483,17 +827,20 @@ public sealed partial class ShellDialogService
                         Width = Math.Max(1, r.Width - 1),
                         Height = Math.Max(1, r.Height - 1),
                         Background = new SolidColorBrush(Color.FromArgb(255, 28, 32, 42)),
-                        BorderBrush = new SolidColorBrush(Color.FromArgb(140, 100, 116, 139)),
-                        BorderThickness = new Thickness(1),
+                        BorderBrush = isNodeSelected
+                            ? new SolidColorBrush(Color.FromArgb(255, 56, 189, 248))
+                            : new SolidColorBrush(Color.FromArgb(140, 100, 116, 139)),
+                        BorderThickness = new Thickness(isNodeSelected ? 2.0 : 1.0),
                         CornerRadius = new CornerRadius(3),
                     };
 
                     if (r.Width >= 55 && r.Height >= 22)
                     {
                         double pct = currentRoot.Size > 0 ? (double)r.Node.Size * 100.0 / currentRoot.Size : 0;
+                        string prefix = isDirectlyInMultiSelect ? "☑ 📁 " : "📁 ";
                         groupBorder.Child = new TextBlock
                         {
-                            Text = $"📁 {r.Node.Name} ({Format.Size(r.Node.Size)} · {pct:0.0}%)",
+                            Text = $"{prefix}{r.Node.Name} ({Format.Size(r.Node.Size)} · {pct:0.0}%)",
                             FontSize = 10.5,
                             FontWeight = FontWeights.SemiBold,
                             Foreground = new SolidColorBrush(Color.FromArgb(235, 226, 232, 240)),
@@ -504,13 +851,14 @@ public sealed partial class ShellDialogService
                     }
 
                     var capturedGroupNode = r.Node;
+                    groupBorder.ContextFlyout = BuildNodeContextMenu(capturedGroupNode);
                     groupBorder.PointerPressed += (_, e) =>
                     {
+                        var props = e.GetCurrentPoint(groupBorder).Properties;
+                        if (props.IsRightButtonPressed)
+                            return;
                         e.Handled = true;
-                        selectedNode = capturedGroupNode;
-                        SyncSelectionToHierarchyList(capturedGroupNode);
-                        UpdateSelectedNodeUi();
-                        RenderTreemapCanvas();
+                        HandleNodeSelectionClick(capturedGroupNode, IsCtrlKeyDown());
                     };
                     groupBorder.DoubleTapped += (_, e) =>
                     {
@@ -528,8 +876,6 @@ public sealed partial class ShellDialogService
                 }
 
                 Color baseColor = ParseColorHex(r.Node.ColorHex);
-                bool isSelected = ReferenceEquals(selectedNode, r.Node) ||
-                                  (selectedNode is not null && IsNodeOrDescendantOf(r.Node, selectedNode));
                 bool matchesExt = hasExtFilter && MatchesExtensionFilter(r.Node, highlightedExtension!);
 
                 var gradient = new LinearGradientBrush
@@ -562,8 +908,8 @@ public sealed partial class ShellDialogService
                     Height = tileH,
                     Background = gradient,
                     CornerRadius = new CornerRadius(2),
-                    BorderThickness = new Thickness(isSelected ? 2.5 : (matchesExt ? 2.0 : 0.75)),
-                    BorderBrush = isSelected
+                    BorderThickness = new Thickness(isNodeSelected ? 2.5 : (matchesExt ? 2.0 : 0.75)),
+                    BorderBrush = isNodeSelected
                         ? new SolidColorBrush(Colors.White)
                         : (matchesExt
                             ? new SolidColorBrush(Color.FromArgb(255, 250, 204, 21))
@@ -580,9 +926,10 @@ public sealed partial class ShellDialogService
                         IsHitTestVisible = false,
                     };
 
+                    string checkPrefix = isNodeSelected && selectedNodes.Count > 1 ? "✓ " : "";
                     labelStack.Children.Add(new TextBlock
                     {
-                        Text = r.Node.IsDirectory ? $"📁 {r.Node.Name}" : r.Node.Name,
+                        Text = r.Node.IsDirectory ? $"{checkPrefix}📁 {r.Node.Name}" : $"{checkPrefix}{r.Node.Name}",
                         FontSize = tileW >= 90 && tileH >= 34 ? 11.5 : 10,
                         FontWeight = FontWeights.SemiBold,
                         Foreground = new SolidColorBrush(Colors.White),
@@ -605,13 +952,14 @@ public sealed partial class ShellDialogService
                 }
 
                 var capturedNode = r.Node;
+                tileBorder.ContextFlyout = BuildNodeContextMenu(capturedNode);
                 tileBorder.PointerPressed += (_, e) =>
                 {
+                    var props = e.GetCurrentPoint(tileBorder).Properties;
+                    if (props.IsRightButtonPressed)
+                        return;
                     e.Handled = true;
-                    selectedNode = capturedNode;
-                    SyncSelectionToHierarchyList(capturedNode);
-                    UpdateSelectedNodeUi();
-                    RenderTreemapCanvas();
+                    HandleNodeSelectionClick(capturedNode, IsCtrlKeyDown());
                 };
 
                 tileBorder.DoubleTapped += (_, e) =>
@@ -636,18 +984,37 @@ public sealed partial class ShellDialogService
             }
         }
 
-        void SyncSelectionToHierarchyList(StorageTreemapNode node)
+        void SyncSelectionToHierarchyList()
         {
             if (currentRoot is null) return;
-            var directChild = FindDirectChildUnderRoot(node, currentRoot);
-            if (directChild is null) return;
-
-            int idx = currentHierarchyNodes.IndexOf(directChild);
-            if (idx >= 0 && hierarchyList.SelectedIndex != idx)
+            suppressHierarchySelection = true;
+            try
             {
-                suppressHierarchySelection = true;
-                hierarchyList.SelectedIndex = idx;
-                hierarchyList.ScrollIntoView(hierarchyList.SelectedItem);
+                hierarchyList.SelectedItems.Clear();
+                var targetNodes = selectedNodes.Count > 0
+                    ? selectedNodes
+                    : (selectedNode is not null ? [selectedNode] : []);
+
+                object? lastMatchedItem = null;
+                foreach (var n in targetNodes)
+                {
+                    var directChild = FindDirectChildUnderRoot(n, currentRoot);
+                    if (directChild is null) continue;
+                    int idx = currentHierarchyNodes.IndexOf(directChild);
+                    if (idx >= 0 && idx < hierarchyList.Items.Count)
+                    {
+                        var item = hierarchyList.Items[idx];
+                        if (!hierarchyList.SelectedItems.Contains(item))
+                            hierarchyList.SelectedItems.Add(item);
+                        lastMatchedItem = item;
+                    }
+                }
+
+                if (lastMatchedItem is not null)
+                    hierarchyList.ScrollIntoView(lastMatchedItem);
+            }
+            finally
+            {
                 suppressHierarchySelection = false;
             }
         }
@@ -761,6 +1128,7 @@ public sealed partial class ShellDialogService
                 rowGrid.Children.Add(countTb);
 
                 var capturedChild = child;
+                rowGrid.ContextFlyout = BuildNodeContextMenu(capturedChild);
                 rowGrid.DoubleTapped += (_, e) =>
                 {
                     e.Handled = true;
@@ -871,6 +1239,10 @@ public sealed partial class ShellDialogService
             extensionList.ItemsSource = extItems;
             suppressExtensionSelection = false;
 
+            ApplyFontScalingToTree(
+                upperSplitGrid,
+                owner.ViewModel.Settings.GetChildWindowFontSize(ChildWindowFontTarget.StorageAnalyzer));
+
             UpdateSelectedNodeUi();
             RenderTreemapCanvas();
         }
@@ -879,6 +1251,7 @@ public sealed partial class ShellDialogService
         {
             if (!target.IsDirectory) return;
             currentRoot = target;
+            selectedNodes.Clear();
             selectedNode = target;
             PopulateUpperListsAndTreemap();
         }
@@ -886,13 +1259,19 @@ public sealed partial class ShellDialogService
         hierarchyList.SelectionChanged += (_, _) =>
         {
             if (suppressHierarchySelection) return;
-            int idx = hierarchyList.SelectedIndex;
-            if (idx >= 0 && idx < currentHierarchyNodes.Count)
+            selectedNodes.Clear();
+            foreach (var itemObj in hierarchyList.SelectedItems)
             {
-                selectedNode = currentHierarchyNodes[idx];
-                UpdateSelectedNodeUi();
-                RenderTreemapCanvas();
+                if (itemObj is Grid g)
+                {
+                    int idx = hierarchyList.Items.IndexOf(g);
+                    if (idx >= 0 && idx < currentHierarchyNodes.Count)
+                        selectedNodes.Add(currentHierarchyNodes[idx]);
+                }
             }
+            selectedNode = selectedNodes.LastOrDefault();
+            UpdateSelectedNodeUi();
+            RenderTreemapCanvas();
         };
 
         extensionList.SelectionChanged += (_, _) =>
@@ -978,6 +1357,7 @@ public sealed partial class ShellDialogService
                 var tree = await StorageTreemapService.ScanDirectoryTreeAsync(targetDir, progress, ct);
                 scannedRoot = tree;
                 currentRoot = tree;
+                selectedNodes.Clear();
                 selectedNode = tree;
                 highlightedExtension = null;
                 clearExtFilterBtn.Visibility = Visibility.Collapsed;
@@ -999,113 +1379,254 @@ public sealed partial class ShellDialogService
             }
         }
 
+        // ====================================================================
+        // POPULATE INTERACTIVE EXPLORER-TREE DROPDOWN
+        // ====================================================================
+        UIElement CreateExplorerTreeNodeElement(string fullPath, string displayLabel, bool isDrive, int depth, string currentTargetPath)
+        {
+            var container = new StackPanel { Spacing = 1 };
+            var childrenHost = new StackPanel { Spacing = 1, Visibility = Visibility.Collapsed };
+            bool childrenLoaded = false;
+
+            bool isCurrentMatch = string.Equals(
+                fullPath.TrimEnd('\\', '/'),
+                currentTargetPath.TrimEnd('\\', '/'),
+                StringComparison.OrdinalIgnoreCase);
+
+            bool isAncestorOfCurrent = !isCurrentMatch &&
+                currentTargetPath.StartsWith(
+                    fullPath.EndsWith('\\') ? fullPath : fullPath + "\\",
+                    StringComparison.OrdinalIgnoreCase);
+
+            var rowGrid = new Grid
+            {
+                ColumnSpacing = 4,
+                Margin = new Thickness(depth * 16, 1, 2, 1),
+            };
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var expandBtn = new Button
+            {
+                Content = "▶",
+                FontSize = 10,
+                Width = 24,
+                Height = 26,
+                Padding = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+
+            var selectNodeBtn = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 4, 8, 4),
+                Background = isCurrentMatch
+                    ? new SolidColorBrush(Color.FromArgb(65, 56, 189, 248))
+                    : new SolidColorBrush(Colors.Transparent),
+                BorderBrush = isCurrentMatch
+                    ? new SolidColorBrush(Color.FromArgb(160, 56, 189, 248))
+                    : new SolidColorBrush(Colors.Transparent),
+                BorderThickness = new Thickness(1),
+                Content = new TextBlock
+                {
+                    Text = isDrive ? $"💾 {displayLabel}" : $"📁 {displayLabel}",
+                    FontSize = 12,
+                    FontWeight = isDrive || isCurrentMatch ? FontWeights.SemiBold : FontWeights.Normal,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                },
+            };
+
+            void ExpandNode()
+            {
+                if (!childrenLoaded)
+                {
+                    childrenLoaded = true;
+                    childrenHost.Children.Clear();
+                    try
+                    {
+                        var subDirs = Directory.EnumerateDirectories(fullPath)
+                            .Select(d => new DirectoryInfo(d))
+                            .Where(di => (di.Attributes & System.IO.FileAttributes.ReparsePoint) == 0)
+                            .OrderBy(di => di.Name, StringComparer.OrdinalIgnoreCase)
+                            .Take(200)
+                            .ToList();
+
+                        if (subDirs.Count == 0)
+                        {
+                            expandBtn.Opacity = 0.25;
+                            expandBtn.IsEnabled = false;
+                        }
+                        else
+                        {
+                            foreach (var sub in subDirs)
+                            {
+                                childrenHost.Children.Add(
+                                    CreateExplorerTreeNodeElement(sub.FullName, sub.Name, isDrive: false, depth: depth + 1, currentTargetPath));
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        expandBtn.Opacity = 0.25;
+                        expandBtn.IsEnabled = false;
+                    }
+                }
+
+                childrenHost.Visibility = Visibility.Visible;
+                expandBtn.Content = "▼";
+            }
+
+            expandBtn.Click += (_, _) =>
+            {
+                if (childrenHost.Visibility == Visibility.Visible)
+                {
+                    childrenHost.Visibility = Visibility.Collapsed;
+                    expandBtn.Content = "▶";
+                }
+                else
+                {
+                    ExpandNode();
+                }
+            };
+
+            selectNodeBtn.Click += async (_, _) =>
+            {
+                rootBox.Text = fullPath;
+                explorerTreeFlyout.Hide();
+                await RunScanAsync();
+            };
+
+            Grid.SetColumn(expandBtn, 0);
+            Grid.SetColumn(selectNodeBtn, 1);
+            rowGrid.Children.Add(expandBtn);
+            rowGrid.Children.Add(selectNodeBtn);
+
+            container.Children.Add(rowGrid);
+            container.Children.Add(childrenHost);
+
+            if (isAncestorOfCurrent && depth < 5)
+            {
+                ExpandNode();
+            }
+
+            return container;
+        }
+
+        void PopulateExplorerTreeFlyout()
+        {
+            treeRootStack.Children.Clear();
+            string currentTarget = rootBox.Text.Trim();
+
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives())
+                {
+                    if (!drive.IsReady) continue;
+                    string label = string.IsNullOrWhiteSpace(drive.VolumeLabel) ? "Lokaler Datenträger" : drive.VolumeLabel;
+                    string sizeInfo = $"{Format.Size(drive.AvailableFreeSpace)} frei von {Format.Size(drive.TotalSize)}";
+                    string display = $"{drive.Name} ({label})  —  {sizeInfo}";
+                    treeRootStack.Children.Add(
+                        CreateExplorerTreeNodeElement(drive.RootDirectory.FullName, display, isDrive: true, depth: 0, currentTargetPath: currentTarget));
+                }
+            }
+            catch { }
+
+            ApplyFontScalingToTree(
+                treeFlyoutContainer,
+                owner.ViewModel.Settings.GetChildWindowFontSize(ChildWindowFontTarget.StorageAnalyzer));
+        }
+
+        explorerTreeFlyout.Opening += (_, _) => PopulateExplorerTreeFlyout();
+
+        rootBox.KeyDown += async (_, e) =>
+        {
+            if (e.Key == VirtualKey.Enter)
+            {
+                e.Handled = true;
+                await RunScanAsync();
+            }
+        };
+
         scanBtn.Click += async (_, _) => await RunScanAsync();
         cancelScanBtn.Click += (_, _) => scanCts?.Cancel();
 
         // 4. Direkte Explorer-Aktionen aus dem Analyse-Fenster
-        showInTabBtn.Click += async (_, _) =>
-        {
-            var target = selectedNode ?? currentRoot;
-            if (target is null) return;
-
-            var activeTab = owner.ViewModel.ActivePanel.ActiveTab;
-            if (activeTab is null) return;
-
-            string parentDir = Path.GetDirectoryName(target.FullPath.TrimEnd('\\', '/')) ?? "";
-            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
-            {
-                await activeTab.NavigateAsync(parentDir, selectName: target.Name);
-            }
-            else if (Directory.Exists(target.FullPath))
-            {
-                await activeTab.NavigateAsync(target.FullPath);
-            }
-
-            WindowChromeHelper.BringWindowToForeground(owner);
-        };
-
-        openFolderTabBtn.Click += async (_, _) =>
-        {
-            var target = selectedNode ?? currentRoot;
-            if (target is null) return;
-
-            string folderPath = target.IsDirectory
-                ? target.FullPath
-                : (Path.GetDirectoryName(target.FullPath) ?? currentRoot?.FullPath ?? "");
-
-            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
-                return;
-
-            await owner.ViewModel.ActivePanel.CreateTabAsync(folderPath);
-            selectedInfoText.Text = $"✓ Neuer Tab geöffnet: {folderPath}";
-        };
+        showInTabBtn.Click += async (_, _) => await NavigateToNodeInExplorerTabAsync(selectedNode);
+        openFolderTabBtn.Click += async (_, _) => await OpenNodeFolderAsNewTabAsync(selectedNode);
 
         deleteSelectedBtn.Click += (_, _) =>
         {
-            if (selectedNode is null || ReferenceEquals(selectedNode, scannedRoot))
+            var deletable = GetDeletableSelectedNodes();
+            if (deletable.Count == 0)
             {
-                selectedInfoText.Text = "⚠ Bitte wählen Sie zuerst eine Datei oder einen Unterordner zum Löschen aus.";
+                selectedInfoText.Text = "⚠ Bitte wählen Sie zuerst eine oder mehrere Dateien/Unterordner zum Löschen aus.";
                 return;
             }
 
             deleteSelectedBtn.Visibility = Visibility.Collapsed;
             confirmDeleteBtn.Visibility = Visibility.Visible;
             cancelDeleteConfirmBtn.Visibility = Visibility.Visible;
-            selectedInfoText.Text = $"⚠ Wirklich löschen: „{selectedNode.Name}“ ({Format.Size(selectedNode.Size)})?";
+
+            if (deletable.Count == 1)
+            {
+                selectedInfoText.Text = $"⚠ Wirklich löschen: „{deletable[0].Name}“ ({Format.Size(deletable[0].Size)})?";
+            }
+            else
+            {
+                long totalBytes = deletable.Sum(n => n.Size);
+                selectedInfoText.Text = $"⚠ Wirklich {deletable.Count} markierte Elemente löschen ({Format.Size(totalBytes)})?";
+            }
         };
 
         cancelDeleteConfirmBtn.Click += (_, _) => UpdateSelectedNodeUi();
 
         confirmDeleteBtn.Click += async (_, _) =>
         {
-            ResetDeleteConfirmState();
-            var nodeToDelete = selectedNode;
-            if (nodeToDelete is null || ReferenceEquals(nodeToDelete, scannedRoot))
-                return;
+            var deletable = GetDeletableSelectedNodes();
+            await ExecuteDeleteNodesAsync(deletable);
+        };
 
-            try
+        // Keyboard shortcut: ENTF (Delete) deletes selected node(s)
+        bodyGrid.PreviewKeyDown += async (_, e) =>
+        {
+            if (e.Key == VirtualKey.Delete)
             {
-                long freedBytes = nodeToDelete.Size;
-                string deletedName = nodeToDelete.Name;
+                var focused = bodyGrid.XamlRoot is not null
+                    ? FocusManager.GetFocusedElement(bodyGrid.XamlRoot)
+                    : null;
+                if (focused is TextBox)
+                    return;
 
-                if (nodeToDelete.IsDirectory)
+                var deletable = GetDeletableSelectedNodes();
+                if (deletable.Count > 0)
                 {
-                    if (Directory.Exists(nodeToDelete.FullPath))
-                        await Task.Run(() => Directory.Delete(nodeToDelete.FullPath, recursive: true));
+                    e.Handled = true;
+                    await ExecuteDeleteNodesAsync(deletable);
                 }
-                else
-                {
-                    await Task.Run(() => DuplicateFinderService.DeleteDuplicateFiles([nodeToDelete.FullPath]));
-                }
-
-                var fallbackParent = nodeToDelete.Parent ?? scannedRoot;
-                if (ReferenceEquals(currentRoot, nodeToDelete))
-                    currentRoot = fallbackParent;
-
-                StorageTreemapService.RemoveNodeAndRecalculate(nodeToDelete);
-                selectedNode = fallbackParent;
-                PopulateUpperListsAndTreemap();
-
-                selectedInfoText.Text = $"✓ „{deletedName}“ gelöscht ({Format.Size(freedBytes)} freigegeben)";
-                owner.ViewModel.StatusNotification = $"Speicherplatz-Analysator: „{deletedName}“ gelöscht ({Format.Size(freedBytes)} frei)";
-
-                if (owner.ViewModel.Left.ActiveTab is not null)
-                    await owner.ViewModel.Left.ActiveTab.ReloadAsync();
-                if (owner.ViewModel.Right.ActiveTab is not null)
-                    await owner.ViewModel.Right.ActiveTab.ReloadAsync();
-            }
-            catch (Exception ex)
-            {
-                selectedInfoText.Text = $"⚠ Löschen fehlgeschlagen: {ex.Message}";
             }
         };
+
+        void OnTreemapColorsChanged(object? s, EventArgs e)
+        {
+            owner.DispatcherQueue.TryEnqueue(() =>
+            {
+                StorageTreemapService.RefreshNodeColors(scannedRoot);
+                RebuildCategoryLegendPills();
+                PopulateUpperListsAndTreemap();
+            });
+        }
+
+        owner.ViewModel.Settings.TreemapColorsChanged += OnTreemapColorsChanged;
 
         var win = CreateResizableChildWindow(
             "Speicherplatz-Analysator & Grafische Treemap (WinDirStat / Strg+Shift+W)",
             "🗺",
             bodyGrid,
             defaultWidth: 1220,
-            defaultHeight: 820);
+            defaultHeight: 820,
+            fontTarget: ChildWindowFontTarget.StorageAnalyzer);
 
         closeBtn.Click += (_, _) =>
         {
@@ -1115,6 +1636,7 @@ public sealed partial class ShellDialogService
 
         win.Closed += (_, _) =>
         {
+            owner.ViewModel.Settings.TreemapColorsChanged -= OnTreemapColorsChanged;
             scanCts?.Cancel();
             scanCts?.Dispose();
             tcs.TrySetResult(true);

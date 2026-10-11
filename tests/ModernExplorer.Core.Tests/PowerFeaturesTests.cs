@@ -366,6 +366,67 @@ public sealed class PowerFeaturesTests : IDisposable
         Assert.Equal(50_000, tree.Size);
         Assert.Equal(2, tree.FileCount);
     }
+
+    [Fact]
+    public async Task StorageTreemap_CustomCategoryColors_And_RefreshNodeColors_Work()
+    {
+        string root = Path.Combine(_tempDir, "treemap_colors");
+        Directory.CreateDirectory(root);
+        string videoFile = Path.Combine(root, "clip.mp4");
+        await File.WriteAllBytesAsync(videoFile, new byte[8_192]);
+
+        var settings = SettingsViewModel.Current;
+        string originalColor = settings.TreemapVideoMediaColor;
+        try
+        {
+            settings.SetTreemapCategoryColor(StorageCategory.VideoAudio, "#123456");
+            Assert.Equal("#123456", StorageTreemapService.GetCategoryColorHex(StorageCategory.VideoAudio));
+
+            var tree = await StorageTreemapService.ScanDirectoryTreeAsync(root);
+            var mp4Node = tree.Children.Single(c => c.Name == "clip.mp4");
+            Assert.Equal("#123456", mp4Node.ColorHex);
+
+            settings.SetTreemapCategoryColor(StorageCategory.VideoAudio, "#654321");
+            StorageTreemapService.RefreshNodeColors(tree);
+            Assert.Equal("#654321", mp4Node.ColorHex);
+        }
+        finally
+        {
+            settings.SetTreemapCategoryColor(StorageCategory.VideoAudio, originalColor);
+        }
+    }
+
+    [Fact]
+    public void SettingsViewModel_ChildWindowFontSizes_And_GlobalFontSizeOption_Work()
+    {
+        var settings = SettingsViewModel.Current;
+        bool origGlobalFlag = settings.UseGlobalFontSize;
+        double origGlobalSize = settings.GlobalFontSize;
+        double origAnalyzerSize = settings.StorageAnalyzerFontSize;
+        double origQuickViewerSize = settings.QuickViewerFontSize;
+
+        try
+        {
+            settings.UseGlobalFontSize = false;
+            settings.StorageAnalyzerFontSize = 16.5;
+            settings.QuickViewerFontSize = 14.0;
+
+            Assert.Equal(16.5, settings.GetChildWindowFontSize(ChildWindowFontTarget.StorageAnalyzer));
+            Assert.Equal(14.0, settings.GetChildWindowFontSize(ChildWindowFontTarget.QuickViewer));
+
+            settings.UseGlobalFontSize = true;
+            settings.GlobalFontSize = 18.0;
+
+            Assert.Equal(18.0, settings.GetChildWindowFontSize(ChildWindowFontTarget.StorageAnalyzer));
+            Assert.Equal(18.0, settings.GetChildWindowFontSize(ChildWindowFontTarget.QuickViewer));
+            Assert.Equal(18.0, settings.GetChildWindowFontSize(ChildWindowFontTarget.AboutWindow));
+        }
+        finally
+        {
+            settings.UseGlobalFontSize = origGlobalFlag;
+            settings.GlobalFontSize = origGlobalSize;
+            settings.StorageAnalyzerFontSize = origAnalyzerSize;
+            settings.QuickViewerFontSize = origQuickViewerSize;
+        }
+    }
 }
-
-

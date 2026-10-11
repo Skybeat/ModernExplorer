@@ -460,6 +460,58 @@ public sealed partial class SettingsWindow : Window
         Bindings.Update();
     }
 
+    // 4. Storage Analyzer Treemap category colors
+    private void OnTreemapColorPresetClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string tag } && tag.Split(':', 2) is [var catStr, var hex] &&
+            Enum.TryParse<ModernExplorer.Core.FileSystem.StorageCategory>(catStr, ignoreCase: true, out var cat))
+        {
+            Settings.SetTreemapCategoryColor(cat, hex);
+            SyncTreemapColorHexBoxes();
+            Bindings.Update();
+        }
+    }
+
+    private void OnApplyTreemapHexColorClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string catStr } &&
+            Enum.TryParse<ModernExplorer.Core.FileSystem.StorageCategory>(catStr, ignoreCase: true, out var cat))
+        {
+            string inputHex = cat switch
+            {
+                ModernExplorer.Core.FileSystem.StorageCategory.VideoMedia => TreemapVideoHexBox.Text,
+                ModernExplorer.Core.FileSystem.StorageCategory.ArchiveImage => TreemapArchiveHexBox.Text,
+                ModernExplorer.Core.FileSystem.StorageCategory.VirtualDiskSystem => TreemapVdiskHexBox.Text,
+                ModernExplorer.Core.FileSystem.StorageCategory.CodeDocument => TreemapCodeHexBox.Text,
+                ModernExplorer.Core.FileSystem.StorageCategory.PictureGraphic => TreemapPictureHexBox.Text,
+                ModernExplorer.Core.FileSystem.StorageCategory.BinaryExecutable => TreemapBinaryHexBox.Text,
+                _ => TreemapOtherHexBox.Text,
+            };
+            Settings.SetTreemapCategoryColor(cat, inputHex);
+            SyncTreemapColorHexBoxes();
+            Bindings.Update();
+        }
+    }
+
+    private void OnResetTreemapColorsClick(object sender, RoutedEventArgs e)
+    {
+        Settings.ResetTreemapColorsToDefaults();
+        SyncTreemapColorHexBoxes();
+        Bindings.Update();
+        _owner.ViewModel.StatusNotification = "Treemap-Farben auf Standardwerte zurückgesetzt.";
+    }
+
+    private void SyncTreemapColorHexBoxes()
+    {
+        if (TreemapVideoHexBox is not null) TreemapVideoHexBox.Text = Settings.TreemapVideoMediaColor;
+        if (TreemapArchiveHexBox is not null) TreemapArchiveHexBox.Text = Settings.TreemapArchiveImageColor;
+        if (TreemapVdiskHexBox is not null) TreemapVdiskHexBox.Text = Settings.TreemapVirtualDiskSystemColor;
+        if (TreemapCodeHexBox is not null) TreemapCodeHexBox.Text = Settings.TreemapCodeDocumentColor;
+        if (TreemapPictureHexBox is not null) TreemapPictureHexBox.Text = Settings.TreemapPictureGraphicColor;
+        if (TreemapBinaryHexBox is not null) TreemapBinaryHexBox.Text = Settings.TreemapBinaryExecutableColor;
+        if (TreemapOtherHexBox is not null) TreemapOtherHexBox.Text = Settings.TreemapOtherTempColor;
+    }
+
     private void OnSaveSessionNowClick(object sender, RoutedEventArgs e)
     {
         _owner.ViewModel.SaveSessionImmediately();
@@ -488,6 +540,7 @@ public sealed partial class SettingsWindow : Window
     private void OnResetFontSizesClick(object sender, RoutedEventArgs e)
     {
         Settings.ResetFontSizesToDefaults();
+        Bindings.Update();
         _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.FontsReset");
     }
 
@@ -497,6 +550,7 @@ public sealed partial class SettingsWindow : Window
         ActivePanelBorderHexBox.Text = Settings.ActivePanelBorderColor;
         BorderColorHexBox.Text = Settings.SelectionBorderColor;
         MarkedTextColorHexBox.Text = Settings.MarkedItemTextColor;
+        SyncTreemapColorHexBoxes();
         PopulateLanguageComboBox();
         PopulateDefaultViewModeComboBox();
         ApplyLocalization();

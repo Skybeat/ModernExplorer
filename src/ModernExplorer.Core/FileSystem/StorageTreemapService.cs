@@ -73,7 +73,7 @@ public sealed class StorageTreemapNode
     public DateTime ModifiedLocal => LastWriteTime;
     public string Extension { get; init; } = "";
     public StorageCategory Category { get; init; } = StorageCategory.OtherTemp;
-    public string ColorHex { get; init; } = "#64748B";
+    public string ColorHex { get; set; } = "#64748B";
     public int FileCount { get; set; }
     public int DirectoryCount { get; set; }
     public int FolderCount => DirectoryCount;
@@ -126,16 +126,25 @@ public static class StorageTreemapService
         ".exe", ".dll", ".msi", ".msix", ".appx", ".pdb", ".so", ".dylib", ".lib", ".a", ".obj", ".o", ".wasm", ".winmd"
     };
 
-    public static string GetCategoryColorHex(StorageCategory category) => category switch
+    public static string GetDefaultCategoryColorHex(StorageCategory category) => category switch
     {
-        StorageCategory.VideoMedia => "#3B82F6",
-        StorageCategory.ArchiveImage => "#8B5CF6",
-        StorageCategory.VirtualDiskSystem => "#F97316",
-        StorageCategory.CodeDocument => "#10B981",
-        StorageCategory.PictureGraphic => "#06B6D4",
-        StorageCategory.BinaryExecutable => "#EAB308",
-        _ => "#64748B",
+        StorageCategory.VideoMedia => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapVideoMediaColor,
+        StorageCategory.ArchiveImage => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapArchiveImageColor,
+        StorageCategory.VirtualDiskSystem => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapVirtualDiskSystemColor,
+        StorageCategory.CodeDocument => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapCodeDocumentColor,
+        StorageCategory.PictureGraphic => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapPictureGraphicColor,
+        StorageCategory.BinaryExecutable => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapBinaryExecutableColor,
+        _ => ModernExplorer.Core.Settings.AppSettings.DefaultTreemapOtherTempColor,
     };
+
+    public static string GetCategoryColorHex(StorageCategory category)
+    {
+        var vm = ModernExplorer.Core.ViewModels.SettingsViewModel.Current;
+        if (vm is not null)
+            return vm.GetTreemapCategoryColor(category);
+
+        return GetDefaultCategoryColorHex(category);
+    }
 
     public static string GetCategoryDisplayName(StorageCategory category) => category switch
     {
@@ -158,20 +167,37 @@ public static class StorageTreemapService
                 : Path.GetExtension(fileNameOrExtension).ToLowerInvariant();
         }
 
+        StorageCategory cat = StorageCategory.OtherTemp;
         if (VideoMediaExtensions.Contains(ext))
-            return (StorageCategory.VideoMedia, "#3B82F6", "Video & Audio");
-        if (ArchiveExtensions.Contains(ext))
-            return (StorageCategory.ArchiveImage, "#8B5CF6", "Archive & Disk-Images");
-        if (VirtualDiskSystemExtensions.Contains(ext))
-            return (StorageCategory.VirtualDiskSystem, "#F97316", "Virtuelle Disks, DB & System");
-        if (CodeDocumentExtensions.Contains(ext))
-            return (StorageCategory.CodeDocument, "#10B981", "Code, Text & Dokumente");
-        if (PictureGraphicExtensions.Contains(ext))
-            return (StorageCategory.PictureGraphic, "#06B6D4", "Bilder & Grafiken");
-        if (BinaryExecutableExtensions.Contains(ext))
-            return (StorageCategory.BinaryExecutable, "#EAB308", "Programme & Bibliotheken");
+            cat = StorageCategory.VideoMedia;
+        else if (ArchiveExtensions.Contains(ext))
+            cat = StorageCategory.ArchiveImage;
+        else if (VirtualDiskSystemExtensions.Contains(ext))
+            cat = StorageCategory.VirtualDiskSystem;
+        else if (CodeDocumentExtensions.Contains(ext))
+            cat = StorageCategory.CodeDocument;
+        else if (PictureGraphicExtensions.Contains(ext))
+            cat = StorageCategory.PictureGraphic;
+        else if (BinaryExecutableExtensions.Contains(ext))
+            cat = StorageCategory.BinaryExecutable;
 
-        return (StorageCategory.OtherTemp, "#64748B", "Sonstige & Temp");
+        return (cat, GetCategoryColorHex(cat), GetCategoryDisplayName(cat));
+    }
+
+    /// <summary>
+    /// Updates <see cref="StorageTreemapNode.ColorHex"/> across an existing scanned tree when user color settings change.
+    /// </summary>
+    public static void RefreshNodeColors(StorageTreemapNode? node)
+    {
+        if (node is null) return;
+        if (!node.IsDirectory)
+        {
+            node.ColorHex = GetCategoryColorHex(node.Category);
+            return;
+        }
+
+        foreach (var child in node.Children)
+            RefreshNodeColors(child);
     }
 
     public static async Task<StorageTreemapNode> ScanDirectoryTreeAsync(

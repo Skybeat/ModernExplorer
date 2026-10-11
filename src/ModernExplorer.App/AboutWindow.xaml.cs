@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using ModernExplorer.App.Dialogs;
 using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Settings;
 using ModernExplorer.Core.Update;
@@ -31,6 +32,7 @@ public sealed partial class AboutWindow : Window
         UpdateVersionAndStatusUi();
 
         _owner.ViewModel.Settings.ThemeChanged += OnThemeChanged;
+        _owner.ViewModel.Settings.FontSizesChanged += OnFontSizesChanged;
         LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
         ViewModel.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(UpdateVersionAndStatusUi);
 
@@ -38,15 +40,28 @@ public sealed partial class AboutWindow : Window
         {
             ApplyTheme(_owner.ViewModel.Settings.Theme);
             ApplyLocalization();
+            ApplyAboutFontScaling();
             await ViewModel.CheckForUpdateAsync();
         };
 
         Closed += (_, _) =>
         {
             _owner.ViewModel.Settings.ThemeChanged -= OnThemeChanged;
+            _owner.ViewModel.Settings.FontSizesChanged -= OnFontSizesChanged;
             LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
             ViewModel.Dispose();
         };
+    }
+
+    private void OnFontSizesChanged(object? sender, EventArgs e)
+    {
+        ApplyAboutFontScaling();
+    }
+
+    private void ApplyAboutFontScaling()
+    {
+        double targetFont = _owner.ViewModel.Settings.GetChildWindowFontSize(ChildWindowFontTarget.AboutWindow);
+        ShellDialogService.ApplyFontScalingToTree(RootGrid, targetFont);
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)

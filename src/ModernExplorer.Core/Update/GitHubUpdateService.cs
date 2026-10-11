@@ -89,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 4, 0);
+        return new Version(1, 5, 0);
     }
 
     public static string GetCurrentVersionString()

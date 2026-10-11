@@ -1,14 +1,34 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 
 namespace ModernExplorer.Core.ViewModels;
 
+/// <summary>
+/// Identifies a specific child window or dialog for per-window font size customization.
+/// </summary>
+public enum ChildWindowFontTarget
+{
+    General = 0,
+    QuickViewer = 1,
+    Editor = 2,
+    StorageAnalyzer = 3,
+    DeepSearch = 4,
+    DuplicateFinder = 5,
+    DirectorySync = 6,
+    BatchRename = 7,
+    FtpManager = 8,
+    ArchiveDialog = 9,
+    AboutWindow = 10,
+}
+
 public sealed partial class SettingsViewModel : ObservableObject
 {
     private SettingsStore? _store;
     private bool _suppressSave;
+    private bool _applyingGlobalFont;
 
     /// <summary>
     /// Current global instance used for live bindings inside DataTemplates.
@@ -76,6 +96,27 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _markedItemTextColor = AppSettings.DefaultMarkedItemTextColor;
 
     [ObservableProperty]
+    private string _treemapVideoMediaColor = AppSettings.DefaultTreemapVideoMediaColor;
+
+    [ObservableProperty]
+    private string _treemapArchiveImageColor = AppSettings.DefaultTreemapArchiveImageColor;
+
+    [ObservableProperty]
+    private string _treemapVirtualDiskSystemColor = AppSettings.DefaultTreemapVirtualDiskSystemColor;
+
+    [ObservableProperty]
+    private string _treemapCodeDocumentColor = AppSettings.DefaultTreemapCodeDocumentColor;
+
+    [ObservableProperty]
+    private string _treemapPictureGraphicColor = AppSettings.DefaultTreemapPictureGraphicColor;
+
+    [ObservableProperty]
+    private string _treemapBinaryExecutableColor = AppSettings.DefaultTreemapBinaryExecutableColor;
+
+    [ObservableProperty]
+    private string _treemapOtherTempColor = AppSettings.DefaultTreemapOtherTempColor;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MainWindowBoundsSummary))]
     private int _mainWindowWidth = AppSettings.DefaultMainWindowWidth;
 
@@ -112,6 +153,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _childWindowIsMaximized;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIndividualFontSizesEnabled))]
+    private bool _useGlobalFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GlobalFontSizeText))]
+    private double _globalFontSize = AppSettings.DefaultGlobalFontSize;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FileListFontSizeText))]
     private double _fileListFontSize = AppSettings.DefaultFileListFontSize;
 
@@ -143,6 +192,46 @@ public sealed partial class SettingsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(FunctionBarFontSizeText))]
     private double _functionBarFontSize = AppSettings.DefaultFunctionBarFontSize;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QuickViewerFontSizeText))]
+    private double _quickViewerFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EditorFontSizeText))]
+    private double _editorFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StorageAnalyzerFontSizeText))]
+    private double _storageAnalyzerFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeepSearchFontSizeText))]
+    private double _deepSearchFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DuplicateFinderFontSizeText))]
+    private double _duplicateFinderFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DirectorySyncFontSizeText))]
+    private double _directorySyncFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatchRenameFontSizeText))]
+    private double _batchRenameFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FtpManagerFontSizeText))]
+    private double _ftpManagerFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ArchiveDialogFontSizeText))]
+    private double _archiveDialogFontSize = AppSettings.DefaultChildWindowFontSize;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AboutWindowFontSizeText))]
+    private double _aboutWindowFontSize = AppSettings.DefaultChildWindowFontSize;
+
     public bool IsDarkTheme => Theme == AppTheme.Dark;
     public bool IsLightTheme => Theme == AppTheme.Light;
     public string ThemeDisplayName => Theme == AppTheme.Light
@@ -150,6 +239,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         : LocalizationService.T("Settings.Theme.DarkName");
 
     public IReadOnlyList<LanguageOption> AvailableLanguages => LocalizationService.SupportedLanguages;
+
+    public bool IsIndividualFontSizesEnabled => !UseGlobalFontSize;
 
     public string FileListRowHeightText => $"{FileListRowHeight:0} px";
 
@@ -169,6 +260,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ? LocalizationService.Format("Settings.Bounds.Maximized", ChildWindowWidth, ChildWindowHeight)
         : LocalizationService.Format("Settings.Bounds.Normal", ChildWindowWidth, ChildWindowHeight);
 
+    public string GlobalFontSizeText => $"{GlobalFontSize:0.#} pt";
     public string FileListFontSizeText => $"{FileListFontSize:0.#} pt";
     public string FileListDetailsFontSizeText => $"{FileListDetailsFontSize:0.#} pt";
     public string TabFontSizeText => $"{TabFontSize:0.#} pt";
@@ -178,6 +270,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string StatusBarFontSizeText => $"{StatusBarFontSize:0.#} pt";
     public string FunctionBarFontSizeText => $"{FunctionBarFontSize:0.#} pt";
 
+    public string QuickViewerFontSizeText => $"{QuickViewerFontSize:0.#} pt";
+    public string EditorFontSizeText => $"{EditorFontSize:0.#} pt";
+    public string StorageAnalyzerFontSizeText => $"{StorageAnalyzerFontSize:0.#} pt";
+    public string DeepSearchFontSizeText => $"{DeepSearchFontSize:0.#} pt";
+    public string DuplicateFinderFontSizeText => $"{DuplicateFinderFontSize:0.#} pt";
+    public string DirectorySyncFontSizeText => $"{DirectorySyncFontSize:0.#} pt";
+    public string BatchRenameFontSizeText => $"{BatchRenameFontSize:0.#} pt";
+    public string FtpManagerFontSizeText => $"{FtpManagerFontSize:0.#} pt";
+    public string ArchiveDialogFontSizeText => $"{ArchiveDialogFontSize:0.#} pt";
+    public string AboutWindowFontSizeText => $"{AboutWindowFontSize:0.#} pt";
+
     public event EventHandler? ThemeChanged;
     public event EventHandler? LanguageChanged;
     public event EventHandler? SaveSessionChanged;
@@ -185,6 +288,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public event EventHandler? SelectionBorderColorChanged;
     public event EventHandler? ActivePanelBorderColorChanged;
     public event EventHandler? MarkedItemTextColorChanged;
+    public event EventHandler? TreemapColorsChanged;
     public event EventHandler? ShowHiddenFilesByDefaultChanged;
     public event EventHandler? SortFoldersFirstChanged;
     public event EventHandler? ShowFileExtensionsChanged;
@@ -238,6 +342,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             SelectionBorderColor = norm.SelectionBorderColor;
             ActivePanelBorderColor = norm.ActivePanelBorderColor;
             MarkedItemTextColor = norm.MarkedItemTextColor;
+            TreemapVideoMediaColor = norm.TreemapVideoMediaColor;
+            TreemapArchiveImageColor = norm.TreemapArchiveImageColor;
+            TreemapVirtualDiskSystemColor = norm.TreemapVirtualDiskSystemColor;
+            TreemapCodeDocumentColor = norm.TreemapCodeDocumentColor;
+            TreemapPictureGraphicColor = norm.TreemapPictureGraphicColor;
+            TreemapBinaryExecutableColor = norm.TreemapBinaryExecutableColor;
+            TreemapOtherTempColor = norm.TreemapOtherTempColor;
             MainWindowWidth = norm.MainWindowWidth;
             MainWindowHeight = norm.MainWindowHeight;
             MainWindowIsMaximized = norm.MainWindowIsMaximized;
@@ -247,6 +358,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             ChildWindowWidth = norm.ChildWindowWidth;
             ChildWindowHeight = norm.ChildWindowHeight;
             ChildWindowIsMaximized = norm.ChildWindowIsMaximized;
+            UseGlobalFontSize = norm.UseGlobalFontSize;
+            GlobalFontSize = norm.GlobalFontSize;
             FileListFontSize = norm.FileListFontSize;
             FileListDetailsFontSize = norm.FileListDetailsFontSize;
             TabFontSize = norm.TabFontSize;
@@ -255,6 +368,16 @@ public sealed partial class SettingsViewModel : ObservableObject
             BreadcrumbFontSize = norm.BreadcrumbFontSize;
             StatusBarFontSize = norm.StatusBarFontSize;
             FunctionBarFontSize = norm.FunctionBarFontSize;
+            QuickViewerFontSize = norm.QuickViewerFontSize;
+            EditorFontSize = norm.EditorFontSize;
+            StorageAnalyzerFontSize = norm.StorageAnalyzerFontSize;
+            DeepSearchFontSize = norm.DeepSearchFontSize;
+            DuplicateFinderFontSize = norm.DuplicateFinderFontSize;
+            DirectorySyncFontSize = norm.DirectorySyncFontSize;
+            BatchRenameFontSize = norm.BatchRenameFontSize;
+            FtpManagerFontSize = norm.FtpManagerFontSize;
+            ArchiveDialogFontSize = norm.ArchiveDialogFontSize;
+            AboutWindowFontSize = norm.AboutWindowFontSize;
         }
         finally
         {
@@ -287,6 +410,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectionBorderColor = AppSettings.NormalizeHexColor(SelectionBorderColor, AppSettings.DefaultSelectionBorderColor),
         ActivePanelBorderColor = AppSettings.NormalizeHexColor(ActivePanelBorderColor, AppSettings.DefaultActivePanelBorderColor),
         MarkedItemTextColor = AppSettings.NormalizeHexColor(MarkedItemTextColor, AppSettings.DefaultMarkedItemTextColor),
+        TreemapVideoMediaColor = AppSettings.NormalizeHexColor(TreemapVideoMediaColor, AppSettings.DefaultTreemapVideoMediaColor),
+        TreemapArchiveImageColor = AppSettings.NormalizeHexColor(TreemapArchiveImageColor, AppSettings.DefaultTreemapArchiveImageColor),
+        TreemapVirtualDiskSystemColor = AppSettings.NormalizeHexColor(TreemapVirtualDiskSystemColor, AppSettings.DefaultTreemapVirtualDiskSystemColor),
+        TreemapCodeDocumentColor = AppSettings.NormalizeHexColor(TreemapCodeDocumentColor, AppSettings.DefaultTreemapCodeDocumentColor),
+        TreemapPictureGraphicColor = AppSettings.NormalizeHexColor(TreemapPictureGraphicColor, AppSettings.DefaultTreemapPictureGraphicColor),
+        TreemapBinaryExecutableColor = AppSettings.NormalizeHexColor(TreemapBinaryExecutableColor, AppSettings.DefaultTreemapBinaryExecutableColor),
+        TreemapOtherTempColor = AppSettings.NormalizeHexColor(TreemapOtherTempColor, AppSettings.DefaultTreemapOtherTempColor),
         MainWindowWidth = MainWindowWidth,
         MainWindowHeight = MainWindowHeight,
         MainWindowIsMaximized = MainWindowIsMaximized,
@@ -296,6 +426,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ChildWindowWidth = ChildWindowWidth,
         ChildWindowHeight = ChildWindowHeight,
         ChildWindowIsMaximized = ChildWindowIsMaximized,
+        UseGlobalFontSize = UseGlobalFontSize,
+        GlobalFontSize = GlobalFontSize,
         FileListFontSize = FileListFontSize,
         FileListDetailsFontSize = FileListDetailsFontSize,
         TabFontSize = TabFontSize,
@@ -304,7 +436,88 @@ public sealed partial class SettingsViewModel : ObservableObject
         BreadcrumbFontSize = BreadcrumbFontSize,
         StatusBarFontSize = StatusBarFontSize,
         FunctionBarFontSize = FunctionBarFontSize,
+        QuickViewerFontSize = QuickViewerFontSize,
+        EditorFontSize = EditorFontSize,
+        StorageAnalyzerFontSize = StorageAnalyzerFontSize,
+        DeepSearchFontSize = DeepSearchFontSize,
+        DuplicateFinderFontSize = DuplicateFinderFontSize,
+        DirectorySyncFontSize = DirectorySyncFontSize,
+        BatchRenameFontSize = BatchRenameFontSize,
+        FtpManagerFontSize = FtpManagerFontSize,
+        ArchiveDialogFontSize = ArchiveDialogFontSize,
+        AboutWindowFontSize = AboutWindowFontSize,
     };
+
+    public string GetTreemapCategoryColor(StorageCategory category) => category switch
+    {
+        StorageCategory.VideoMedia => TreemapVideoMediaColor,
+        StorageCategory.ArchiveImage => TreemapArchiveImageColor,
+        StorageCategory.VirtualDiskSystem => TreemapVirtualDiskSystemColor,
+        StorageCategory.CodeDocument => TreemapCodeDocumentColor,
+        StorageCategory.PictureGraphic => TreemapPictureGraphicColor,
+        StorageCategory.BinaryExecutable => TreemapBinaryExecutableColor,
+        _ => TreemapOtherTempColor,
+    };
+
+    public void SetTreemapCategoryColor(StorageCategory category, string hexColor)
+    {
+        switch (category)
+        {
+            case StorageCategory.VideoMedia:
+                TreemapVideoMediaColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapVideoMediaColor);
+                break;
+            case StorageCategory.ArchiveImage:
+                TreemapArchiveImageColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapArchiveImageColor);
+                break;
+            case StorageCategory.VirtualDiskSystem:
+                TreemapVirtualDiskSystemColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapVirtualDiskSystemColor);
+                break;
+            case StorageCategory.CodeDocument:
+                TreemapCodeDocumentColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapCodeDocumentColor);
+                break;
+            case StorageCategory.PictureGraphic:
+                TreemapPictureGraphicColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapPictureGraphicColor);
+                break;
+            case StorageCategory.BinaryExecutable:
+                TreemapBinaryExecutableColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapBinaryExecutableColor);
+                break;
+            default:
+                TreemapOtherTempColor = AppSettings.NormalizeHexColor(hexColor, AppSettings.DefaultTreemapOtherTempColor);
+                break;
+        }
+    }
+
+    public void ResetTreemapColorsToDefaults()
+    {
+        TreemapVideoMediaColor = AppSettings.DefaultTreemapVideoMediaColor;
+        TreemapArchiveImageColor = AppSettings.DefaultTreemapArchiveImageColor;
+        TreemapVirtualDiskSystemColor = AppSettings.DefaultTreemapVirtualDiskSystemColor;
+        TreemapCodeDocumentColor = AppSettings.DefaultTreemapCodeDocumentColor;
+        TreemapPictureGraphicColor = AppSettings.DefaultTreemapPictureGraphicColor;
+        TreemapBinaryExecutableColor = AppSettings.DefaultTreemapBinaryExecutableColor;
+        TreemapOtherTempColor = AppSettings.DefaultTreemapOtherTempColor;
+    }
+
+    public double GetChildWindowFontSize(ChildWindowFontTarget target)
+    {
+        if (UseGlobalFontSize)
+            return AppSettings.ClampFont(GlobalFontSize, AppSettings.DefaultGlobalFontSize);
+
+        return target switch
+        {
+            ChildWindowFontTarget.QuickViewer => AppSettings.ClampFont(QuickViewerFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.Editor => AppSettings.ClampFont(EditorFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.StorageAnalyzer => AppSettings.ClampFont(StorageAnalyzerFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.DeepSearch => AppSettings.ClampFont(DeepSearchFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.DuplicateFinder => AppSettings.ClampFont(DuplicateFinderFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.DirectorySync => AppSettings.ClampFont(DirectorySyncFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.BatchRename => AppSettings.ClampFont(BatchRenameFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.FtpManager => AppSettings.ClampFont(FtpManagerFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.ArchiveDialog => AppSettings.ClampFont(ArchiveDialogFontSize, AppSettings.DefaultChildWindowFontSize),
+            ChildWindowFontTarget.AboutWindow => AppSettings.ClampFont(AboutWindowFontSize, AppSettings.DefaultChildWindowFontSize),
+            _ => AppSettings.ClampFont(GlobalFontSize, AppSettings.DefaultChildWindowFontSize),
+        };
+    }
 
     public void SetTheme(AppTheme theme) => Theme = theme;
 
@@ -411,6 +624,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public void ResetFontSizesToDefaults()
     {
+        UseGlobalFontSize = false;
+        GlobalFontSize = AppSettings.DefaultGlobalFontSize;
         FileListFontSize = AppSettings.DefaultFileListFontSize;
         FileListDetailsFontSize = AppSettings.DefaultFileListDetailsFontSize;
         TabFontSize = AppSettings.DefaultTabFontSize;
@@ -419,6 +634,16 @@ public sealed partial class SettingsViewModel : ObservableObject
         BreadcrumbFontSize = AppSettings.DefaultBreadcrumbFontSize;
         StatusBarFontSize = AppSettings.DefaultStatusBarFontSize;
         FunctionBarFontSize = AppSettings.DefaultFunctionBarFontSize;
+        QuickViewerFontSize = AppSettings.DefaultChildWindowFontSize;
+        EditorFontSize = AppSettings.DefaultChildWindowFontSize;
+        StorageAnalyzerFontSize = AppSettings.DefaultChildWindowFontSize;
+        DeepSearchFontSize = AppSettings.DefaultChildWindowFontSize;
+        DuplicateFinderFontSize = AppSettings.DefaultChildWindowFontSize;
+        DirectorySyncFontSize = AppSettings.DefaultChildWindowFontSize;
+        BatchRenameFontSize = AppSettings.DefaultChildWindowFontSize;
+        FtpManagerFontSize = AppSettings.DefaultChildWindowFontSize;
+        ArchiveDialogFontSize = AppSettings.DefaultChildWindowFontSize;
+        AboutWindowFontSize = AppSettings.DefaultChildWindowFontSize;
     }
 
     public void ResetAllToDefaults()
@@ -429,6 +654,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ActivePanelBorderColorChanged?.Invoke(this, EventArgs.Empty);
         SelectionBorderColorChanged?.Invoke(this, EventArgs.Empty);
         MarkedItemTextColorChanged?.Invoke(this, EventArgs.Empty);
+        TreemapColorsChanged?.Invoke(this, EventArgs.Empty);
+        FontSizesChanged?.Invoke(this, EventArgs.Empty);
         ShowHiddenFilesByDefaultChanged?.Invoke(this, EventArgs.Empty);
         SortFoldersFirstChanged?.Invoke(this, EventArgs.Empty);
         ShowFileExtensionsChanged?.Invoke(this, EventArgs.Empty);
@@ -508,6 +735,20 @@ public sealed partial class SettingsViewModel : ObservableObject
         MarkedItemTextColorChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    partial void OnTreemapVideoMediaColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapArchiveImageColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapVirtualDiskSystemColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapCodeDocumentColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapPictureGraphicColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapBinaryExecutableColorChanged(string value) => OnTreemapColorChanged();
+    partial void OnTreemapOtherTempColorChanged(string value) => OnTreemapColorChanged();
+
+    private void OnTreemapColorChanged()
+    {
+        Persist();
+        TreemapColorsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     partial void OnMainWindowWidthChanged(int value) => Persist();
     partial void OnMainWindowHeightChanged(int value) => Persist();
     partial void OnMainWindowIsMaximizedChanged(bool value) => Persist();
@@ -518,6 +759,68 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnChildWindowHeightChanged(int value) => Persist();
     partial void OnChildWindowIsMaximizedChanged(bool value) => Persist();
 
+    partial void OnUseGlobalFontSizeChanged(bool value)
+    {
+        if (value)
+        {
+            ApplyGlobalFontSizeToAll(GlobalFontSize);
+        }
+        else
+        {
+            OnFontChanged();
+        }
+    }
+
+    partial void OnGlobalFontSizeChanged(double value)
+    {
+        if (UseGlobalFontSize)
+        {
+            ApplyGlobalFontSizeToAll(value);
+        }
+        else
+        {
+            OnFontChanged();
+        }
+    }
+
+    private void ApplyGlobalFontSizeToAll(double globalSize)
+    {
+        if (_applyingGlobalFont) return;
+        _applyingGlobalFont = true;
+        bool prevSuppress = _suppressSave;
+        _suppressSave = true;
+        try
+        {
+            double clamped = AppSettings.ClampFont(globalSize, AppSettings.DefaultGlobalFontSize);
+            FileListFontSize = clamped;
+            FileListDetailsFontSize = AppSettings.ClampFont(clamped - 0.5, AppSettings.DefaultFileListDetailsFontSize);
+            TabFontSize = AppSettings.ClampFont(clamped - 0.5, AppSettings.DefaultTabFontSize);
+            DriveBarFontSize = AppSettings.ClampFont(clamped - 0.5, AppSettings.DefaultDriveBarFontSize);
+            AddressBarFontSize = clamped;
+            BreadcrumbFontSize = AppSettings.ClampFont(clamped - 1.0, AppSettings.DefaultBreadcrumbFontSize);
+            StatusBarFontSize = AppSettings.ClampFont(clamped - 1.0, AppSettings.DefaultStatusBarFontSize);
+            FunctionBarFontSize = AppSettings.ClampFont(clamped - 1.0, AppSettings.DefaultFunctionBarFontSize);
+
+            QuickViewerFontSize = clamped;
+            EditorFontSize = clamped;
+            StorageAnalyzerFontSize = clamped;
+            DeepSearchFontSize = clamped;
+            DuplicateFinderFontSize = clamped;
+            DirectorySyncFontSize = clamped;
+            BatchRenameFontSize = clamped;
+            FtpManagerFontSize = clamped;
+            ArchiveDialogFontSize = clamped;
+            AboutWindowFontSize = clamped;
+        }
+        finally
+        {
+            _suppressSave = prevSuppress;
+            _applyingGlobalFont = false;
+        }
+
+        OnFontChanged();
+    }
+
     partial void OnFileListFontSizeChanged(double value) => OnFontChanged();
     partial void OnFileListDetailsFontSizeChanged(double value) => OnFontChanged();
     partial void OnTabFontSizeChanged(double value) => OnFontChanged();
@@ -527,8 +830,20 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnStatusBarFontSizeChanged(double value) => OnFontChanged();
     partial void OnFunctionBarFontSizeChanged(double value) => OnFontChanged();
 
+    partial void OnQuickViewerFontSizeChanged(double value) => OnFontChanged();
+    partial void OnEditorFontSizeChanged(double value) => OnFontChanged();
+    partial void OnStorageAnalyzerFontSizeChanged(double value) => OnFontChanged();
+    partial void OnDeepSearchFontSizeChanged(double value) => OnFontChanged();
+    partial void OnDuplicateFinderFontSizeChanged(double value) => OnFontChanged();
+    partial void OnDirectorySyncFontSizeChanged(double value) => OnFontChanged();
+    partial void OnBatchRenameFontSizeChanged(double value) => OnFontChanged();
+    partial void OnFtpManagerFontSizeChanged(double value) => OnFontChanged();
+    partial void OnArchiveDialogFontSizeChanged(double value) => OnFontChanged();
+    partial void OnAboutWindowFontSizeChanged(double value) => OnFontChanged();
+
     private void OnFontChanged()
     {
+        if (_applyingGlobalFont) return;
         Persist();
         FontSizesChanged?.Invoke(this, EventArgs.Empty);
     }

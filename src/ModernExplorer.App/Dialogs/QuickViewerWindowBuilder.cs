@@ -170,6 +170,9 @@ internal static class QuickViewerWindowBuilder
                 _ => await GetOrCreateSmartViewAsync(),
             };
             contentHost.Children.Add(target);
+            ShellDialogService.ApplyFontScalingToTree(
+                target,
+                owner.ViewModel.Settings.GetChildWindowFontSize(ChildWindowFontTarget.QuickViewer));
         }
 
         viewSelector.SelectionChanged += async (_, _) => await UpdateActiveViewAsync();
@@ -258,7 +261,8 @@ internal static class QuickViewerWindowBuilder
         win = dialogService.CreateResizableChildWindow(
             title: $"Quick-Viewer (F3) – {Path.GetFileName(path.TrimEnd('\\', '/'))}",
             iconGlyph: GetModeIconGlyph(doc.Mode),
-            bodyContent: bodyGrid);
+            bodyContent: bodyGrid,
+            fontTarget: ChildWindowFontTarget.QuickViewer);
 
         win.Closed += (_, _) =>
         {
