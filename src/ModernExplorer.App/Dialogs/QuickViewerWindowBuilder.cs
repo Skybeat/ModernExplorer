@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Viewer;
 using ModernExplorer.Core.ViewModels;
 using Windows.Data.Pdf;
@@ -26,6 +27,8 @@ namespace ModernExplorer.App.Dialogs;
 /// </summary>
 internal static class QuickViewerWindowBuilder
 {
+    private static bool IsDe => LocalizationService.Instance.EffectiveLanguage == "de";
+
     public static async Task ShowAsync(MainWindow owner, ShellDialogService dialogService, string path)
     {
         LoadedDocument doc;
@@ -35,7 +38,7 @@ internal static class QuickViewerWindowBuilder
         }
         catch (Exception ex)
         {
-            dialogService.ShowMessage("Quick-Viewer Fehler", ex.Message);
+            dialogService.ShowMessage(LocalizationService.T("QuickView.ErrorTitle"), ex.Message);
             return;
         }
 
@@ -96,10 +99,10 @@ internal static class QuickViewerWindowBuilder
             VerticalAlignment = VerticalAlignment.Center,
             ItemsSource = new[]
             {
-                $"✨ Intelligente Ansicht ({GetSmartModeLabel(doc.Mode)})",
-                "📄 Text / Quellcode",
-                "🔢 Hex-Dump (Binär)",
-                "ℹ️ Datei-Info & SHA-256",
+                LocalizationService.Format("QuickView.ViewSmartFormat", GetSmartModeLabel(doc.Mode)),
+                LocalizationService.T("QuickView.ViewText"),
+                LocalizationService.T("QuickView.ViewHex"),
+                LocalizationService.T("QuickView.ViewInfo"),
             },
             SelectedIndex = 0,
         };
@@ -205,13 +208,13 @@ internal static class QuickViewerWindowBuilder
 
         var openExternalBtn = new Button
         {
-            Content = "Mit Standard-App öffnen",
+            Content = LocalizationService.T("QuickView.OpenDefaultBtn"),
             Padding = new Thickness(12, 6, 12, 6),
         };
         openExternalBtn.Click += (_, _) =>
         {
             try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
-            catch (Exception ex) { dialogService.ShowMessage("Öffnen fehlgeschlagen", ex.Message); }
+            catch (Exception ex) { dialogService.ShowMessage(LocalizationService.T("QuickView.OpenFailedTitle"), ex.Message); }
         };
         footerButtons.Children.Add(openExternalBtn);
 
@@ -219,7 +222,7 @@ internal static class QuickViewerWindowBuilder
         {
             var openEditorBtn = new Button
             {
-                Content = "Im Editor öffnen (F4)",
+                Content = LocalizationService.T("QuickView.OpenEditorBtn"),
                 Padding = new Thickness(12, 6, 12, 6),
             };
             openEditorBtn.Click += (_, _) =>
@@ -232,7 +235,7 @@ internal static class QuickViewerWindowBuilder
 
         var closeBtn = new Button
         {
-            Content = "Schließen (Esc)",
+            Content = LocalizationService.T("QuickView.CloseBtn"),
             Padding = new Thickness(14, 6, 14, 6),
         };
         closeBtn.Click += (_, _) => win?.Close();
@@ -258,11 +261,13 @@ internal static class QuickViewerWindowBuilder
 
         await UpdateActiveViewAsync();
 
+        string fileTitleName = Path.GetFileName(path.TrimEnd('\\', '/'));
         win = dialogService.CreateResizableChildWindow(
-            title: $"Quick-Viewer (F3) – {Path.GetFileName(path.TrimEnd('\\', '/'))}",
+            title: LocalizationService.Format("QuickView.WindowTitle", fileTitleName),
             iconGlyph: GetModeIconGlyph(doc.Mode),
             bodyContent: bodyGrid,
-            fontTarget: ChildWindowFontTarget.QuickViewer);
+            fontTarget: ChildWindowFontTarget.QuickViewer,
+            titleProvider: () => LocalizationService.Format("QuickView.WindowTitle", fileTitleName));
 
         win.Closed += (_, _) =>
         {
@@ -1025,15 +1030,15 @@ internal static class QuickViewerWindowBuilder
         outerGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         outerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var searchBox = new TextBox { PlaceholderText = "Im Text suchen …", Width = 220 };
+        var searchBox = new TextBox { PlaceholderText = IsDe ? "Im Text suchen …" : "Search in text …", Width = 220 };
         var wrapCheck = new CheckBox
         {
-            Content = "Zeilenumbruch",
+            Content = IsDe ? "Zeilenumbruch" : "Word Wrap",
             IsChecked = doc.Mode != PreviewMode.BinaryHex,
         };
         var lineNumCheck = new CheckBox
         {
-            Content = "Zeilennummern",
+            Content = IsDe ? "Zeilennummern" : "Line Numbers",
             IsChecked = doc.Mode is PreviewMode.Json or PreviewMode.Xml or PreviewMode.Text,
         };
 
@@ -1052,7 +1057,9 @@ internal static class QuickViewerWindowBuilder
         int lineCount = string.IsNullOrEmpty(baseText) ? 0 : baseText.Split('\n').Length;
         var statsLabel = new TextBlock
         {
-            Text = $"{lineCount:N0} Zeilen · {doc.Encoding.WebName.ToUpperInvariant()} · {(doc.NewLine == "\r\n" ? "CRLF" : "LF")}",
+            Text = IsDe
+                ? $"{lineCount:N0} Zeilen · {doc.Encoding.WebName.ToUpperInvariant()} · {(doc.NewLine == "\r\n" ? "CRLF" : "LF")}"
+                : $"{lineCount:N0} lines · {doc.Encoding.WebName.ToUpperInvariant()} · {(doc.NewLine == "\r\n" ? "CRLF" : "LF")}",
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 12,
             Opacity = 0.75,
@@ -1167,19 +1174,39 @@ internal static class QuickViewerWindowBuilder
     private static FrameworkElement BuildFileInfoCard(LoadedDocument doc, FileEntry? entry)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Dateiname:         {Path.GetFileName(doc.FullPath.TrimEnd('\\', '/'))}");
-        sb.AppendLine($"Vollständiger Pfad: {doc.FullPath}");
-        sb.AppendLine($"Erkannter Typ:     {doc.FileTypeDescription}");
-        sb.AppendLine($"Vorschaumodus:     {GetSmartModeLabel(doc.Mode)}");
-        sb.AppendLine($"Dateigröße:        {Format.Size(doc.FileSize)} ({doc.FileSize:N0} Bytes)");
-        if (entry is not null)
+        if (IsDe)
         {
-            sb.AppendLine($"Zuletzt geändert:  {entry.LastWriteTime:dd.MM.yyyy HH:mm:ss}");
-            sb.AppendLine($"Attribute:         {entry.Attributes}");
+            sb.AppendLine($"Dateiname:         {Path.GetFileName(doc.FullPath.TrimEnd('\\', '/'))}");
+            sb.AppendLine($"Vollständiger Pfad: {doc.FullPath}");
+            sb.AppendLine($"Erkannter Typ:     {doc.FileTypeDescription}");
+            sb.AppendLine($"Vorschaumodus:     {GetSmartModeLabel(doc.Mode)}");
+            sb.AppendLine($"Dateigröße:        {Format.Size(doc.FileSize)} ({doc.FileSize:N0} Bytes)");
+            if (entry is not null)
+            {
+                sb.AppendLine($"Zuletzt geändert:  {entry.LastWriteTime:dd.MM.yyyy HH:mm:ss}");
+                sb.AppendLine($"Attribute:         {entry.Attributes}");
+            }
+            if (!string.IsNullOrEmpty(doc.Sha256Hex))
+            {
+                sb.AppendLine($"SHA-256 Prüfsumme: {doc.Sha256Hex}");
+            }
         }
-        if (!string.IsNullOrEmpty(doc.Sha256Hex))
+        else
         {
-            sb.AppendLine($"SHA-256 Prüfsumme: {doc.Sha256Hex}");
+            sb.AppendLine($"File Name:         {Path.GetFileName(doc.FullPath.TrimEnd('\\', '/'))}");
+            sb.AppendLine($"Full Path:         {doc.FullPath}");
+            sb.AppendLine($"Detected Type:     {doc.FileTypeDescription}");
+            sb.AppendLine($"Preview Mode:      {GetSmartModeLabel(doc.Mode)}");
+            sb.AppendLine($"File Size:         {Format.Size(doc.FileSize)} ({doc.FileSize:N0} bytes)");
+            if (entry is not null)
+            {
+                sb.AppendLine($"Last Modified:     {entry.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"Attributes:        {entry.Attributes}");
+            }
+            if (!string.IsNullOrEmpty(doc.Sha256Hex))
+            {
+                sb.AppendLine($"SHA-256 Checksum:  {doc.Sha256Hex}");
+            }
         }
 
         var box = new TextBox
@@ -1197,26 +1224,28 @@ internal static class QuickViewerWindowBuilder
     private static string BuildDefaultMetaSummary(LoadedDocument doc, FileEntry? entry)
     {
         var mod = entry is not null && entry.LastWriteTime != default
-            ? $" · Geändert: {entry.LastWriteTime:dd.MM.yyyy HH:mm}"
+            ? (IsDe ? $" · Geändert: {entry.LastWriteTime:dd.MM.yyyy HH:mm}" : $" · Modified: {entry.LastWriteTime:yyyy-MM-dd HH:mm}")
             : "";
         return $"{doc.FileTypeDescription} · {Format.Size(doc.FileSize)}{mod}" +
-               (doc.IsTruncated && doc.Mode is PreviewMode.Text or PreviewMode.Log or PreviewMode.BinaryHex ? " (Ausschnitt)" : "");
+               (doc.IsTruncated && doc.Mode is PreviewMode.Text or PreviewMode.Log or PreviewMode.BinaryHex
+                   ? (IsDe ? " (Ausschnitt)" : " (Excerpt)")
+                   : "");
     }
 
     private static string GetSmartModeLabel(PreviewMode mode) => mode switch
     {
-        PreviewMode.Image => "Bild-Ansicht",
-        PreviewMode.Pdf => "PDF-Dokument",
-        PreviewMode.Media => "Media-Player",
+        PreviewMode.Image => IsDe ? "Bild-Ansicht" : "Image View",
+        PreviewMode.Pdf => IsDe ? "PDF-Dokument" : "PDF Document",
+        PreviewMode.Media => "Media Player",
         PreviewMode.Markdown => "Markdown",
-        PreviewMode.Csv => "Tabelle CSV/TSV",
-        PreviewMode.Json => "JSON Formatiert",
-        PreviewMode.Xml => "XML/Markup Formatiert",
-        PreviewMode.Archive => "Archiv-Inhalt",
-        PreviewMode.Directory => "Ordner-Übersicht",
-        PreviewMode.Log => "Log-Viewer",
-        PreviewMode.BinaryHex => "Binär / Hex",
-        _ => "Text / Code",
+        PreviewMode.Csv => IsDe ? "Tabelle CSV/TSV" : "CSV/TSV Table",
+        PreviewMode.Json => IsDe ? "JSON Formatiert" : "Formatted JSON",
+        PreviewMode.Xml => IsDe ? "XML/Markup Formatiert" : "Formatted XML/Markup",
+        PreviewMode.Archive => IsDe ? "Archiv-Inhalt" : "Archive Contents",
+        PreviewMode.Directory => IsDe ? "Ordner-Übersicht" : "Folder Overview",
+        PreviewMode.Log => "Log Viewer",
+        PreviewMode.BinaryHex => IsDe ? "Binär / Hex" : "Binary / Hex",
+        _ => IsDe ? "Text / Code" : "Text / Code",
     };
 
     private static string GetModeIconGlyph(PreviewMode mode) => mode switch

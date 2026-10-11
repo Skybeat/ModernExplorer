@@ -40,7 +40,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         var templateCombo = new ComboBox
         {
-            Header = "Vorlage (Template)",
+            Header = LocalizationService.T("NewFile.Template"),
             ItemsSource = templates,
             SelectedItem = currentTemplate,
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -48,7 +48,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         var nameBox = new TextBox
         {
-            Header = "Dateiname",
+            Header = LocalizationService.T("NewFile.FileName"),
             Text = suggested,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
@@ -62,14 +62,14 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         var openCheck = new CheckBox
         {
-            Content = "Nach dem Erstellen im internen Editor öffnen (F4)",
+            Content = LocalizationService.T("NewFile.OpenInEditor"),
             IsChecked = false,
         };
 
         var panel = new StackPanel { Spacing = 10, MinWidth = 420 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"Zielordner: {directory}",
+            Text = LocalizationService.Format("NewFile.TargetFolder", directory),
             Opacity = 0.7,
             FontSize = 12,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -83,10 +83,10 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         {
             XamlRoot = Root,
             RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "Neue Datei erstellen (F7)",
+            Title = LocalizationService.T("NewFile.Title"),
             Content = panel,
-            PrimaryButtonText = "Erstellen",
-            CloseButtonText = "Abbrechen",
+            PrimaryButtonText = LocalizationService.T("NewFile.Create"),
+            CloseButtonText = LocalizationService.T("Common.Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
 
@@ -133,10 +133,10 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
     public async Task<string?> ShowNewFolderDialogAsync(string directory, Func<string, string?> validate)
     {
-        var suggested = NameValidator.MakeUnique(directory, "Neuer Ordner");
+        var suggested = NameValidator.MakeUnique(directory, LocalizationService.T("NewFolder.DefaultName"));
         return await PromptAsync(
-            "Neuen Ordner erstellen (Shift+F7)",
-            "Ordnername (Tipp: „a\\b\\c“ legt verschachtelte Ordner an):",
+            LocalizationService.T("NewFolder.Title"),
+            LocalizationService.T("NewFolder.Prompt"),
             suggested,
             suggested.Length,
             validate);
@@ -168,8 +168,8 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             RequestedTheme = owner.RootElement.RequestedTheme,
             Title = title,
             Content = panel,
-            PrimaryButtonText = "OK",
-            CloseButtonText = "Abbrechen",
+            PrimaryButtonText = LocalizationService.T("Common.Ok"),
+            CloseButtonText = LocalizationService.T("Common.Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
 
@@ -203,7 +203,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             Title = title,
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 440 },
             PrimaryButtonText = primaryText,
-            CloseButtonText = "Abbrechen",
+            CloseButtonText = LocalizationService.T("Common.Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
         var res = await dialog.ShowAsync();
@@ -217,10 +217,10 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             var dialog = new ContentDialog
             {
                 XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
+                RequestedTheme = owner.RootElement.RequestedTheme,
                 Title = title,
                 Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 460 },
-                CloseButtonText = "Schließen",
+                CloseButtonText = LocalizationService.T("Common.Close"),
             };
             await dialog.ShowAsync();
         });
@@ -234,27 +234,29 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             try
             {
                 var choice = ConflictChoice.Skip;
-                var applyAll = new CheckBox { Content = "Für alle weiteren Konflikte in diesem Vorgang übernehmen" };
+                var applyAll = new CheckBox { Content = LocalizationService.T("Conflict.ApplyAll") };
 
                 var combo = new ComboBox
                 {
-                    Header = "Aktion wählen",
+                    Header = LocalizationService.T("Conflict.ChooseAction"),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     ItemsSource = new[]
                     {
-                        "Überschreiben (Zieldatei ersetzen)",
-                        "Überspringen (Zieldatei behalten)",
-                        "Automatisch umbenennen (Suffix anhängen)",
-                        "Neuere Datei behalten",
+                        LocalizationService.T("Conflict.Overwrite"),
+                        LocalizationService.T("Conflict.Skip"),
+                        LocalizationService.T("Conflict.Rename"),
+                        LocalizationService.T("Conflict.KeepNewer"),
                     },
                     SelectedIndex = 0,
                 };
 
                 var infoText = new TextBlock
                 {
-                    Text = $"Ziel existiert bereits:\n{conflict.Destination}\n\n" +
-                           $"Quelle: {Format.Size(conflict.SourceSize)} · {conflict.SourceModified:dd.MM.yyyy HH:mm}\n" +
-                           $"Ziel:   {Format.Size(conflict.DestinationSize)} · {conflict.DestinationModified:dd.MM.yyyy HH:mm}",
+                    Text = LocalizationService.Format(
+                        "Conflict.InfoFormat",
+                        conflict.Destination,
+                        $"{Format.Size(conflict.SourceSize)} · {conflict.SourceModified:dd.MM.yyyy HH:mm}",
+                        $"{Format.Size(conflict.DestinationSize)} · {conflict.DestinationModified:dd.MM.yyyy HH:mm}"),
                     TextWrapping = TextWrapping.Wrap,
                 };
 
@@ -266,11 +268,11 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
                 var dialog = new ContentDialog
                 {
                     XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-                    Title = "Dateikonflikt",
+                    RequestedTheme = owner.RootElement.RequestedTheme,
+                    Title = LocalizationService.T("Conflict.Title"),
                     Content = panel,
-                    PrimaryButtonText = "Ausführen",
-                    CloseButtonText = "Vorgang abbrechen",
+                    PrimaryButtonText = LocalizationService.T("Conflict.Execute"),
+                    CloseButtonText = LocalizationService.T("Conflict.CancelOp"),
                     DefaultButton = ContentDialogButton.Primary,
                 };
 
@@ -362,7 +364,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         var searchBox = new TextBox
         {
-            PlaceholderText = "Befehl suchen (z. B. „Neue Datei“, „Tab“, „Sortierung“) …",
+            PlaceholderText = LocalizationService.T("Palette.SearchPlaceholder"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
@@ -382,10 +384,10 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         {
             XamlRoot = Root,
             RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "Command Palette (F10)",
+            Title = LocalizationService.T("Palette.Title"),
             Content = panel,
-            PrimaryButtonText = "Ausführen",
-            CloseButtonText = "Schließen",
+            PrimaryButtonText = LocalizationService.T("Palette.Execute"),
+            CloseButtonText = LocalizationService.T("Common.Close"),
             DefaultButton = ContentDialogButton.Primary,
         };
 
@@ -414,54 +416,103 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
     private async Task ShowHelpDialogAsync()
     {
-        const string helpText =
-            """
-            Funktionstasten (Commander + ModernExplorer):
-              F1              Hilfe & Tastaturübersicht
-              F2              Umbenennen
-              F3              Quick-Viewer (Text, Markdown, JSON, Log mit Follow, Hex)
-              F4              Interner Editor (atomares Speichern mit Strg+S)
-              F5 / Shift+F5   Kopieren ins Gegenpanel / mit Dialog
-              F6 / Shift+F6   Verschieben ins Gegenpanel / mit Dialog
-              F7              Neue Datei erstellen (mit Vorlagen/Templates)
-              Shift+F7        Neuen Ordner erstellen (auch verschachtelt a\b\c)
-              F8 / Entf       In den Papierkorb löschen
-              Shift+F8        Endgültig löschen
-              F9 / Shift+F9   Terminal öffnen / als Administrator
-              F10             Command Palette öffnen
-              F11             Vollbild umschalten
-              F12             Single-/Dual-Panel umschalten (Shift+F12: tauschen, Strg+F12: angleichen)
+        string helpText = LocalizationService.Instance.EffectiveLanguage != "de"
+            ? """
+              Function Keys (Commander + ModernExplorer):
+                F1              Help & Keyboard Reference
+                F2              Rename
+                F3              Quick Viewer (Text, Markdown, JSON, Log with Follow, Hex)
+                F4              Internal Editor (atomic save with Ctrl+S)
+                F5 / Shift+F5   Copy to opposite panel / with dialog
+                F6 / Shift+F6   Move to opposite panel / with dialog
+                F7              Create new file (with templates)
+                Shift+F7        Create new folder (supports nested a\b\c)
+                F8 / Del        Delete to Recycle Bin
+                Shift+F8        Delete permanently
+                F9 / Shift+F9   Open Terminal / as Administrator
+                F10             Open Command Palette
+                F11             Toggle Fullscreen
+                F12             Toggle Single/Dual Panel (Shift+F12: swap, Ctrl+F12: equalize)
 
-            Navigation & Auswahl:
-              Tab             Zwischen linkem und rechtem Panel wechseln
-              Enter / Rück    Öffnen / Übergeordneter Ordner
-              Alt+← / Alt+→   Verlauf zurück / vorwärts
-              Strg+L / Alt+D  Adressleiste fokussieren
-              Strg+F          Inline-Filter fokussieren
-              Leertaste/Einfg Eintrag markieren (+ Ordnergröße berechnen)
-              Strg+A / Num *  Alles markieren / Auswahl invertieren
+              Navigation & Selection:
+                Tab             Switch between left and right panel
+                Enter / Back    Open / Parent directory
+                Alt+← / Alt+→   History back / forward
+                Ctrl+L / Alt+D  Focus address bar
+                Ctrl+F          Focus inline filter
+                Space / Ins     Select item (+ calculate folder size)
+                Ctrl+A / Num *  Select all / Invert selection
 
-            Tab-Management:
-              Strg+T / Strg+W Neuer Tab / Tab schließen (Mittelklick schließt ebenfalls)
-              Strg+Shift+T    Geschlossenen Tab wiederherstellen
-              Strg+Shift+D    Tab duplizieren
-              Strg+K Strg+P   Tab anheften (Pin)
-              Strg+K Strg+L   Tab sperren (Lock – Unterordner öffnen neuen Tab)
-              Strg+Tab        Nächster Tab (Strg+Shift+Tab: vorheriger, Strg+1..9: direkt)
-              Strg+Shift+←/→  Tab ins Gegenpanel verschieben
-              Strg+Shift+N    Tab in neues Fenster herauslösen
+              Tab Management:
+                Ctrl+T / Ctrl+W New Tab / Close Tab (Middle-click also closes)
+                Ctrl+Shift+T    Restore closed tab
+                Ctrl+Shift+D    Duplicate tab
+                Ctrl+K Ctrl+P   Pin tab
+                Ctrl+K Ctrl+L   Lock tab (subfolders open in new tab)
+                Ctrl+Tab        Next tab (Ctrl+Shift+Tab: previous, Ctrl+1..9: direct)
+                Ctrl+Shift+←/→  Move tab to opposite panel
+                Ctrl+Shift+N    Tear out tab into new window
 
-            Power-Werkzeuge & Ansichten:
-              Strg+M          Mehrfach-Umbenennungstool (Batch-Rename)
-              Strg+Z          Letzte Aktion rückgängig machen (Undo)
-              Strg+B          Flache Ordneransicht (Branch View)
-              Strg+Q          Integriertes Schnellvorschau-Panel
-              Strg+D          Aktuellen Ordner als Favorit merken / entfernen
-              Alt+F7          Rekursive Tiefensuche (auch Strg+Shift+F)
-              Strg+Shift+S    Verzeichnisse vergleichen & synchronisieren
-              Alt+F5 / Alt+F9 In Archiv packen / Archiv entpacken (.zip, .7z, .tar.gz)
-              Strg+Shift+1..8 Ansichtsmodus direkt wählen (Symbole, Liste, Details, Kacheln, Inhalt)
-            """;
+              Power Tools & Views:
+                Ctrl+M          Batch Rename Tool
+                Ctrl+Z          Undo last action
+                Ctrl+B          Flat Branch View
+                Ctrl+Q          Integrated Quick Preview Panel
+                Ctrl+D          Toggle current folder as favorite
+                Alt+F7          Recursive Deep Search (also Ctrl+Shift+F)
+                Ctrl+Shift+S    Compare & Synchronize Directories
+                Ctrl+Shift+W    Storage Analyzer & Treemap (WinDirStat view)
+                Alt+F5 / Alt+F9 Pack to archive / Extract archive (.zip, .7z, .tar.gz)
+                Ctrl+Shift+1..8 Select view mode directly (Icons, List, Details, Tiles, Content)
+              """
+            : """
+              Funktionstasten (Commander + ModernExplorer):
+                F1              Hilfe & Tastaturübersicht
+                F2              Umbenennen
+                F3              Quick-Viewer (Text, Markdown, JSON, Log mit Follow, Hex)
+                F4              Interner Editor (atomares Speichern mit Strg+S)
+                F5 / Shift+F5   Kopieren ins Gegenpanel / mit Dialog
+                F6 / Shift+F6   Verschieben ins Gegenpanel / mit Dialog
+                F7              Neue Datei erstellen (mit Vorlagen/Templates)
+                Shift+F7        Neuen Ordner erstellen (auch verschachtelt a\b\c)
+                F8 / Entf       In den Papierkorb löschen
+                Shift+F8        Endgültig löschen
+                F9 / Shift+F9   Terminal öffnen / als Administrator
+                F10             Command Palette öffnen
+                F11             Vollbild umschalten
+                F12             Single-/Dual-Panel umschalten (Shift+F12: tauschen, Strg+F12: angleichen)
+
+              Navigation & Auswahl:
+                Tab             Zwischen linkem und rechtem Panel wechseln
+                Enter / Rück    Öffnen / Übergeordneter Ordner
+                Alt+← / Alt+→   Verlauf zurück / vorwärts
+                Strg+L / Alt+D  Adressleiste fokussieren
+                Strg+F          Inline-Filter fokussieren
+                Leertaste/Einfg Eintrag markieren (+ Ordnergröße berechnen)
+                Strg+A / Num *  Alles markieren / Auswahl invertieren
+
+              Tab-Management:
+                Strg+T / Strg+W Neuer Tab / Tab schließen (Mittelklick schließt ebenfalls)
+                Strg+Shift+T    Geschlossenen Tab wiederherstellen
+                Strg+Shift+D    Tab duplizieren
+                Strg+K Strg+P   Tab anheften (Pin)
+                Strg+K Strg+L   Tab sperren (Lock – Unterordner öffnen neuen Tab)
+                Strg+Tab        Nächster Tab (Strg+Shift+Tab: vorheriger, Strg+1..9: direkt)
+                Strg+Shift+←/→  Tab ins Gegenpanel verschieben
+                Strg+Shift+N    Tab in neues Fenster herauslösen
+
+              Power-Werkzeuge & Ansichten:
+                Strg+M          Mehrfach-Umbenennungstool (Batch-Rename)
+                Strg+Z          Letzte Aktion rückgängig machen (Undo)
+                Strg+B          Flache Ordneransicht (Branch View)
+                Strg+Q          Integriertes Schnellvorschau-Panel
+                Strg+D          Aktuellen Ordner als Favorit merken / entfernen
+                Alt+F7          Rekursive Tiefensuche (auch Strg+Shift+F)
+                Strg+Shift+S    Verzeichnisse vergleichen & synchronisieren
+                Strg+Shift+W    Speicherplatz-Analyse & Treemap (WinDirStat-Ansicht)
+                Alt+F5 / Alt+F9 In Archiv packen / Archiv entpacken (.zip, .7z, .tar.gz)
+                Strg+Shift+1..8 Ansichtsmodus direkt wählen (Symbole, Liste, Details, Kacheln, Inhalt)
+              """;
 
         var scroll = new ScrollViewer
         {
@@ -479,9 +530,9 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         {
             XamlRoot = Root,
             RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "ModernExplorer – Tastatur-Referenz (F1)",
+            Title = LocalizationService.T("Help.WindowTitle"),
             Content = scroll,
-            CloseButtonText = "Schließen",
+            CloseButtonText = LocalizationService.T("Common.Close"),
         };
         await dialog.ShowAsync();
     }
@@ -495,9 +546,9 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         if (fi.Exists && fi.Length > FileContentService.LargeFileWarningBytes)
         {
             var proceed = await ConfirmAsync(
-                "Große Datei (> 50 MB)",
-                $"Die Datei ist {Format.Size(fi.Length)} groß. Möchten Sie stattdessen den schnellen Quick-Viewer (F3) öffnen?",
-                "Quick-Viewer öffnen");
+                LocalizationService.T("Editor.LargeFileTitle"),
+                LocalizationService.Format("Editor.LargeFileMsg", Format.Size(fi.Length)),
+                LocalizationService.T("Editor.OpenQuickViewer"));
             if (proceed)
             {
                 await ShowQuickViewerAsync(path);
@@ -512,7 +563,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         }
         catch (Exception ex)
         {
-            ShowMessage("Editor Fehler", ex.Message);
+            ShowMessage(LocalizationService.T("Editor.ErrorTitle"), ex.Message);
             return;
         }
 
@@ -544,20 +595,20 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
                 await FileContentService.SaveAtomicAsync(path, editorBox.Text, doc.Encoding, doc.NewLine);
                 if (onSaveAsync is not null)
                 {
-                    statusLabel.Text = "Lade auf Remote-Server hoch…";
+                    statusLabel.Text = LocalizationService.T("Editor.UploadingRemote");
                     await onSaveAsync(path);
-                    statusLabel.Text = $"Remote gespeichert um {DateTime.Now:HH:mm:ss} · {doc.Encoding.WebName.ToUpperInvariant()}";
+                    statusLabel.Text = LocalizationService.Format("Editor.SavedRemoteAt", DateTime.Now.ToString("HH:mm:ss"), doc.Encoding.WebName.ToUpperInvariant());
                 }
                 else
                 {
-                    statusLabel.Text = $"Gespeichert um {DateTime.Now:HH:mm:ss} · {doc.Encoding.WebName.ToUpperInvariant()}";
+                    statusLabel.Text = LocalizationService.Format("Editor.SavedAt", DateTime.Now.ToString("HH:mm:ss"), doc.Encoding.WebName.ToUpperInvariant());
                     if (owner.ViewModel.ActivePanel.ActiveTab is { } t)
                         await t.ReloadAsync(Path.GetFileName(path));
                 }
             }
             catch (Exception ex)
             {
-                statusLabel.Text = $"Fehler beim Speichern: {ex.Message}";
+                statusLabel.Text = LocalizationService.Format("Editor.SaveError", ex.Message);
             }
         }
 
@@ -574,14 +625,14 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         var saveBtn = new Button
         {
-            Content = "Speichern (Strg+S)",
+            Content = LocalizationService.T("Editor.SaveBtn"),
             Padding = new Thickness(12, 6, 12, 6),
         };
         saveBtn.Click += async (_, _) => await SaveNowAsync();
 
         var closeBtn = new Button
         {
-            Content = "Schließen (Esc)",
+            Content = LocalizationService.T("Editor.CloseBtn"),
             Padding = new Thickness(12, 6, 12, 6),
         };
         closeBtn.Click += (_, _) => win?.Close();
@@ -606,12 +657,36 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         bodyGrid.Children.Add(editorBox);
         bodyGrid.Children.Add(footerGrid);
 
+        string fileName = Path.GetFileName(path);
         win = CreateResizableChildWindow(
-            $"Editor (F4) – {Path.GetFileName(path)}",
+            LocalizationService.Format("Editor.WindowTitle", fileName),
             "✏️",
             bodyGrid,
-            fontTarget: ChildWindowFontTarget.Editor);
+            fontTarget: ChildWindowFontTarget.Editor,
+            titleProvider: () => LocalizationService.Format("Editor.WindowTitle", fileName));
+
+        void OnEditorLanguageChanged(object? s, EventArgs e)
+        {
+            owner.DispatcherQueue.TryEnqueue(() =>
+            {
+                saveBtn.Content = LocalizationService.T("Editor.SaveBtn");
+                closeBtn.Content = LocalizationService.T("Editor.CloseBtn");
+            });
+        }
+
+        LocalizationService.Instance.LanguageChanged += OnEditorLanguageChanged;
+        win.Closed += (_, _) => LocalizationService.Instance.LanguageChanged -= OnEditorLanguageChanged;
         win.Activate();
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Window, TextBlock> ChildWindowTitleBlocks = new();
+
+    internal static void UpdateChildWindowTitle(Window? win, string newTitle)
+    {
+        if (win is null) return;
+        win.Title = newTitle;
+        if (ChildWindowTitleBlocks.TryGetValue(win, out var tb))
+            tb.Text = newTitle;
     }
 
     internal Window CreateResizableChildWindow(
@@ -620,7 +695,8 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         UIElement bodyContent,
         int? defaultWidth = null,
         int? defaultHeight = null,
-        ChildWindowFontTarget fontTarget = ChildWindowFontTarget.General)
+        ChildWindowFontTarget fontTarget = ChildWindowFontTarget.General,
+        Func<string>? titleProvider = null)
     {
         var settings = owner.ViewModel.Settings;
         var baselineFontSizes = new Dictionary<DependencyObject, double>();
@@ -671,14 +747,15 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             FontSize = 14,
             VerticalAlignment = VerticalAlignment.Center,
         });
-        titleStack.Children.Add(new TextBlock
+        var titleTextBlock = new TextBlock
         {
             Text = title,
             FontWeight = FontWeights.SemiBold,
             FontSize = 13,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        };
+        titleStack.Children.Add(titleTextBlock);
         Grid.SetColumn(titleStack, 0);
         titleBarGrid.Children.Add(titleStack);
         titleBarBorder.Child = titleBarGrid;
@@ -697,6 +774,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             Title = title,
             Content = root,
         };
+        ChildWindowTitleBlocks.AddOrUpdate(win, titleTextBlock);
 
         void ApplyChildTheme()
         {
@@ -720,6 +798,16 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             ApplyFontScalingToTree(bodyContent, targetFont, baselineFontSizes);
         }
 
+        void ApplyChildTitleLocalization()
+        {
+            owner.DispatcherQueue.TryEnqueue(() =>
+            {
+                string updatedTitle = titleProvider is not null ? titleProvider() : win.Title;
+                win.Title = updatedTitle;
+                titleTextBlock.Text = updatedTitle;
+            });
+        }
+
         ApplyChildTheme();
         ApplyChildFontScaling();
 
@@ -727,6 +815,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         {
             ApplyChildTheme();
             ApplyChildFontScaling();
+            titleTextBlock.Text = win.Title;
         };
 
         root.KeyDown += (_, e) =>
@@ -740,9 +829,11 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
 
         void OnThemeChanged(object? s, EventArgs e) => ApplyChildTheme();
         void OnFontSizesChanged(object? s, EventArgs e) => ApplyChildFontScaling();
+        void OnLanguageChanged(object? s, EventArgs e) => ApplyChildTitleLocalization();
 
         settings.ThemeChanged += OnThemeChanged;
         settings.FontSizesChanged += OnFontSizesChanged;
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
         owner.RegisterChildWindow(win);
 
         try
@@ -799,6 +890,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         {
             settings.ThemeChanged -= OnThemeChanged;
             settings.FontSizesChanged -= OnFontSizesChanged;
+            LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
             try
             {
                 if (win.AppWindow is { } aw)

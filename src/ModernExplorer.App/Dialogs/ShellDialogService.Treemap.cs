@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
@@ -32,6 +33,8 @@ public sealed partial class ShellDialogService
         bool suppressHierarchySelection = false;
         bool suppressExtensionSelection = false;
 
+        static bool IsDe() => LocalizationService.Instance.EffectiveLanguage == "de";
+
         static bool IsCtrlKeyDown()
         {
             var state = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
@@ -40,7 +43,7 @@ public sealed partial class ShellDialogService
 
         var rootBox = new TextBox
         {
-            PlaceholderText = "Zu analysierendes Laufwerk oder Verzeichnis (z. B. C:\\ oder Projektordner)…",
+            PlaceholderText = LocalizationService.T("Treemap.RootPlaceholder"),
             Text = initialDirectory,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Center,
@@ -60,7 +63,9 @@ public sealed partial class ShellDialogService
 
         var treeFlyoutHeader = new TextBlock
         {
-            Text = "🌳 Explorer-Baum: Laufwerk oder Ordner direkt auswählen (▶ = Unterordner aufklappen)",
+            Text = IsDe()
+                ? "🌳 Explorer-Baum: Laufwerk oder Ordner direkt auswählen (▶ = Unterordner aufklappen)"
+                : "🌳 Explorer Tree: Select drive or folder directly (▶ = expand subfolders)",
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Opacity = 0.9,
@@ -88,13 +93,17 @@ public sealed partial class ShellDialogService
 
         var treeDropdownBtn = new Button
         {
-            Content = "🌳 Explorer-Baum ▾",
+            Content = IsDe() ? "🌳 Explorer-Baum ▾" : "🌳 Explorer Tree ▾",
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(12, 6, 12, 6),
             VerticalAlignment = VerticalAlignment.Center,
             Flyout = explorerTreeFlyout,
         };
-        ToolTipService.SetToolTip(treeDropdownBtn, "Öffnet den hierarchischen Explorer-Verzeichnisbaum zur direkten Auswahl eines Laufwerks oder Ordners");
+        ToolTipService.SetToolTip(
+            treeDropdownBtn,
+            IsDe()
+                ? "Öffnet den hierarchischen Explorer-Verzeichnisbaum zur direkten Auswahl eines Laufwerks oder Ordners"
+                : "Opens the hierarchical Explorer directory tree to select a drive or folder directly");
 
         var pathAndTreeGrid = new Grid { ColumnSpacing = 6 };
         pathAndTreeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -106,28 +115,28 @@ public sealed partial class ShellDialogService
 
         var scanBtn = new Button
         {
-            Content = "🔍 Scannen",
+            Content = LocalizationService.T("Treemap.ScanButton"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 6, 16, 6),
         };
 
         var cancelScanBtn = new Button
         {
-            Content = "⏹ Stopp",
+            Content = LocalizationService.T("Treemap.CancelButton"),
             Visibility = Visibility.Collapsed,
             Padding = new Thickness(12, 6, 12, 6),
         };
 
         var zoomUpBtn = new Button
         {
-            Content = "⬆ Ebene höher",
+            Content = LocalizationService.T("Treemap.ZoomUpButton"),
             IsEnabled = false,
             Padding = new Thickness(12, 6, 12, 6),
         };
 
         var zoomRootBtn = new Button
         {
-            Content = "🏠 Zurück zur Wurzel",
+            Content = LocalizationService.T("Treemap.ZoomRootButton"),
             IsEnabled = false,
             Padding = new Thickness(12, 6, 12, 6),
         };
@@ -162,7 +171,7 @@ public sealed partial class ShellDialogService
 
         var scanStatusText = new TextBlock
         {
-            Text = "Bereit für Speicherplatz-Analyse.",
+            Text = LocalizationService.T("Treemap.ScanningInit"),
             FontSize = 12,
             Opacity = 0.88,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -192,17 +201,18 @@ public sealed partial class ShellDialogService
         topHeaderPanel.Children.Add(statusRow);
 
         // ====================================================================
-        // UPPER SPLIT PANE:
-        // Left:  2. Ordner-Hierarchie & Top-Speicherfresser
-        // Right: 3. Dateiendungs-Statistik & Farb-Legende
+        // UPPER SPLIT PANE (WITH HORIZONTAL DRAGGABLE SPLITTER):
+        // Left:  2. Folder Hierarchy & Top Space Consumers
+        // Right: 3. File Extension Statistics & Color Legend
         // ====================================================================
 
         var hierarchyHeaderText = new TextBlock
         {
-            Text = "📂 Ordner-Hierarchie & Top-Speicherfresser (Strg+Klick = Mehrfachauswahl · Doppelklick = Zoom)",
+            Text = LocalizationService.T("Treemap.HierarchyHeader"),
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
             VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
 
         var hierarchyList = new ListView
@@ -231,15 +241,16 @@ public sealed partial class ShellDialogService
 
         var extHeaderText = new TextBlock
         {
-            Text = "🎨 Dateiendungs-Statistik & Farb-Legende (Klick = Typ hervorheben)",
+            Text = LocalizationService.T("Treemap.ExtHeader"),
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
             VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
 
         var clearExtFilterBtn = new Button
         {
-            Content = "✕ Filter aufheben",
+            Content = LocalizationService.T("Treemap.ShowAllTypesButton"),
             FontSize = 11,
             Padding = new Thickness(8, 2, 8, 2),
             Visibility = Visibility.Collapsed,
@@ -278,29 +289,115 @@ public sealed partial class ShellDialogService
         extPane.Children.Add(extHeaderGrid);
         extPane.Children.Add(extBorder);
 
+        var leftUpperCol = new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star), MinWidth = 200 };
+        var splitterUpperCol = new ColumnDefinition { Width = new GridLength(12) };
+        var rightUpperCol = new ColumnDefinition { Width = new GridLength(0.85, GridUnitType.Star), MinWidth = 200 };
+
+        var upperColGripPill = new Border
+        {
+            Width = 4,
+            Height = 38,
+            CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush(Color.FromArgb(110, 148, 163, 184)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var upperColSplitter = new Border
+        {
+            Background = new SolidColorBrush(Colors.Transparent),
+            CornerRadius = new CornerRadius(4),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            ManipulationMode = ManipulationModes.TranslateX,
+            Child = upperColGripPill,
+        };
+        ToolTipService.SetToolTip(upperColSplitter, LocalizationService.T("Treemap.SplitterHorizontalTip"));
+
+        upperColSplitter.PointerEntered += (_, _) =>
+        {
+            upperColGripPill.Background = new SolidColorBrush(Color.FromArgb(230, 56, 189, 248));
+            upperColSplitter.Background = new SolidColorBrush(Color.FromArgb(30, 56, 189, 248));
+        };
+        upperColSplitter.PointerExited += (_, _) =>
+        {
+            upperColGripPill.Background = new SolidColorBrush(Color.FromArgb(110, 148, 163, 184));
+            upperColSplitter.Background = new SolidColorBrush(Colors.Transparent);
+        };
+        upperColSplitter.ManipulationDelta += (_, e) =>
+        {
+            double totalW = hierarchyPane.ActualWidth + extPane.ActualWidth;
+            if (totalW <= 120) return;
+            double newLeftW = Math.Clamp(hierarchyPane.ActualWidth + e.Delta.Translation.X, 200, Math.Max(200, totalW - 200));
+            double newRightW = Math.Max(200, totalW - newLeftW);
+            leftUpperCol.Width = new GridLength(newLeftW, GridUnitType.Star);
+            rightUpperCol.Width = new GridLength(newRightW, GridUnitType.Star);
+        };
+
         var upperSplitGrid = new Grid
         {
-            ColumnSpacing = 12,
-            Height = 220,
+            ColumnSpacing = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
-        upperSplitGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) });
-        upperSplitGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.85, GridUnitType.Star) });
+        upperSplitGrid.ColumnDefinitions.Add(leftUpperCol);
+        upperSplitGrid.ColumnDefinitions.Add(splitterUpperCol);
+        upperSplitGrid.ColumnDefinitions.Add(rightUpperCol);
         Grid.SetColumn(hierarchyPane, 0);
-        Grid.SetColumn(extPane, 1);
+        Grid.SetColumn(upperColSplitter, 1);
+        Grid.SetColumn(extPane, 2);
         upperSplitGrid.Children.Add(hierarchyPane);
+        upperSplitGrid.Children.Add(upperColSplitter);
         upperSplitGrid.Children.Add(extPane);
 
         // ====================================================================
+        // VERTICAL DRAGGABLE SPLITTER BETWEEN TEXTUAL LISTS AND GRAPHICAL TREEMAP
+        // ====================================================================
+        var verticalGripPill = new Border
+        {
+            Width = 52,
+            Height = 4,
+            CornerRadius = new CornerRadius(2),
+            Background = new SolidColorBrush(Color.FromArgb(120, 148, 163, 184)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var verticalPaneSplitter = new Border
+        {
+            Height = 12,
+            Background = new SolidColorBrush(Colors.Transparent),
+            CornerRadius = new CornerRadius(4),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            ManipulationMode = ManipulationModes.TranslateY,
+            Child = verticalGripPill,
+        };
+        ToolTipService.SetToolTip(verticalPaneSplitter, LocalizationService.T("Treemap.SplitterVerticalTip"));
+
+        verticalPaneSplitter.PointerEntered += (_, _) =>
+        {
+            verticalGripPill.Background = new SolidColorBrush(Color.FromArgb(235, 56, 189, 248));
+            verticalPaneSplitter.Background = new SolidColorBrush(Color.FromArgb(30, 56, 189, 248));
+        };
+        verticalPaneSplitter.PointerExited += (_, _) =>
+        {
+            verticalGripPill.Background = new SolidColorBrush(Color.FromArgb(120, 148, 163, 184));
+            verticalPaneSplitter.Background = new SolidColorBrush(Colors.Transparent);
+        };
+
+        // ====================================================================
         // LOWER MAIN PANE:
-        // 1. Interaktive Squarified Treemap (Kachel-Ansicht)
+        // 1. Interactive Squarified Treemap (Tile View)
         // ====================================================================
 
         var treemapTitleText = new TextBlock
         {
-            Text = "🗺 Interaktive Squarified Treemap (Klick / Strg+Klick = Auswählen · Rechtsklick / Entf = Löschen · Doppelklick = Zoom)",
+            Text = $"{LocalizationService.T("Treemap.CanvasTitle")}  —  {LocalizationService.T("Treemap.HoverHint")}",
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
             VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
 
         var categoryLegendStack = new StackPanel
@@ -335,7 +432,7 @@ public sealed partial class ShellDialogService
                 });
                 pill.Children.Add(new TextBlock
                 {
-                    Text = StorageTreemapService.GetCategoryDisplayName(cat).Split(' ')[0],
+                    Text = StorageTreemapService.GetCategoryDisplayName(cat).Split(' ')[0].TrimEnd(','),
                     FontSize = 11,
                     Opacity = 0.82,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -379,12 +476,12 @@ public sealed partial class ShellDialogService
 
         // ====================================================================
         // FOOTER BAR:
-        // 4. Direkte Explorer-Aktionen aus dem Analyse-Fenster
+        // 4. Direct Explorer Actions from the Analyzer Window
         // ====================================================================
 
         var selectedInfoText = new TextBlock
         {
-            Text = "Kein Element ausgewählt – klicken Sie auf eine Kachel oder einen Listeneintrag.",
+            Text = LocalizationService.T("Treemap.HoverHint"),
             FontSize = 12.5,
             Opacity = 0.9,
             VerticalAlignment = VerticalAlignment.Center,
@@ -393,21 +490,21 @@ public sealed partial class ShellDialogService
 
         var showInTabBtn = new Button
         {
-            Content = "🎯 Im Explorer-Tab zeigen",
+            Content = IsDe() ? "🎯 Im Explorer-Tab zeigen" : "🎯 Show in Explorer Tab",
             IsEnabled = false,
             Padding = new Thickness(12, 7, 12, 7),
         };
 
         var openFolderTabBtn = new Button
         {
-            Content = "📂 Ordner als neuen Tab öffnen",
+            Content = LocalizationService.T("Treemap.OpenExplorerButton"),
             IsEnabled = false,
             Padding = new Thickness(12, 7, 12, 7),
         };
 
         var deleteSelectedBtn = new Button
         {
-            Content = "🗑 Markierte Datei(en) löschen (Entf)",
+            Content = IsDe() ? "🗑 Markierte Datei(en) löschen (Entf)" : "🗑 Delete Selected Item(s) (Del)",
             IsEnabled = false,
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(14, 7, 14, 7),
@@ -415,7 +512,7 @@ public sealed partial class ShellDialogService
 
         var confirmDeleteBtn = new Button
         {
-            Content = "⚠ Ja, jetzt löschen!",
+            Content = IsDe() ? "⚠ Ja, jetzt löschen!" : "⚠ Yes, delete now!",
             Visibility = Visibility.Collapsed,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Colors.White),
@@ -425,14 +522,14 @@ public sealed partial class ShellDialogService
 
         var cancelDeleteConfirmBtn = new Button
         {
-            Content = "Abbrechen",
+            Content = LocalizationService.T("Dialog.Cancel"),
             Visibility = Visibility.Collapsed,
             Padding = new Thickness(10, 7, 10, 7),
         };
 
         var closeBtn = new Button
         {
-            Content = "Schließen",
+            Content = LocalizationService.T("Dialog.Close"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -457,23 +554,37 @@ public sealed partial class ShellDialogService
         footerGrid.Children.Add(selectedInfoText);
         footerGrid.Children.Add(footerButtonsPanel);
 
+        var upperRowDef = new RowDefinition { Height = new GridLength(225, GridUnitType.Pixel), MinHeight = 95 };
+        var lowerRowDef = new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 120 };
+
         var bodyGrid = new Grid
         {
             Padding = new Thickness(16, 12, 16, 14),
-            RowSpacing = 10,
+            RowSpacing = 6,
         };
         bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(upperRowDef);
         bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(lowerRowDef);
         bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(topHeaderPanel, 0);
         Grid.SetRow(upperSplitGrid, 1);
-        Grid.SetRow(treemapSectionGrid, 2);
-        Grid.SetRow(footerGrid, 3);
+        Grid.SetRow(verticalPaneSplitter, 2);
+        Grid.SetRow(treemapSectionGrid, 3);
+        Grid.SetRow(footerGrid, 4);
         bodyGrid.Children.Add(topHeaderPanel);
         bodyGrid.Children.Add(upperSplitGrid);
+        bodyGrid.Children.Add(verticalPaneSplitter);
         bodyGrid.Children.Add(treemapSectionGrid);
         bodyGrid.Children.Add(footerGrid);
+
+        verticalPaneSplitter.ManipulationDelta += (_, e) =>
+        {
+            double currentUpperH = upperSplitGrid.ActualHeight > 0 ? upperSplitGrid.ActualHeight : upperRowDef.Height.Value;
+            double maxUpperH = Math.Max(140, bodyGrid.ActualHeight - topHeaderPanel.ActualHeight - footerGrid.ActualHeight - 150);
+            double newUpperH = Math.Clamp(currentUpperH + e.Delta.Translation.Y, 95, maxUpperH);
+            upperRowDef.Height = new GridLength(newUpperH, GridUnitType.Pixel);
+        };
 
         var currentHierarchyNodes = new List<StorageTreemapNode>();
         var currentExtStats = new List<StorageExtensionStat>();
@@ -513,15 +624,16 @@ public sealed partial class ShellDialogService
             deleteSelectedBtn.IsEnabled = deletable.Count > 0;
 
             deleteSelectedBtn.Content = deletable.Count > 1
-                ? $"🗑 {deletable.Count} markierte löschen (Entf)"
-                : "🗑 Markierte Datei(en) löschen (Entf)";
+                ? (IsDe() ? $"🗑 {deletable.Count} markierte löschen (Entf)" : $"🗑 Delete {deletable.Count} selected (Del)")
+                : (IsDe() ? "🗑 Markierte Datei(en) löschen (Entf)" : "🗑 Delete Selected Item(s) (Del)");
 
             if (deletable.Count > 1)
             {
                 long totalSelectedBytes = deletable.Sum(n => n.Size);
                 double pctTotal = scannedRoot is { Size: > 0 } ? (double)totalSelectedBytes * 100.0 / scannedRoot.Size : 0.0;
-                selectedInfoText.Text =
-                    $"Mehrfachauswahl: {deletable.Count} Elemente markiert  ·  Gesamtgröße: {Format.Size(totalSelectedBytes)} ({pctTotal:0.0}% Gesamt)  ·  Rechtsklick oder [Entf] zum Löschen";
+                selectedInfoText.Text = IsDe()
+                    ? $"Mehrfachauswahl: {deletable.Count} Elemente markiert  ·  Gesamtgröße: {Format.Size(totalSelectedBytes)} ({pctTotal:0.0}% Gesamt)  ·  Rechtsklick oder [Entf] zum Löschen"
+                    : $"Multi-select: {deletable.Count} items selected  ·  Total size: {Format.Size(totalSelectedBytes)} ({pctTotal:0.0}% total)  ·  Right-click or [Del] to delete";
                 return;
             }
 
@@ -530,11 +642,13 @@ public sealed partial class ShellDialogService
             {
                 if (currentRoot is not null)
                 {
-                    selectedInfoText.Text = $"Aktuelle Ansicht: {currentRoot.FullPath} ({Format.Size(currentRoot.Size)})";
+                    selectedInfoText.Text = IsDe()
+                        ? $"Aktuelle Ansicht: {currentRoot.FullPath} ({Format.Size(currentRoot.Size)})"
+                        : $"Current view: {currentRoot.FullPath} ({Format.Size(currentRoot.Size)})";
                 }
                 else
                 {
-                    selectedInfoText.Text = "Kein Element ausgewählt.";
+                    selectedInfoText.Text = LocalizationService.T("Treemap.HoverHint");
                 }
                 return;
             }
@@ -542,11 +656,14 @@ public sealed partial class ShellDialogService
             double pctView = currentRoot is { Size: > 0 } ? (double)active.Size * 100.0 / currentRoot.Size : 100.0;
             double pctRoot = scannedRoot is { Size: > 0 } ? (double)active.Size * 100.0 / scannedRoot.Size : pctView;
             string kind = active.IsDirectory
-                ? $"Ordner ({active.FileCount:N0} Dateien, {active.FolderCount:N0} Unterordner)"
-                : $"Datei ({StorageTreemapService.GetCategoryDisplayName(active.Category)})";
+                ? (IsDe()
+                    ? $"Ordner ({active.FileCount:N0} Dateien, {active.FolderCount:N0} Unterordner)"
+                    : $"Folder ({active.FileCount:N0} files, {active.FolderCount:N0} subfolders)")
+                : $"{LocalizationService.T("File.FileType")} ({StorageTreemapService.GetCategoryDisplayName(active.Category)})";
 
-            selectedInfoText.Text =
-                $"Ausgewählt: {active.Name}  ·  {Format.Size(active.Size)} ({pctView:0.0}% Ansicht / {pctRoot:0.0}% Gesamt)  ·  {kind}";
+            selectedInfoText.Text = IsDe()
+                ? $"Ausgewählt: {active.Name}  ·  {Format.Size(active.Size)} ({pctView:0.0}% Ansicht / {pctRoot:0.0}% Gesamt)  ·  {kind}"
+                : $"Selected: {active.Name}  ·  {Format.Size(active.Size)} ({pctView:0.0}% view / {pctRoot:0.0}% total)  ·  {kind}";
         }
 
         void HandleNodeSelectionClick(StorageTreemapNode clickedNode, bool isCtrlHeld)
@@ -633,10 +750,10 @@ public sealed partial class ShellDialogService
                 if (deletedCount > 0)
                 {
                     string label = deletedCount == 1
-                        ? $"„{firstDeletedName}“ gelöscht"
-                        : $"{deletedCount} Elemente gelöscht";
-                    selectedInfoText.Text = $"✓ {label} ({Format.Size(freedBytes)} freigegeben)";
-                    owner.ViewModel.StatusNotification = $"Speicherplatz-Analysator: {label} ({Format.Size(freedBytes)} frei)";
+                        ? (IsDe() ? $"„{firstDeletedName}“ gelöscht" : $"\"{firstDeletedName}\" deleted")
+                        : (IsDe() ? $"{deletedCount} Elemente gelöscht" : $"{deletedCount} items deleted");
+                    selectedInfoText.Text = LocalizationService.Format("Treemap.DeletedStatus", label, Format.Size(freedBytes));
+                    owner.ViewModel.StatusNotification = LocalizationService.Format("Treemap.DeletedStatus", label, Format.Size(freedBytes));
 
                     if (owner.ViewModel.Left.ActiveTab is not null)
                         await owner.ViewModel.Left.ActiveTab.ReloadAsync();
@@ -645,12 +762,14 @@ public sealed partial class ShellDialogService
                 }
                 else
                 {
-                    selectedInfoText.Text = "⚠ Es konnten keine Elemente gelöscht werden.";
+                    selectedInfoText.Text = IsDe()
+                        ? "⚠ Es konnten keine Elemente gelöscht werden."
+                        : "⚠ No items could be deleted.";
                 }
             }
             catch (Exception ex)
             {
-                selectedInfoText.Text = $"⚠ Löschen fehlgeschlagen: {ex.Message}";
+                selectedInfoText.Text = LocalizationService.Format("Treemap.DeleteErrorStatus", ex.Message);
             }
         }
 
@@ -688,7 +807,9 @@ public sealed partial class ShellDialogService
                 return;
 
             await owner.ViewModel.ActivePanel.CreateTabAsync(folderPath);
-            selectedInfoText.Text = $"✓ Neuer Tab geöffnet: {folderPath}";
+            selectedInfoText.Text = IsDe()
+                ? $"✓ Neuer Tab geöffnet: {folderPath}"
+                : $"✓ Opened in new tab: {folderPath}";
         }
 
         MenuFlyout BuildNodeContextMenu(StorageTreemapNode contextNode)
@@ -716,8 +837,12 @@ public sealed partial class ShellDialogService
                 var deleteItem = new MenuFlyoutItem
                 {
                     Text = deletable.Count > 1
-                        ? $"🗑 {deletable.Count} ausgewählte Elemente löschen ({Format.Size(totalDelSize)})   [Entf]"
-                        : $"🗑 „{contextNode.Name}“ löschen ({Format.Size(contextNode.Size)})   [Entf]",
+                        ? (IsDe()
+                            ? $"🗑 {deletable.Count} ausgewählte Elemente löschen ({Format.Size(totalDelSize)})   [Entf]"
+                            : $"🗑 Delete {deletable.Count} selected items ({Format.Size(totalDelSize)})   [Del]")
+                        : (IsDe()
+                            ? $"🗑 „{contextNode.Name}“ löschen ({Format.Size(contextNode.Size)})   [Entf]"
+                            : $"🗑 Delete \"{contextNode.Name}\" ({Format.Size(contextNode.Size)})   [Del]"),
                     IsEnabled = deletable.Count > 0,
                 };
                 deleteItem.Click += async (_, _) =>
@@ -733,7 +858,9 @@ public sealed partial class ShellDialogService
                 {
                     var zoomItem = new MenuFlyoutItem
                     {
-                        Text = $"🔍 In Ordner „{contextNode.Name}“ hineinzoomen",
+                        Text = IsDe()
+                            ? $"🔍 In Ordner „{contextNode.Name}“ hineinzoomen"
+                            : $"🔍 Zoom into folder \"{contextNode.Name}\"",
                     };
                     zoomItem.Click += (_, _) => ZoomToNode(contextNode);
                     menu.Items.Add(zoomItem);
@@ -741,14 +868,14 @@ public sealed partial class ShellDialogService
 
                 var showInExplorerItem = new MenuFlyoutItem
                 {
-                    Text = "🎯 Im aktiven Explorer-Tab zeigen",
+                    Text = IsDe() ? "🎯 Im aktiven Explorer-Tab zeigen" : "🎯 Show in active Explorer Tab",
                 };
                 showInExplorerItem.Click += async (_, _) => await NavigateToNodeInExplorerTabAsync(contextNode);
                 menu.Items.Add(showInExplorerItem);
 
                 var openNewTabItem = new MenuFlyoutItem
                 {
-                    Text = "📂 Ordner als neuen Tab öffnen",
+                    Text = LocalizationService.T("Treemap.MenuOpenTab"),
                 };
                 openNewTabItem.Click += async (_, _) => await OpenNodeFolderAsNewTabAsync(contextNode);
                 menu.Items.Add(openNewTabItem);
@@ -758,8 +885,10 @@ public sealed partial class ShellDialogService
                 var copyPathItem = new MenuFlyoutItem
                 {
                     Text = deletable.Count > 1
-                        ? $"📋 {deletable.Count} Pfade in Zwischenablage kopieren"
-                        : "📋 Vollständigen Pfad kopieren",
+                        ? (IsDe()
+                            ? $"📋 {deletable.Count} Pfade in Zwischenablage kopieren"
+                            : $"📋 Copy {deletable.Count} paths to clipboard")
+                        : LocalizationService.T("Treemap.MenuCopyPath"),
                 };
                 copyPathItem.Click += (_, _) =>
                 {
@@ -771,7 +900,7 @@ public sealed partial class ShellDialogService
                             : contextNode.FullPath;
                         pkg.SetText(paths);
                         Clipboard.SetContent(pkg);
-                        selectedInfoText.Text = "✓ Pfad(e) in die Zwischenablage kopiert.";
+                        selectedInfoText.Text = LocalizationService.Format("Treemap.MenuPathCopiedStatus", paths);
                     }
                     catch { }
                 };
@@ -792,7 +921,7 @@ public sealed partial class ShellDialogService
                 {
                     var emptyTb = new TextBlock
                     {
-                        Text = "Dieser Ordner ist leer (0 Bytes).",
+                        Text = LocalizationService.T("Treemap.FolderEmpty"),
                         Opacity = 0.65,
                         FontSize = 13,
                     };
@@ -1036,13 +1165,17 @@ public sealed partial class ShellDialogService
             zoomUpBtn.IsEnabled = currentRoot.Parent is not null && !ReferenceEquals(currentRoot, scannedRoot);
             zoomRootBtn.IsEnabled = scannedRoot is not null && !ReferenceEquals(currentRoot, scannedRoot);
             zoomPathBadge.Text = ReferenceEquals(currentRoot, scannedRoot)
-                ? $"Wurzel: {currentRoot.FullPath}"
+                ? (IsDe() ? $"Wurzel: {currentRoot.FullPath}" : $"Root: {currentRoot.FullPath}")
                 : $"Zoom: {currentRoot.FullPath}";
 
-            scanStatusText.Text =
-                $"Analysiert: {Format.Size(currentRoot.Size)} in {currentRoot.FileCount:N0} Dateien und {currentRoot.FolderCount:N0} Ordnern";
+            scanStatusText.Text = LocalizationService.Format(
+                "Treemap.SubtreeStats",
+                currentRoot.Name,
+                Format.Size(currentRoot.Size),
+                currentRoot.FileCount,
+                currentRoot.FolderCount);
 
-            // 2. Top-left: Ordner-Hierarchie & Top-Speicherfresser
+            // 2. Top-left: Folder Hierarchy & Top Space Consumers
             currentHierarchyNodes = currentRoot.Children
                 .OrderByDescending(c => c.Size)
                 .Take(250)
@@ -1109,8 +1242,8 @@ public sealed partial class ShellDialogService
                 var countTb = new TextBlock
                 {
                     Text = child.IsDirectory
-                        ? $"{child.FileCount:N0} Dat."
-                        : StorageTreemapService.GetCategoryDisplayName(child.Category).Split(' ')[0],
+                        ? LocalizationService.Format("Treemap.FilesShort", child.FileCount)
+                        : StorageTreemapService.GetCategoryDisplayName(child.Category).Split(' ')[0].TrimEnd(','),
                     FontSize = 11,
                     Opacity = 0.75,
                     HorizontalAlignment = HorizontalAlignment.Right,
@@ -1146,7 +1279,7 @@ public sealed partial class ShellDialogService
             hierarchyList.ItemsSource = hierarchyItems;
             suppressHierarchySelection = false;
 
-            // 3. Top-right: Dateiendungs-Statistik & Farb-Legende
+            // 3. Top-right: File Extension Statistics & Color Legend
             currentExtStats = StorageTreemapService.ComputeExtensionStats(currentRoot, topCount: 60).ToList();
             var extItems = new List<Grid>(currentExtStats.Count);
             foreach (var stat in currentExtStats)
@@ -1331,7 +1464,7 @@ public sealed partial class ShellDialogService
             string targetDir = rootBox.Text.Trim();
             if (!Directory.Exists(targetDir))
             {
-                scanStatusText.Text = $"⚠ Verzeichnis existiert nicht: {targetDir}";
+                scanStatusText.Text = LocalizationService.Format("Treemap.PathNotFoundStatus", targetDir);
                 return;
             }
 
@@ -1344,12 +1477,16 @@ public sealed partial class ShellDialogService
             cancelScanBtn.Visibility = Visibility.Visible;
             scanProgressBar.Visibility = Visibility.Visible;
             scanProgressBar.IsIndeterminate = true;
-            scanStatusText.Text = $"Scanne {targetDir} …";
+            scanStatusText.Text = LocalizationService.Format("Treemap.ScanStartStatus", targetDir);
 
             var progress = new Progress<StorageScanProgress>(p =>
             {
-                scanStatusText.Text =
-                    $"Scanne: {p.ScannedFiles:N0} Dateien · {p.ScannedDirectories:N0} Ordner · {Format.Size(p.TotalBytes)}  —  {p.CurrentDirectory}";
+                scanStatusText.Text = LocalizationService.Format(
+                    "Treemap.ScanProgressStatus",
+                    p.ScannedFiles,
+                    p.ScannedDirectories,
+                    Format.Size(p.TotalBytes),
+                    p.CurrentDirectory);
             });
 
             try
@@ -1365,11 +1502,11 @@ public sealed partial class ShellDialogService
             }
             catch (OperationCanceledException)
             {
-                scanStatusText.Text = "Scan abgebrochen.";
+                scanStatusText.Text = LocalizationService.T("Treemap.ScanCancelledStatus");
             }
             catch (Exception ex)
             {
-                scanStatusText.Text = $"Fehler beim Scannen: {ex.Message}";
+                scanStatusText.Text = LocalizationService.Format("Treemap.ScanErrorStatus", ex.Message);
             }
             finally
             {
@@ -1524,8 +1661,13 @@ public sealed partial class ShellDialogService
                 foreach (var drive in DriveInfo.GetDrives())
                 {
                     if (!drive.IsReady) continue;
-                    string label = string.IsNullOrWhiteSpace(drive.VolumeLabel) ? "Lokaler Datenträger" : drive.VolumeLabel;
-                    string sizeInfo = $"{Format.Size(drive.AvailableFreeSpace)} frei von {Format.Size(drive.TotalSize)}";
+                    string label = string.IsNullOrWhiteSpace(drive.VolumeLabel)
+                        ? (IsDe() ? "Lokaler Datenträger" : "Local Disk")
+                        : drive.VolumeLabel;
+                    string sizeInfo = LocalizationService.Format(
+                        "Drive.FreeOfTotal",
+                        Format.Size(drive.AvailableFreeSpace),
+                        Format.Size(drive.TotalSize));
                     string display = $"{drive.Name} ({label})  —  {sizeInfo}";
                     treeRootStack.Children.Add(
                         CreateExplorerTreeNodeElement(drive.RootDirectory.FullName, display, isDrive: true, depth: 0, currentTargetPath: currentTarget));
@@ -1552,7 +1694,7 @@ public sealed partial class ShellDialogService
         scanBtn.Click += async (_, _) => await RunScanAsync();
         cancelScanBtn.Click += (_, _) => scanCts?.Cancel();
 
-        // 4. Direkte Explorer-Aktionen aus dem Analyse-Fenster
+        // 4. Direct Explorer Actions from the Analyzer Window
         showInTabBtn.Click += async (_, _) => await NavigateToNodeInExplorerTabAsync(selectedNode);
         openFolderTabBtn.Click += async (_, _) => await OpenNodeFolderAsNewTabAsync(selectedNode);
 
@@ -1561,7 +1703,9 @@ public sealed partial class ShellDialogService
             var deletable = GetDeletableSelectedNodes();
             if (deletable.Count == 0)
             {
-                selectedInfoText.Text = "⚠ Bitte wählen Sie zuerst eine oder mehrere Dateien/Unterordner zum Löschen aus.";
+                selectedInfoText.Text = IsDe()
+                    ? "⚠ Bitte wählen Sie zuerst eine oder mehrere Dateien/Unterordner zum Löschen aus."
+                    : "⚠ Please select one or more files/subfolders to delete first.";
                 return;
             }
 
@@ -1571,12 +1715,16 @@ public sealed partial class ShellDialogService
 
             if (deletable.Count == 1)
             {
-                selectedInfoText.Text = $"⚠ Wirklich löschen: „{deletable[0].Name}“ ({Format.Size(deletable[0].Size)})?";
+                selectedInfoText.Text = IsDe()
+                    ? $"⚠ Wirklich löschen: „{deletable[0].Name}“ ({Format.Size(deletable[0].Size)})?"
+                    : $"⚠ Really delete: \"{deletable[0].Name}\" ({Format.Size(deletable[0].Size)})?";
             }
             else
             {
                 long totalBytes = deletable.Sum(n => n.Size);
-                selectedInfoText.Text = $"⚠ Wirklich {deletable.Count} markierte Elemente löschen ({Format.Size(totalBytes)})?";
+                selectedInfoText.Text = IsDe()
+                    ? $"⚠ Wirklich {deletable.Count} markierte Elemente löschen ({Format.Size(totalBytes)})?"
+                    : $"⚠ Really delete {deletable.Count} selected items ({Format.Size(totalBytes)})?";
             }
         };
 
@@ -1618,15 +1766,52 @@ public sealed partial class ShellDialogService
             });
         }
 
-        owner.ViewModel.Settings.TreemapColorsChanged += OnTreemapColorsChanged;
-
         var win = CreateResizableChildWindow(
-            "Speicherplatz-Analysator & Grafische Treemap (WinDirStat / Strg+Shift+W)",
+            LocalizationService.T("Treemap.WindowTitle"),
             "🗺",
             bodyGrid,
             defaultWidth: 1220,
             defaultHeight: 820,
-            fontTarget: ChildWindowFontTarget.StorageAnalyzer);
+            fontTarget: ChildWindowFontTarget.StorageAnalyzer,
+            titleProvider: () => LocalizationService.T("Treemap.WindowTitle"));
+
+        void OnTreemapLanguageChanged(object? s, EventArgs e)
+        {
+            owner.DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateChildWindowTitle(win, LocalizationService.T("Treemap.WindowTitle"));
+                rootBox.PlaceholderText = LocalizationService.T("Treemap.RootPlaceholder");
+                treeFlyoutHeader.Text = IsDe()
+                    ? "🌳 Explorer-Baum: Laufwerk oder Ordner direkt auswählen (▶ = Unterordner aufklappen)"
+                    : "🌳 Explorer Tree: Select drive or folder directly (▶ = expand subfolders)";
+                treeDropdownBtn.Content = IsDe() ? "🌳 Explorer-Baum ▾" : "🌳 Explorer Tree ▾";
+                ToolTipService.SetToolTip(
+                    treeDropdownBtn,
+                    IsDe()
+                        ? "Öffnet den hierarchischen Explorer-Verzeichnisbaum zur direkten Auswahl eines Laufwerks oder Ordners"
+                        : "Opens the hierarchical Explorer directory tree to select a drive or folder directly");
+                scanBtn.Content = LocalizationService.T("Treemap.ScanButton");
+                cancelScanBtn.Content = LocalizationService.T("Treemap.CancelButton");
+                zoomUpBtn.Content = LocalizationService.T("Treemap.ZoomUpButton");
+                zoomRootBtn.Content = LocalizationService.T("Treemap.ZoomRootButton");
+                hierarchyHeaderText.Text = LocalizationService.T("Treemap.HierarchyHeader");
+                extHeaderText.Text = LocalizationService.T("Treemap.ExtHeader");
+                clearExtFilterBtn.Content = LocalizationService.T("Treemap.ShowAllTypesButton");
+                ToolTipService.SetToolTip(upperColSplitter, LocalizationService.T("Treemap.SplitterHorizontalTip"));
+                ToolTipService.SetToolTip(verticalPaneSplitter, LocalizationService.T("Treemap.SplitterVerticalTip"));
+                treemapTitleText.Text = $"{LocalizationService.T("Treemap.CanvasTitle")}  —  {LocalizationService.T("Treemap.HoverHint")}";
+                showInTabBtn.Content = IsDe() ? "🎯 Im Explorer-Tab zeigen" : "🎯 Show in Explorer Tab";
+                openFolderTabBtn.Content = LocalizationService.T("Treemap.OpenExplorerButton");
+                confirmDeleteBtn.Content = IsDe() ? "⚠ Ja, jetzt löschen!" : "⚠ Yes, delete now!";
+                cancelDeleteConfirmBtn.Content = LocalizationService.T("Dialog.Cancel");
+                closeBtn.Content = LocalizationService.T("Dialog.Close");
+                RebuildCategoryLegendPills();
+                PopulateUpperListsAndTreemap();
+            });
+        }
+
+        owner.ViewModel.Settings.TreemapColorsChanged += OnTreemapColorsChanged;
+        LocalizationService.Instance.LanguageChanged += OnTreemapLanguageChanged;
 
         closeBtn.Click += (_, _) =>
         {
@@ -1637,6 +1822,7 @@ public sealed partial class ShellDialogService
         win.Closed += (_, _) =>
         {
             owner.ViewModel.Settings.TreemapColorsChanged -= OnTreemapColorsChanged;
+            LocalizationService.Instance.LanguageChanged -= OnTreemapLanguageChanged;
             scanCts?.Cancel();
             scanCts?.Dispose();
             tcs.TrySetResult(true);
@@ -1655,6 +1841,7 @@ public sealed partial class ShellDialogService
         StorageTreemapNode? currentRoot,
         StorageTreemapNode? scannedRoot)
     {
+        bool isDe = LocalizationService.Instance.EffectiveLanguage == "de";
         double pctView = currentRoot is { Size: > 0 } ? (double)node.Size * 100.0 / currentRoot.Size : 100.0;
         double pctTotal = scannedRoot is { Size: > 0 } ? (double)node.Size * 100.0 / scannedRoot.Size : pctView;
         string relPath = currentRoot is not null
@@ -1662,16 +1849,26 @@ public sealed partial class ShellDialogService
             : node.Name;
 
         string typeInfo = node.IsDirectory
-            ? $"Ordner ({node.FileCount:N0} Dateien, {node.FolderCount:N0} Unterordner)"
-            : $"Datei ({node.Extension}) · {StorageTreemapService.GetCategoryDisplayName(node.Category)}";
+            ? (isDe
+                ? $"Ordner ({node.FileCount:N0} Dateien, {node.FolderCount:N0} Unterordner)"
+                : $"Folder ({node.FileCount:N0} files, {node.FolderCount:N0} subfolders)")
+            : $"{LocalizationService.T("File.FileType")} ({node.Extension}) · {StorageTreemapService.GetCategoryDisplayName(node.Category)}";
 
-        return $"{(node.IsDirectory ? "📁" : "📄")} {node.Name}\n" +
-               $"Relativer Pfad: {relPath}\n" +
-               $"Vollständiger Pfad: {node.FullPath}\n" +
-               $"Größe: {Format.Size(node.Size)} ({node.Size:N0} Bytes)\n" +
-               $"Anteil: {pctView:0.00} % der Ansicht ({pctTotal:0.00} % der Wurzel)\n" +
-               $"Typ: {typeInfo}\n" +
-               $"Geändert: {node.ModifiedLocal:yyyy-MM-dd HH:mm:ss}";
+        return isDe
+            ? $"{(node.IsDirectory ? "📁" : "📄")} {node.Name}\n" +
+              $"Relativer Pfad: {relPath}\n" +
+              $"Vollständiger Pfad: {node.FullPath}\n" +
+              $"Größe: {Format.Size(node.Size)} ({node.Size:N0} Bytes)\n" +
+              $"Anteil: {pctView:0.00} % der Ansicht ({pctTotal:0.00} % der Wurzel)\n" +
+              $"Typ: {typeInfo}\n" +
+              $"Geändert: {node.ModifiedLocal:yyyy-MM-dd HH:mm:ss}"
+            : $"{(node.IsDirectory ? "📁" : "📄")} {node.Name}\n" +
+              $"Relative Path: {relPath}\n" +
+              $"Full Path: {node.FullPath}\n" +
+              $"Size: {Format.Size(node.Size)} ({node.Size:N0} bytes)\n" +
+              $"Share: {pctView:0.00}% of view ({pctTotal:0.00}% of root)\n" +
+              $"Type: {typeInfo}\n" +
+              $"Modified: {node.ModifiedLocal:yyyy-MM-dd HH:mm:ss}";
     }
 
     private static StorageTreemapNode? FindDirectChildUnderRoot(StorageTreemapNode node, StorageTreemapNode root)

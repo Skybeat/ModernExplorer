@@ -110,7 +110,7 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
             settingsStore);
 
         DataContext = _viewModel;
-        Title = "Modern Explorer";
+        Title = $"ModernExplorer v{GitHubUpdateService.GetCurrentVersionString()}";
         Width = Math.Max(900, _viewModel.Settings.MainWindowWidth);
         Height = Math.Max(600, _viewModel.Settings.MainWindowHeight);
         MinWidth = 860;
@@ -208,7 +208,7 @@ public sealed class CrossPlatformMainWindow : Window, IShellUi, IConflictResolve
         };
         brandStack.Children.Add(new TextBlock
         {
-            Text = "Modern Explorer",
+            Text = $"ModernExplorer v{GitHubUpdateService.GetCurrentVersionString()}",
             FontWeight = FontWeight.SemiBold,
             FontSize = 15,
             VerticalAlignment = VerticalAlignment.Center,

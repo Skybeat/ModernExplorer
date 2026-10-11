@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.Remote;
 using ModernExplorer.Core.ViewModels;
@@ -20,12 +21,12 @@ public sealed partial class ShellDialogService
 
         var nameMaskBox = new TextBox
         {
-            Header = "Dateinamen-Maske ([N]=Name, [N1-5]=Teil, [C]=Zähler, [Y][M][D]=Datum, [P]=Ordner)",
+            Header = LocalizationService.T("BatchRename.NameMaskHeader"),
             Text = "[N]",
         };
         var extMaskBox = new TextBox
         {
-            Header = "Erweiterungs-Maske ([E]=Original)",
+            Header = LocalizationService.T("BatchRename.ExtMaskHeader"),
             Text = "[E]",
             Width = 200,
         };
@@ -38,10 +39,18 @@ public sealed partial class ShellDialogService
         maskRow.Children.Add(nameMaskBox);
         maskRow.Children.Add(extMaskBox);
 
-        var findBox = new TextBox { Header = "Suchen nach", PlaceholderText = "Text oder RegEx…" };
-        var replaceBox = new TextBox { Header = "Ersetzen durch", PlaceholderText = "Ersatztext…" };
+        var findBox = new TextBox
+        {
+            Header = LocalizationService.T("BatchRename.FindHeader"),
+            PlaceholderText = LocalizationService.T("BatchRename.FindPlaceholder"),
+        };
+        var replaceBox = new TextBox
+        {
+            Header = LocalizationService.T("BatchRename.ReplaceHeader"),
+            PlaceholderText = LocalizationService.T("BatchRename.ReplacePlaceholder"),
+        };
         var regexCheck = new CheckBox { Content = "RegEx", VerticalAlignment = VerticalAlignment.Bottom };
-        var caseCheck = new CheckBox { Content = "Groß/Klein beachten", VerticalAlignment = VerticalAlignment.Bottom };
+        var caseCheck = new CheckBox { Content = LocalizationService.T("BatchRename.CaseSensitive"), VerticalAlignment = VerticalAlignment.Bottom };
 
         var searchRow = new Grid { ColumnSpacing = 10 };
         searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -59,23 +68,23 @@ public sealed partial class ShellDialogService
 
         var caseCombo = new ComboBox
         {
-            Header = "Groß-/Kleinschreibung",
+            Header = LocalizationService.T("BatchRename.CaseHeader"),
             ItemsSource = new[]
             {
-                "Unverändert",
-                "alles kleinschreiben (lowercase)",
-                "ALLES GROSSSCHREIBEN (UPPERCASE)",
-                "Wortanfänge Groß (Title Case)",
-                "Satzanfang groß (Sentence case)"
+                LocalizationService.T("BatchRename.CaseNone"),
+                LocalizationService.T("BatchRename.CaseLower"),
+                LocalizationService.T("BatchRename.CaseUpper"),
+                LocalizationService.T("BatchRename.CaseTitle"),
+                LocalizationService.T("BatchRename.CaseSentence"),
             },
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             MinWidth = 260,
         };
 
-        var startNum = new NumberBox { Header = "Zähler Start", Value = 1, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
-        var stepNum = new NumberBox { Header = "Schrittweite", Value = 1, Minimum = 1, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
-        var digitsNum = new NumberBox { Header = "Stellen ([C])", Value = 3, Minimum = 1, Maximum = 10, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
+        var startNum = new NumberBox { Header = LocalizationService.T("BatchRename.CounterStart"), Value = 1, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
+        var stepNum = new NumberBox { Header = LocalizationService.T("BatchRename.CounterStep"), Value = 1, Minimum = 1, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
+        var digitsNum = new NumberBox { Header = LocalizationService.T("BatchRename.CounterDigits"), Value = 3, Minimum = 1, Maximum = 10, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
 
         var counterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         counterRow.Children.Add(caseCombo);
@@ -138,7 +147,7 @@ public sealed partial class ShellDialogService
 
             int changes = currentPreview.Count(p => p.WillChange);
             int conflicts = currentPreview.Count(p => p.HasConflict);
-            statusText.Text = $"{entries.Count} Elemente · {changes} Änderung(en) · {conflicts} Konflikt(e)";
+            statusText.Text = LocalizationService.Format("BatchRename.StatusFormat", entries.Count, changes, conflicts);
         }
 
         nameMaskBox.TextChanged += (_, _) => RefreshPreview();
@@ -156,21 +165,22 @@ public sealed partial class ShellDialogService
 
         RefreshPreview();
 
+        var livePreviewHeader = new TextBlock { Text = LocalizationService.T("BatchRename.LivePreview"), FontWeight = FontWeights.SemiBold, FontSize = 13 };
         var topPanel = new StackPanel { Spacing = 10 };
         topPanel.Children.Add(maskRow);
         topPanel.Children.Add(searchRow);
         topPanel.Children.Add(counterRow);
-        topPanel.Children.Add(new TextBlock { Text = "Live-Vorschau:", FontWeight = FontWeights.SemiBold, FontSize = 13 });
+        topPanel.Children.Add(livePreviewHeader);
 
         var renameBtn = new Button
         {
-            Content = "✓ Jetzt umbenennen",
+            Content = LocalizationService.T("BatchRename.RenameNow"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 7, 16, 7),
         };
         var cancelBtn = new Button
         {
-            Content = "Abbrechen",
+            Content = LocalizationService.T("Common.Cancel"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -201,12 +211,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "Mehrfach-Umbenennungstool (Strg+M)",
+            LocalizationService.T("BatchRename.WindowTitle"),
             "✏️",
             bodyGrid,
             defaultWidth: 1060,
             defaultHeight: 720,
-            fontTarget: ChildWindowFontTarget.BatchRename);
+            fontTarget: ChildWindowFontTarget.BatchRename,
+            titleProvider: () => LocalizationService.T("BatchRename.WindowTitle"));
 
         bool renameConfirmed = false;
         renameBtn.Click += (_, _) =>
@@ -225,11 +236,11 @@ public sealed partial class ShellDialogService
         if (res.RenamedPairs.Count > 0)
         {
             owner.ViewModel.UndoHistory.RecordBatchRename(res.RenamedPairs);
-            owner.ViewModel.StatusNotification = $"{res.RenamedCount} Element(e) umbenannt";
+            owner.ViewModel.StatusNotification = LocalizationService.Format("BatchRename.RenamedNotification", res.RenamedCount);
         }
 
         if (res.Errors.Count > 0)
-            ShowMessage("Hinweise beim Umbenennen", string.Join(Environment.NewLine, res.Errors.Take(10)));
+            ShowMessage(LocalizationService.T("BatchRename.NotesTitle"), string.Join(Environment.NewLine, res.Errors.Take(10)));
 
         return res.RenamedCount > 0;
     }
@@ -238,8 +249,8 @@ public sealed partial class ShellDialogService
     {
         var tcs = new TaskCompletionSource<bool>();
 
-        var leftBox = new TextBox { Header = "Linkes Verzeichnis", Text = leftDir };
-        var rightBox = new TextBox { Header = "Rechtes Verzeichnis", Text = rightDir };
+        var leftBox = new TextBox { Header = LocalizationService.T("DirSync.LeftDir"), Text = leftDir };
+        var rightBox = new TextBox { Header = LocalizationService.T("DirSync.RightDir"), Text = rightDir };
 
         var dirGrid = new Grid { ColumnSpacing = 10 };
         dirGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -251,12 +262,12 @@ public sealed partial class ShellDialogService
 
         var modeCombo = new ComboBox
         {
-            Header = "Vergleichsmodus",
+            Header = LocalizationService.T("DirSync.CompareMode"),
             ItemsSource = new[]
             {
-                "Größe & Änderungsdatum (Schnell)",
-                "Nur Dateigröße",
-                "SHA-256 Dateiinhalt (Bit-genau)"
+                LocalizationService.T("DirSync.ModeFast"),
+                LocalizationService.T("DirSync.ModeSize"),
+                LocalizationService.T("DirSync.ModeSha256"),
             },
             SelectedIndex = 0,
             MinWidth = 260,
@@ -264,21 +275,21 @@ public sealed partial class ShellDialogService
 
         var dirCombo = new ComboBox
         {
-            Header = "Synchronisations-Richtung",
+            Header = LocalizationService.T("DirSync.Direction"),
             ItemsSource = new[]
             {
-                "⇄ Beidseitig zusammenführen (Neuere gewinnt)",
-                "→ Links nach Rechts spiegeln",
-                "← Rechts nach Links spiegeln"
+                LocalizationService.T("DirSync.DirBi"),
+                LocalizationService.T("DirSync.DirL2R"),
+                LocalizationService.T("DirSync.DirR2L"),
             },
             SelectedIndex = 0,
             MinWidth = 310,
         };
 
-        var deleteOrphansCheck = new CheckBox { Content = "Verwaiste Dateien im Ziel löschen", VerticalAlignment = VerticalAlignment.Bottom };
+        var deleteOrphansCheck = new CheckBox { Content = LocalizationService.T("DirSync.DeleteOrphans"), VerticalAlignment = VerticalAlignment.Bottom };
         var compareBtn = new Button
         {
-            Content = "🔍 Jetzt vergleichen",
+            Content = LocalizationService.T("DirSync.CompareNow"),
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Bottom,
             Padding = new Thickness(14, 6, 14, 6),
@@ -318,7 +329,7 @@ public sealed partial class ShellDialogService
         {
             Opacity = 0.85,
             FontSize = 12.5,
-            Text = "Klicken Sie auf „Jetzt vergleichen“, um Unterschiede zu analysieren.",
+            Text = LocalizationService.T("DirSync.InitialHint"),
             VerticalAlignment = VerticalAlignment.Center,
         };
 
@@ -330,13 +341,13 @@ public sealed partial class ShellDialogService
             string r = rightBox.Text.Trim();
             if (!Directory.Exists(l) || !Directory.Exists(r))
             {
-                summaryText.Text = "⚠ Beide Verzeichnisse müssen existieren.";
+                summaryText.Text = LocalizationService.T("DirSync.BothMustExist");
                 return;
             }
 
             compareBtn.IsEnabled = false;
             syncProgressBar.Visibility = Visibility.Visible;
-            summaryText.Text = "Vergleiche Verzeichnisse…";
+            summaryText.Text = LocalizationService.T("DirSync.Comparing");
             try
             {
                 var mode = modeCombo.SelectedIndex switch
@@ -353,17 +364,21 @@ public sealed partial class ShellDialogService
                 {
                     string badge = d.Status switch
                     {
-                        SyncItemStatus.LeftOnly => "[Nur Links →]",
-                        SyncItemStatus.RightOnly => "[← Nur Rechts]",
-                        SyncItemStatus.LeftNewer => "[Links neuer →]",
-                        SyncItemStatus.RightNewer => "[← Rechts neuer]",
-                        SyncItemStatus.DifferentContent => "[≠ Unterschiedlich]",
+                        SyncItemStatus.LeftOnly => LocalizationService.T("DirSync.BadgeLeftOnly"),
+                        SyncItemStatus.RightOnly => LocalizationService.T("DirSync.BadgeRightOnly"),
+                        SyncItemStatus.LeftNewer => LocalizationService.T("DirSync.BadgeLeftNewer"),
+                        SyncItemStatus.RightNewer => LocalizationService.T("DirSync.BadgeRightNewer"),
+                        SyncItemStatus.DifferentContent => LocalizationService.T("DirSync.BadgeDifferent"),
                         _ => "[=]"
                     };
                     return $"{badge,-18}  {d.RelativePath}   (L: {(d.LeftSize.HasValue ? Format.Size(d.LeftSize.Value) : "-")} | R: {(d.RightSize.HasValue ? Format.Size(d.RightSize.Value) : "-")})";
                 }).ToList();
 
-                summaryText.Text = $"Gesamt: {currentDiffs.Count} Dateien · {nonIdentical.Count} Unterschied(e) · {currentDiffs.Count - nonIdentical.Count} identisch";
+                summaryText.Text = LocalizationService.Format(
+                    "DirSync.SummaryFormat",
+                    currentDiffs.Count,
+                    nonIdentical.Count,
+                    currentDiffs.Count - nonIdentical.Count);
             }
             finally
             {
@@ -381,13 +396,13 @@ public sealed partial class ShellDialogService
 
         var syncNowBtn = new Button
         {
-            Content = "⇄ Jetzt synchronisieren",
+            Content = LocalizationService.T("DirSync.SyncNow"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 7, 16, 7),
         };
         var closeBtn = new Button
         {
-            Content = "Schließen",
+            Content = LocalizationService.T("Common.Close"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -418,12 +433,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)",
+            LocalizationService.T("DirSync.WindowTitle"),
             "⇄",
             bodyGrid,
             defaultWidth: 1080,
             defaultHeight: 740,
-            fontTarget: ChildWindowFontTarget.DirectorySync);
+            fontTarget: ChildWindowFontTarget.DirectorySync,
+            titleProvider: () => LocalizationService.T("DirSync.WindowTitle"));
 
         bool syncConfirmed = false;
         int capturedDirIndex = 0;
@@ -466,9 +482,13 @@ public sealed partial class ShellDialogService
             direction,
             deleteOrphans: capturedDeleteOrphans);
 
-        owner.ViewModel.StatusNotification = $"Synchronisiert: {syncRes.CopiedLeftToRight} L→R, {syncRes.CopiedRightToLeft} R→L, {syncRes.DeletedOrphans} gelöscht";
+        owner.ViewModel.StatusNotification = LocalizationService.Format(
+            "DirSync.DoneNotification",
+            syncRes.CopiedLeftToRight,
+            syncRes.CopiedRightToLeft,
+            syncRes.DeletedOrphans);
         if (syncRes.Errors.Count > 0)
-            ShowMessage("Synchronisations-Hinweise", string.Join(Environment.NewLine, syncRes.Errors.Take(10)));
+            ShowMessage(LocalizationService.T("DirSync.NotesTitle"), string.Join(Environment.NewLine, syncRes.Errors.Take(10)));
 
         return true;
     }
@@ -477,9 +497,13 @@ public sealed partial class ShellDialogService
     {
         var tcs = new TaskCompletionSource<int>(); // 0 = close, 1 = open as tab, 2 = jump to hit
 
-        var rootBox = new TextBox { Header = "Suchordner", Text = initialDirectory };
-        var patternBox = new TextBox { Header = "Dateiname (Wildcard *.cs;*.txt oder RegEx)", PlaceholderText = "*.*" };
-        var contentBox = new TextBox { Header = "Text in Datei (Volltextsuche)", PlaceholderText = "Optionaler Suchbegriff im Dateiinhalt…" };
+        var rootBox = new TextBox { Header = LocalizationService.T("DeepSearch.RootFolder"), Text = initialDirectory };
+        var patternBox = new TextBox { Header = LocalizationService.T("DeepSearch.FileNameHeader"), PlaceholderText = "*.*" };
+        var contentBox = new TextBox
+        {
+            Header = LocalizationService.T("DeepSearch.ContentHeader"),
+            PlaceholderText = LocalizationService.T("DeepSearch.ContentPlaceholder"),
+        };
 
         var filterGrid = new Grid { ColumnSpacing = 10 };
         filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -489,12 +513,12 @@ public sealed partial class ShellDialogService
         filterGrid.Children.Add(patternBox);
         filterGrid.Children.Add(contentBox);
 
-        var regexCheck = new CheckBox { Content = "RegEx für Dateiname" };
-        var caseContentCheck = new CheckBox { Content = "Groß/Klein beim Inhalt beachten" };
-        var hiddenCheck = new CheckBox { Content = "Versteckte einbeziehen" };
+        var regexCheck = new CheckBox { Content = LocalizationService.T("DeepSearch.RegexName") };
+        var caseContentCheck = new CheckBox { Content = LocalizationService.T("DeepSearch.CaseContent") };
+        var hiddenCheck = new CheckBox { Content = LocalizationService.T("DeepSearch.IncludeHidden") };
         var searchBtn = new Button
         {
-            Content = "🔍 Suche starten",
+            Content = LocalizationService.T("DeepSearch.StartSearch"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 6, 16, 6),
         };
@@ -517,7 +541,7 @@ public sealed partial class ShellDialogService
         {
             Opacity = 0.85,
             FontSize = 12.5,
-            Text = "Bereit.",
+            Text = LocalizationService.T("DeepSearch.Ready"),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var resultsList = new ListView
@@ -545,13 +569,13 @@ public sealed partial class ShellDialogService
             string dir = rootBox.Text.Trim();
             if (!Directory.Exists(dir))
             {
-                statusText.Text = "⚠ Suchordner existiert nicht.";
+                statusText.Text = LocalizationService.T("DeepSearch.FolderMissing");
                 return;
             }
 
             searchBtn.IsEnabled = false;
             searchProgressBar.Visibility = Visibility.Visible;
-            statusText.Text = "Suche läuft…";
+            statusText.Text = LocalizationService.T("DeepSearch.Searching");
             try
             {
                 var opts = new DeepSearchQuery
@@ -576,7 +600,7 @@ public sealed partial class ShellDialogService
 
                 resultsList.ItemsSource = displayItems;
                 if (displayItems.Count > 0) resultsList.SelectedIndex = 0;
-                statusText.Text = $"{foundEntries.Count} Treffer gefunden.";
+                statusText.Text = LocalizationService.Format("DeepSearch.FoundFormat", foundEntries.Count);
             }
             finally
             {
@@ -595,18 +619,18 @@ public sealed partial class ShellDialogService
 
         var openTabBtn = new Button
         {
-            Content = "📂 Als Tab öffnen",
+            Content = LocalizationService.T("DeepSearch.OpenAsTab"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 7, 16, 7),
         };
         var jumpBtn = new Button
         {
-            Content = "🎯 Zum Treffer springen",
+            Content = LocalizationService.T("DeepSearch.JumpToHit"),
             Padding = new Thickness(14, 7, 14, 7),
         };
         var closeBtn = new Button
         {
-            Content = "Schließen",
+            Content = LocalizationService.T("Common.Close"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -640,12 +664,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "Rekursive Tiefensuche (Alt+F7)",
+            LocalizationService.T("DeepSearch.WindowTitle"),
             "🔍",
             bodyGrid,
             defaultWidth: 1080,
             defaultHeight: 740,
-            fontTarget: ChildWindowFontTarget.DeepSearch);
+            fontTarget: ChildWindowFontTarget.DeepSearch,
+            titleProvider: () => LocalizationService.T("DeepSearch.WindowTitle"));
 
         int actionChoice = 0;
         int capturedSelectedIndex = -1;
@@ -674,7 +699,9 @@ public sealed partial class ShellDialogService
         {
             if (foundEntries.Count > 0 && owner.ViewModel.ActivePanel.ActiveTab is { } tab)
             {
-                string label = string.IsNullOrWhiteSpace(capturedPatternText) ? "Suchergebnisse" : capturedPatternText;
+                string label = string.IsNullOrWhiteSpace(capturedPatternText)
+                    ? LocalizationService.T("DeepSearch.ResultsTabDefault")
+                    : capturedPatternText;
                 await tab.LoadSearchResultsAsync(label, foundEntries);
             }
         }
@@ -694,16 +721,16 @@ public sealed partial class ShellDialogService
     {
         var tcs = new TaskCompletionSource<bool>();
 
-        var rootBox = new TextBox { Header = "Zu prüfendes Verzeichnis", Text = initialDirectory };
+        var rootBox = new TextBox { Header = LocalizationService.T("Duplicates.RootFolder"), Text = initialDirectory };
         var scanBtn = new Button
         {
-            Content = "🔍 Nach Duplikaten scannen",
+            Content = LocalizationService.T("Duplicates.ScanBtn"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 6, 16, 6),
         };
         var selectDupesBtn = new Button
         {
-            Content = "☑ Alle Duplikate (außer Original je Gruppe) markieren",
+            Content = LocalizationService.T("Duplicates.SelectAllBtn"),
             IsEnabled = false,
             Padding = new Thickness(14, 6, 14, 6),
         };
@@ -727,7 +754,7 @@ public sealed partial class ShellDialogService
         {
             Opacity = 0.9,
             FontSize = 12.5,
-            Text = "Klicken Sie auf „Nach Duplikaten scannen“, um die mehrstufige Prüfung zu starten.",
+            Text = LocalizationService.T("Duplicates.InitialHint"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -768,13 +795,13 @@ public sealed partial class ShellDialogService
 
         var deleteBtn = new Button
         {
-            Content = "🗑 Markierte Duplikate löschen",
+            Content = LocalizationService.T("Duplicates.DeleteSelectedBtn"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(16, 7, 16, 7),
         };
         var closeBtn = new Button
         {
-            Content = "Schließen",
+            Content = LocalizationService.T("Common.Close"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -812,8 +839,8 @@ public sealed partial class ShellDialogService
         {
             int count = GetCurrentlySelectedIndices().Count;
             deleteBtn.Content = count > 0
-                ? $"🗑 Markierte Duplikate löschen ({count})"
-                : "🗑 Markierte Duplikate löschen";
+                ? LocalizationService.Format("Duplicates.DeleteSelectedCountBtn", count)
+                : LocalizationService.T("Duplicates.DeleteSelectedBtn");
         }
 
         void RebuildCandidateListFromGroups()
@@ -832,8 +859,10 @@ public sealed partial class ShellDialogService
                     foreach (var f in g.Files)
                     {
                         flatCandidateFiles.Add((f, first));
-                        string tag = first ? "[Original behalten]" : "[Duplikat]";
-                        displayRows.Add($"Gruppe #{groupNum} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
+                        string tag = first
+                            ? LocalizationService.T("Duplicates.KeepOriginalTag")
+                            : LocalizationService.T("Duplicates.DuplicateTag");
+                        displayRows.Add($"{LocalizationService.Format("Duplicates.GroupPrefix", groupNum)} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
                         first = false;
                     }
                     groupNum++;
@@ -879,7 +908,7 @@ public sealed partial class ShellDialogService
             string dir = rootBox.Text.Trim();
             if (!Directory.Exists(dir))
             {
-                statusText.Text = "⚠ Verzeichnis existiert nicht.";
+                statusText.Text = LocalizationService.T("Duplicates.FolderMissing");
                 return;
             }
 
@@ -896,8 +925,8 @@ public sealed partial class ShellDialogService
             dupeProgressBar.Visibility = Visibility.Visible;
             dupeProgressBar.IsIndeterminate = true;
             dupeProgressBar.Value = 0;
-            progressPercentText.Text = "Scanne…";
-            statusText.Text = "Stufe 1/3: Durchsuche Verzeichnisbaum…";
+            progressPercentText.Text = LocalizationService.T("Duplicates.Scanning");
+            statusText.Text = LocalizationService.T("Duplicates.Stage1");
 
             var detailedProgress = new Progress<DuplicateScanProgress>(info =>
             {
@@ -915,8 +944,8 @@ public sealed partial class ShellDialogService
                     else
                     {
                         progressPercentText.Text = info.ProcessedFiles > 0
-                            ? $"{info.ProcessedFiles} Dateien erfasst…"
-                            : "Scanne…";
+                            ? $"{info.ProcessedFiles}"
+                            : LocalizationService.T("Duplicates.Scanning");
                     }
                 });
             });
@@ -936,14 +965,17 @@ public sealed partial class ShellDialogService
                 dupeProgressBar.IsIndeterminate = false;
                 dupeProgressBar.Value = 100;
                 progressPercentText.Text = "100%";
-                statusText.Text = $"{scanRes.Groups.Count} Duplikat-Gruppe(n) gefunden · Einsparpotenzial: {Format.Size(scanRes.TotalWastedBytes)}";
+                statusText.Text = LocalizationService.Format(
+                    "Duplicates.SummaryFormat",
+                    scanRes.Groups.Count,
+                    Format.Size(scanRes.TotalWastedBytes));
             }
             catch (Exception ex)
             {
                 dupeProgressBar.IsIndeterminate = false;
                 dupeProgressBar.Visibility = Visibility.Collapsed;
                 progressPercentText.Text = "";
-                statusText.Text = $"⚠ Fehler beim Duplikat-Scan: {ex.Message}";
+                statusText.Text = $"⚠ {ex.Message}";
             }
             finally
             {
@@ -978,7 +1010,9 @@ public sealed partial class ShellDialogService
                 UpdateDeleteButtonLabel();
             }
 
-            statusText.Text = $"{trackedSelectedIndices.Count} Duplikat(e) zur Löschung markiert. Klicken Sie auf „Markierte Duplikate löschen“.";
+            statusText.Text = LocalizationService.Instance.EffectiveLanguage == "de"
+                ? $"{trackedSelectedIndices.Count} Duplikat(e) zur Löschung markiert. Klicken Sie auf „Markierte Duplikate löschen“."
+                : $"{trackedSelectedIndices.Count} duplicate(s) selected for deletion. Click \"Delete Selected Duplicates\".";
         };
 
         var topPanel = new StackPanel { Spacing = 10 };
@@ -1012,12 +1046,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "Duplikat-Finder (SHA-256)",
+            LocalizationService.T("Duplicates.WindowTitle"),
             "🧹",
             bodyGrid,
             defaultWidth: 1080,
             defaultHeight: 740,
-            fontTarget: ChildWindowFontTarget.DuplicateFinder);
+            fontTarget: ChildWindowFontTarget.DuplicateFinder,
+            titleProvider: () => LocalizationService.T("Duplicates.WindowTitle"));
 
         deleteBtn.Click += async (_, _) =>
         {
@@ -1028,7 +1063,7 @@ public sealed partial class ShellDialogService
 
             if (selectedIndices.Count == 0)
             {
-                statusText.Text = "⚠ Keine Dateien markiert. Bitte markieren Sie zuerst die zu löschenden Duplikate.";
+                statusText.Text = LocalizationService.T("Duplicates.NoSelectionWarning");
                 return;
             }
 
@@ -1040,7 +1075,7 @@ public sealed partial class ShellDialogService
             deleteBtn.IsEnabled = false;
             scanBtn.IsEnabled = false;
             selectDupesBtn.IsEnabled = false;
-            statusText.Text = $"Lösche {pathsToDelete.Count} markierte Datei(en)…";
+            statusText.Text = LocalizationService.Format("Duplicates.DeletingFormat", pathsToDelete.Count);
 
             try
             {
@@ -1063,9 +1098,12 @@ public sealed partial class ShellDialogService
                     currentGroups = updatedGroups;
                     RebuildCandidateListFromGroups();
 
-                    string summary = $"{delResult.DeletedCount} Duplikat(e) gelöscht ({Format.Size(delResult.FreedBytes)} freigegeben)";
+                    string summary = LocalizationService.Format(
+                        "Duplicates.DeletedNotification",
+                        delResult.DeletedCount,
+                        Format.Size(delResult.FreedBytes));
                     owner.ViewModel.StatusNotification = summary;
-                    statusText.Text = $"✓ {summary} · {currentGroups.Count} Duplikat-Gruppe(n) verbleibend";
+                    statusText.Text = $"✓ {summary} · {currentGroups.Count}";
 
                     if (owner.ViewModel.Left.ActiveTab is { } lt)
                         await lt.ReloadAsync();
@@ -1074,12 +1112,14 @@ public sealed partial class ShellDialogService
                 }
                 else
                 {
-                    statusText.Text = "⚠ Es konnten keine Dateien gelöscht werden.";
+                    statusText.Text = LocalizationService.Instance.EffectiveLanguage == "de"
+                        ? "⚠ Es konnten keine Dateien gelöscht werden."
+                        : "⚠ No files could be deleted.";
                 }
 
                 if (delResult.Errors.Count > 0)
                 {
-                    ShowMessage("Hinweise beim Löschen von Duplikaten", string.Join(Environment.NewLine, delResult.Errors.Take(10)));
+                    ShowMessage(LocalizationService.T("Duplicates.DeleteNotesTitle"), string.Join(Environment.NewLine, delResult.Errors.Take(10)));
                 }
             }
             finally
@@ -1104,20 +1144,24 @@ public sealed partial class ShellDialogService
         var store = RemoteProfileStore.Shared;
         var profileCombo = new ComboBox
         {
-            Header = "Gespeicherte Server-Profile",
+            Header = LocalizationService.T("Remote.SavedProfiles"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
-        var nameBox = new TextBox { Header = "Profilname", PlaceholderText = "Mein SFTP-Server" };
+        var nameBox = new TextBox
+        {
+            Header = LocalizationService.T("Remote.ProfileName"),
+            PlaceholderText = LocalizationService.T("Remote.ProfileNamePlaceholder"),
+        };
         var protoCombo = new ComboBox
         {
-            Header = "Protokoll",
+            Header = LocalizationService.T("Remote.Protocol"),
             ItemsSource = new[] { "SFTP (SSH)", "FTPS (Explicit TLS)", "FTP (Standard)" },
             SelectedIndex = 0,
             Width = 210,
         };
-        var hostBox = new TextBox { Header = "Host / IP-Adresse", PlaceholderText = "example.com" };
-        var portNum = new NumberBox { Header = "Port", Value = 22, Minimum = 1, Maximum = 65535, Width = 120 };
+        var hostBox = new TextBox { Header = LocalizationService.T("Remote.Host"), PlaceholderText = "example.com" };
+        var portNum = new NumberBox { Header = LocalizationService.T("Remote.Port"), Value = 22, Minimum = 1, Maximum = 65535, Width = 120 };
 
         var hostRow = new Grid { ColumnSpacing = 10 };
         hostRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1130,10 +1174,10 @@ public sealed partial class ShellDialogService
         hostRow.Children.Add(hostBox);
         hostRow.Children.Add(portNum);
 
-        var userBox = new TextBox { Header = "Benutzername", PlaceholderText = "root / ubuntu" };
-        var passBox = new PasswordBox { Header = "Passwort / Key-Passphrase (wird verschlüsselt gespeichert)" };
-        var keyPathBox = new TextBox { Header = "Optionaler SSH Private-Key Pfad (nur SFTP)", PlaceholderText = @"C:\Users\...\.ssh\id_ed25519" };
-        var remoteDirBox = new TextBox { Header = "Startverzeichnis auf dem Server", Text = "/" };
+        var userBox = new TextBox { Header = LocalizationService.T("Remote.Username"), PlaceholderText = "root / ubuntu" };
+        var passBox = new PasswordBox { Header = LocalizationService.T("Remote.Password") };
+        var keyPathBox = new TextBox { Header = LocalizationService.T("Remote.SshKeyPath"), PlaceholderText = @"C:\Users\...\.ssh\id_ed25519" };
+        var remoteDirBox = new TextBox { Header = LocalizationService.T("Remote.InitialDir"), Text = "/" };
 
         var userRow = new Grid { ColumnSpacing = 10 };
         userRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1148,7 +1192,7 @@ public sealed partial class ShellDialogService
         void RefreshProfileCombo()
         {
             var items = store.Profiles.Select(p => $"{p.Name} ({p.Protocol.ToString().ToUpperInvariant()}://{p.Username}@{p.Host}:{p.Port})").ToList();
-            items.Insert(0, "➕ Neues Server-Profil anlegen…");
+            items.Insert(0, LocalizationService.T("Remote.NewProfileItem"));
             profileCombo.ItemsSource = items;
             profileCombo.SelectedIndex = 0;
         }
@@ -1193,8 +1237,8 @@ public sealed partial class ShellDialogService
             }
         };
 
-        var saveBtn = new Button { Content = "💾 Profil speichern", Padding = new Thickness(14, 6, 14, 6) };
-        var deleteBtn = new Button { Content = "🗑 Profil löschen", Padding = new Thickness(14, 6, 14, 6) };
+        var saveBtn = new Button { Content = LocalizationService.T("Remote.SaveProfileBtn"), Padding = new Thickness(14, 6, 14, 6) };
+        var deleteBtn = new Button { Content = LocalizationService.T("Remote.DeleteProfileBtn"), Padding = new Thickness(14, 6, 14, 6) };
         var btnBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         btnBar.Children.Add(saveBtn);
         btnBar.Children.Add(deleteBtn);
@@ -1257,13 +1301,13 @@ public sealed partial class ShellDialogService
 
         var connectBtn = new Button
         {
-            Content = "🌐 Verbinden",
+            Content = LocalizationService.T("Remote.ConnectBtn"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(18, 7, 18, 7),
         };
         var cancelBtn = new Button
         {
-            Content = "Abbrechen",
+            Content = LocalizationService.T("Common.Cancel"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -1289,12 +1333,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "FTP / FTPS / SFTP Verbindungsmanager",
+            LocalizationService.T("Remote.WindowTitle"),
             "🌐",
             bodyGrid,
             defaultWidth: 880,
             defaultHeight: 650,
-            fontTarget: ChildWindowFontTarget.FtpManager);
+            fontTarget: ChildWindowFontTarget.FtpManager,
+            titleProvider: () => LocalizationService.T("Remote.WindowTitle"));
 
         bool connectConfirmed = false;
         RemoteConnectionProfile? capturedProfile = null;
@@ -1323,20 +1368,21 @@ public sealed partial class ShellDialogService
         var tcs = new TaskCompletionSource<bool>();
 
         string singleTrimmed = sourcePaths.Count == 1 ? sourcePaths[0].TrimEnd('\\', '/') : "";
+        string defaultStem = LocalizationService.Instance.EffectiveLanguage == "de" ? "Archiv" : "Archive";
         string baseStem = sourcePaths.Count == 1
             ? (Directory.Exists(singleTrimmed) ? Path.GetFileName(singleTrimmed) : Path.GetFileNameWithoutExtension(singleTrimmed))
-            : "Archiv";
+            : defaultStem;
         if (string.IsNullOrWhiteSpace(baseStem))
-            baseStem = "Archiv";
+            baseStem = defaultStem;
 
         var formatCombo = new ComboBox
         {
-            Header = "Archiv-Format",
+            Header = LocalizationService.T("Archive.FormatHeader"),
             ItemsSource = new[]
             {
-                "ZIP-Archiv (.zip)",
-                "TAR.GZ-Archiv (.tar.gz)",
-                "7-Zip-Archiv (.7z)"
+                LocalizationService.T("Archive.FormatZip"),
+                LocalizationService.T("Archive.FormatTarGz"),
+                LocalizationService.T("Archive.Format7z"),
             },
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -1344,7 +1390,7 @@ public sealed partial class ShellDialogService
 
         var destBox = new TextBox
         {
-            Header = "Zieldatei",
+            Header = LocalizationService.T("Archive.DestFileHeader"),
             Text = Path.Combine(defaultOutputDirectory, baseStem + ".zip"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
@@ -1383,20 +1429,20 @@ public sealed partial class ShellDialogService
         topPanel.Children.Add(destBox);
         topPanel.Children.Add(new TextBlock
         {
-            Text = $"Ausgewählte Quellelemente ({sourcePaths.Count}):",
+            Text = LocalizationService.Format("Archive.SelectedSourcesFormat", sourcePaths.Count),
             FontWeight = FontWeights.SemiBold,
             FontSize = 12.5,
         });
 
         var createBtn = new Button
         {
-            Content = "📦 Archiv erstellen",
+            Content = LocalizationService.T("Archive.CreateBtn"),
             FontWeight = FontWeights.SemiBold,
             Padding = new Thickness(18, 7, 18, 7),
         };
         var cancelBtn = new Button
         {
-            Content = "Abbrechen",
+            Content = LocalizationService.T("Common.Cancel"),
             Padding = new Thickness(14, 7, 14, 7),
         };
 
@@ -1425,12 +1471,13 @@ public sealed partial class ShellDialogService
         bodyGrid.Children.Add(footerBar);
 
         var win = CreateResizableChildWindow(
-            "In Archiv packen (Alt+F5)",
+            LocalizationService.T("Archive.WindowTitle"),
             "📦",
             bodyGrid,
             defaultWidth: 880,
             defaultHeight: 620,
-            fontTarget: ChildWindowFontTarget.ArchiveDialog);
+            fontTarget: ChildWindowFontTarget.ArchiveDialog,
+            titleProvider: () => LocalizationService.T("Archive.WindowTitle"));
 
         bool createConfirmed = false;
         string capturedTargetArchive = "";
@@ -1462,13 +1509,13 @@ public sealed partial class ShellDialogService
 
         try
         {
-            owner.ViewModel.StatusNotification = $"Erstelle {Path.GetFileName(capturedTargetArchive)}…";
+            owner.ViewModel.StatusNotification = LocalizationService.Format("Archive.CreatingNotification", Path.GetFileName(capturedTargetArchive));
             await ArchiveService.CreateArchiveAsync(sourcePaths, capturedTargetArchive, format);
             return capturedTargetArchive;
         }
         catch (Exception ex)
         {
-            ShowMessage("Archiv erstellen fehlgeschlagen", ex.Message);
+            ShowMessage(LocalizationService.T("Archive.FailedTitle"), ex.Message);
             return null;
         }
     }

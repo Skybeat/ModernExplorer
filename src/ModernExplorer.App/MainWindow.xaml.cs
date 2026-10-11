@@ -226,6 +226,11 @@ public sealed partial class MainWindow : Window
     public void ApplyLocalization()
     {
         var loc = LocalizationService.Instance;
+        string appTitle = $"ModernExplorer v{GitHubUpdateService.GetCurrentVersionString()}";
+        Title = appTitle;
+        if (AppTitleTextBlock is not null)
+            AppTitleTextBlock.Text = appTitle;
+
         bool showTips = ViewModel.Settings.ShowToolTips;
         void SetTip(DependencyObject? el, string? tip)
         {
@@ -365,6 +370,11 @@ public sealed partial class MainWindow : Window
 
         if (OperationsPanelTitleText is not null) OperationsPanelTitleText.Text = loc["Ops.Title"];
         if (OperationsHideButton is not null) OperationsHideButton.Content = loc["Ops.Hide"];
+
+        if (ViewModel.IsQuickPreviewPanelOpen)
+            _ = RefreshQuickPreviewPanelAsync();
+        else if (QuickPreviewTitleText is not null)
+            QuickPreviewTitleText.Text = loc["PreviewPanel.Header"];
     }
 
     public async Task CheckForGitHubUpdatesAsync(bool manualTrigger = false)
@@ -409,6 +419,11 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            string appTitle = $"ModernExplorer v{GitHubUpdateService.GetCurrentVersionString()}";
+            Title = appTitle;
+            if (AppTitleTextBlock is not null)
+                AppTitleTextBlock.Text = appTitle;
+
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(TitleBarDragRegion);
 
@@ -1115,7 +1130,7 @@ public sealed partial class MainWindow : Window
             renameItem.Click += async (_, _) => await ViewModel.RenameFocusedAsync();
             menu.Items.Add(renameItem);
 
-            var batchRenameItem = new MenuFlyoutItem { Text = "✏ Mehrfach-Umbenennen (Strg+M)" };
+            var batchRenameItem = new MenuFlyoutItem { Text = $"{LocalizationService.T("Feature.BatchRename.Label")} (Ctrl+M)" };
             batchRenameItem.Click += (_, _) => ExecuteCommand("file.batchRename");
             menu.Items.Add(batchRenameItem);
 
@@ -1125,20 +1140,25 @@ public sealed partial class MainWindow : Window
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            var packArchiveItem = new MenuFlyoutItem { Text = "📦 In Archiv packen (Alt+F5)" };
+            var packArchiveItem = new MenuFlyoutItem { Text = $"{LocalizationService.T("Feature.PackArchive.Label")} (Alt+F5)" };
             packArchiveItem.Click += (_, _) => ExecuteCommand("archive.pack");
             menu.Items.Add(packArchiveItem);
 
             if (!item.IsDirectory && ModernExplorer.Core.Archive.ArchiveService.IsSupportedArchive(item.FullPath))
             {
-                var unpackArchiveItem = new MenuFlyoutItem { Text = "📂 Archiv entpacken (Alt+F9)" };
+                var unpackArchiveItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.ExtractHere") };
                 unpackArchiveItem.Click += (_, _) => ExecuteCommand("archive.extract");
                 menu.Items.Add(unpackArchiveItem);
             }
 
             if (tab.IsRemoteConnection)
             {
-                var chmodItem = new MenuFlyoutItem { Text = "🔐 Berechtigungen ändern (chmod)" };
+                var chmodItem = new MenuFlyoutItem
+                {
+                    Text = LocalizationService.Instance.EffectiveLanguage == "de"
+                        ? "🔐 Berechtigungen ändern (chmod)"
+                        : "🔐 Change Permissions (chmod)"
+                };
                 chmodItem.Click += (_, _) => ExecuteCommand("remote.chmod");
                 menu.Items.Add(chmodItem);
             }
@@ -1298,7 +1318,7 @@ public sealed partial class MainWindow : Window
         if (sender is FrameworkElement { DataContext: ModernExplorer.Core.Favorites.FavoriteItem fav } fe)
         {
             var menu = new MenuFlyout();
-            var openTabItem = new MenuFlyoutItem { Text = "In neuem Tab öffnen" };
+            var openTabItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.OpenInNewTab") };
             openTabItem.Click += async (_, _) =>
             {
                 await ViewModel.ActivePanel.CreateTabAsync(fav.Path);
@@ -1306,7 +1326,7 @@ public sealed partial class MainWindow : Window
             };
             menu.Items.Add(openTabItem);
 
-            var removeItem = new MenuFlyoutItem { Text = "Aus Favoriten entfernen" };
+            var removeItem = new MenuFlyoutItem { Text = LocalizationService.Format("Favorites.RemoveMenu", fav.Label) };
             removeItem.Click += (_, _) =>
             {
                 ViewModel.Favorites.RemoveBookmark(fav.Path);
@@ -1324,7 +1344,9 @@ public sealed partial class MainWindow : Window
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Link;
-            e.DragUIOverride.Caption = "Zu Favoriten hinzufügen";
+            e.DragUIOverride.Caption = LocalizationService.Instance.EffectiveLanguage == "de"
+                ? "Zu Favoriten hinzufügen"
+                : "Add to Favorites";
             e.Handled = true;
         }
     }
@@ -1405,11 +1427,12 @@ public sealed partial class MainWindow : Window
     {
         if (!ViewModel.IsQuickPreviewPanelOpen) return;
 
+        bool isDe = LocalizationService.Instance.EffectiveLanguage == "de";
         var item = ViewModel.ActivePanel.ActiveTab?.FocusedItem;
         if (item is null || item.IsParentLink)
         {
-            QuickPreviewTitleText.Text = "Schnellvorschau (Strg+Q)";
-            QuickPreviewMetaText.Text = "Keine Datei ausgewählt";
+            QuickPreviewTitleText.Text = LocalizationService.T("PreviewPanel.Header");
+            QuickPreviewMetaText.Text = LocalizationService.T("PreviewPanel.EmptyPrompt");
             QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
             QuickPreviewTextBox.Visibility = Visibility.Visible;
             QuickPreviewTextBox.Text = "";
@@ -1418,7 +1441,7 @@ public sealed partial class MainWindow : Window
 
         QuickPreviewTitleText.Text = item.Name;
         QuickPreviewMetaText.Text = item.IsDirectory
-            ? $"Ordner • {item.ModifiedText}"
+            ? $"{LocalizationService.T("File.FolderType")} • {item.ModifiedText}"
             : $"{item.SizeText} • {item.ModifiedText}";
 
         if (item.IsDirectory)
@@ -1431,8 +1454,10 @@ public sealed partial class MainWindow : Window
                 {
                     var entries = Directory.EnumerateFileSystemEntries(item.FullPath).Take(80).Select(Path.GetFileName).ToList();
                     QuickPreviewTextBox.Text = entries.Count == 0
-                        ? "(Leerer Ordner)"
-                        : $"Ordnerinhalt ({entries.Count} Einträge):\n\n" + string.Join("\n", entries);
+                        ? (isDe ? "(Leerer Ordner)" : "(Empty folder)")
+                        : (isDe
+                            ? $"Ordnerinhalt ({entries.Count} Einträge):\n\n" + string.Join("\n", entries)
+                            : $"Folder contents ({entries.Count} items):\n\n" + string.Join("\n", entries));
                 }
                 else
                 {
@@ -1450,7 +1475,9 @@ public sealed partial class MainWindow : Window
         {
             QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
             QuickPreviewTextBox.Visibility = Visibility.Visible;
-            QuickPreviewTextBox.Text = $"Virtueller / Remote-Eintrag:\n{item.FullPath}\n\nDrücken Sie F3 für die vollständige Schnellansicht.";
+            QuickPreviewTextBox.Text = isDe
+                ? $"Virtueller / Remote-Eintrag:\n{item.FullPath}\n\nDrücken Sie F3 für die vollständige Schnellansicht."
+                : $"Virtual / Remote Entry:\n{item.FullPath}\n\nPress F3 for the full Quick Viewer.";
             return;
         }
 

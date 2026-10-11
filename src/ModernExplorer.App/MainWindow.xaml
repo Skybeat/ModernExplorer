@@ -495,7 +495,7 @@
                             VerticalAlignment="Center"
                             IsHitTestVisible="False">
                     <Image Source="ms-appx:///Assets/AppIcon.png" Width="18" Height="18" VerticalAlignment="Center" />
-                    <TextBlock Text="ModernExplorer" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" />
+                    <TextBlock x:Name="AppTitleTextBlock" Text="ModernExplorer" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" />
                     <Border Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
                             CornerRadius="4"
                             Padding="8,2"

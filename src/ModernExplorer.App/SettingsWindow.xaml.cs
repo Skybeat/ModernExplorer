@@ -184,6 +184,23 @@ public sealed partial class SettingsWindow : Window
         if (ColorMarkedTextDesc is not null) ColorMarkedTextDesc.Text = loc["Settings.Colors.Marked.Desc"];
         if (ColorMarkedTextApplyBtn is not null) ColorMarkedTextApplyBtn.Content = loc["Settings.Apply"];
         if (ColorMarkedTextPreviewText is not null) ColorMarkedTextPreviewText.Text = loc["Settings.Colors.Marked.Preview"];
+        if (ColorTreemapTitle is not null) ColorTreemapTitle.Text = loc["Settings.Colors.Treemap.Title"];
+        if (ColorTreemapDesc is not null) ColorTreemapDesc.Text = loc["Settings.Colors.Treemap.Desc"];
+        if (TreemapCatVideoLabel is not null) TreemapCatVideoLabel.Text = loc["Settings.Colors.Treemap.CatVideo"];
+        if (TreemapCatArchiveLabel is not null) TreemapCatArchiveLabel.Text = loc["Settings.Colors.Treemap.CatArchive"];
+        if (TreemapCatVdiskLabel is not null) TreemapCatVdiskLabel.Text = loc["Settings.Colors.Treemap.CatVdisk"];
+        if (TreemapCatCodeLabel is not null) TreemapCatCodeLabel.Text = loc["Settings.Colors.Treemap.CatCode"];
+        if (TreemapCatPictureLabel is not null) TreemapCatPictureLabel.Text = loc["Settings.Colors.Treemap.CatPic"];
+        if (TreemapCatBinaryLabel is not null) TreemapCatBinaryLabel.Text = loc["Settings.Colors.Treemap.CatBin"];
+        if (TreemapCatOtherLabel is not null) TreemapCatOtherLabel.Text = loc["Settings.Colors.Treemap.CatOther"];
+        if (TreemapApplyBtn1 is not null) TreemapApplyBtn1.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn2 is not null) TreemapApplyBtn2.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn3 is not null) TreemapApplyBtn3.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn4 is not null) TreemapApplyBtn4.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn5 is not null) TreemapApplyBtn5.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn6 is not null) TreemapApplyBtn6.Content = loc["Settings.Apply"];
+        if (TreemapApplyBtn7 is not null) TreemapApplyBtn7.Content = loc["Settings.Apply"];
+        if (ResetTreemapColorsButton is not null) ResetTreemapColorsButton.Content = loc["Settings.Colors.Treemap.ResetButton"];
 
         // Category 3: File List & Behavior
         if (BehaviorHeaderTitle is not null) BehaviorHeaderTitle.Text = loc["Settings.Behavior.Header"];
@@ -236,6 +253,10 @@ public sealed partial class SettingsWindow : Window
         // Category 5: Font Sizes
         if (FontsHeaderTitle is not null) FontsHeaderTitle.Text = loc["Settings.Fonts.Header"];
         if (FontsHeaderSub is not null) FontsHeaderSub.Text = loc["Settings.Fonts.Sub"];
+        if (FontGlobalCardTitle is not null) FontGlobalCardTitle.Text = loc["Settings.Fonts.GlobalCardTitle"];
+        if (UseGlobalFontSizeCheckBox is not null) UseGlobalFontSizeCheckBox.Content = loc["Settings.Fonts.UseGlobalCheckBox"];
+        if (FontGlobalSliderLabel is not null) FontGlobalSliderLabel.Text = loc["Settings.Fonts.GlobalSliderLabel"];
+        if (FontMainWinCardTitle is not null) FontMainWinCardTitle.Text = loc["Settings.Fonts.MainWinCardTitle"];
         if (FontFileListLabel is not null) FontFileListLabel.Text = loc["Settings.Fonts.FileList"];
         if (FontFileListDetailsLabel is not null) FontFileListDetailsLabel.Text = loc["Settings.Fonts.FileListDetails"];
         if (FontTabsLabel is not null) FontTabsLabel.Text = loc["Settings.Fonts.Tabs"];
@@ -244,6 +265,18 @@ public sealed partial class SettingsWindow : Window
         if (FontBreadcrumbsLabel is not null) FontBreadcrumbsLabel.Text = loc["Settings.Fonts.Breadcrumbs"];
         if (FontStatusBarLabel is not null) FontStatusBarLabel.Text = loc["Settings.Fonts.StatusBar"];
         if (FontFunctionBarLabel is not null) FontFunctionBarLabel.Text = loc["Settings.Fonts.FunctionBar"];
+        if (FontChildWinCardTitle is not null) FontChildWinCardTitle.Text = loc["Settings.Fonts.ChildWinCardTitle"];
+        if (FontChildWinCardDesc is not null) FontChildWinCardDesc.Text = loc["Settings.Fonts.ChildWinCardDesc"];
+        if (FontQuickViewerLabel is not null) FontQuickViewerLabel.Text = loc["Settings.Fonts.QuickViewer"];
+        if (FontEditorLabel is not null) FontEditorLabel.Text = loc["Settings.Fonts.Editor"];
+        if (FontBatchRenameLabel is not null) FontBatchRenameLabel.Text = loc["Settings.Fonts.BatchRename"];
+        if (FontDirectorySyncLabel is not null) FontDirectorySyncLabel.Text = loc["Settings.Fonts.DirectorySync"];
+        if (FontDeepSearchLabel is not null) FontDeepSearchLabel.Text = loc["Settings.Fonts.DeepSearch"];
+        if (FontDuplicateFinderLabel is not null) FontDuplicateFinderLabel.Text = loc["Settings.Fonts.DuplicateFinder"];
+        if (FontStorageAnalyzerLabel is not null) FontStorageAnalyzerLabel.Text = loc["Settings.Fonts.StorageAnalyzer"];
+        if (FontFtpManagerLabel is not null) FontFtpManagerLabel.Text = loc["Settings.Fonts.RemoteManager"];
+        if (FontArchiveDialogLabel is not null) FontArchiveDialogLabel.Text = loc["Settings.Fonts.ArchiveDialog"];
+        if (FontAboutWindowLabel is not null) FontAboutWindowLabel.Text = loc["Settings.Fonts.AboutWindow"];
         if (ResetFontSizesButton is not null) ResetFontSizesButton.Content = loc["Settings.Fonts.ResetButton"];
 
         // Category 6: Session, Updates & Windows
@@ -498,7 +531,7 @@ public sealed partial class SettingsWindow : Window
         Settings.ResetTreemapColorsToDefaults();
         SyncTreemapColorHexBoxes();
         Bindings.Update();
-        _owner.ViewModel.StatusNotification = "Treemap-Farben auf Standardwerte zurückgesetzt.";
+        _owner.ViewModel.StatusNotification = LocalizationService.T("Notify.TreemapColorsReset");
     }
 
     private void SyncTreemapColorHexBoxes()

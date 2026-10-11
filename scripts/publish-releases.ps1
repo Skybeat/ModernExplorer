@@ -134,15 +134,25 @@ $isccCandidates = @(
 $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 Write-Output "=== 1. Building Self-Contained Windows Native WinUI 3 Releases (win-x64, win-arm64) ==="
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$Version
+if (Test-Path "src\ModernExplorer.App\bin\x64\Release") { Remove-Item "src\ModernExplorer.App\bin\x64\Release" -Recurse -Force }
+if (Test-Path "src\ModernExplorer.App\bin\ARM64\Release") { Remove-Item "src\ModernExplorer.App\bin\ARM64\Release" -Recurse -Force }
+
+dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
 $x64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64").Path
+Remove-Item "$x64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
+$vcDlls64 = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
+foreach ($dll in $vcDlls64) {
+    $srcDll = Join-Path $env:SystemRoot "System32\$dll"
+    if (Test-Path $srcDll) { Copy-Item $srcDll -Destination $x64OutDir -Force }
+}
 Compress-Archive -Path "$x64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-x64.zip" -Force
 if ($iscc) {
     & $iscc "/DAppVersion=$Version" "/DTargetRid=win-x64" "/DSourceDir=$x64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
 }
 
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=$Version
+dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
 $arm64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64").Path
+Remove-Item "$arm64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path "$arm64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-arm64.zip" -Force
 if ($iscc) {
     & $iscc "/DAppVersion=$Version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
@@ -157,11 +167,19 @@ foreach ($rid in $CrossPlatformRids) {
         -c Release `
         -r $rid `
         --self-contained true `
+        -p:SelfContained=true `
         -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:IncludeAllContentForSelfExtract=true `
         -p:Version=$Version `
         -o $pubDir
+    if ($rid -eq "win-x86") {
+        $vcDlls86 = @("vcruntime140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
+        foreach ($dll in $vcDlls86) {
+            $srcDll86 = Join-Path $env:SystemRoot "SysWOW64\$dll"
+            if (Test-Path $srcDll86) { Copy-Item $srcDll86 -Destination $pubDir -Force }
+        }
+    }
     $zipName = if ($rid -like "win-*") { "ModernExplorer-windows-$($rid.Substring(4)).zip" } else { "ModernExplorer-$rid.zip" }
     Compress-Archive -Path "$pubDir\*" -DestinationPath "$DistDir\$zipName" -Force
     if ($rid -eq "win-x86" -and $iscc) {

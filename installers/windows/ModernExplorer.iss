@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Modern Explorer (Windows x64, ARM64, x86)
 #ifndef AppVersion
-  #define AppVersion "1.5.0"
+  #define AppVersion "1.6.0"
 #endif
 #ifndef TargetRid
   #define TargetRid "win-x64"
@@ -61,6 +61,11 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; Check: not IsUpgradeInstalled
+
+[InstallDelete]
+Type: files; Name: "{app}\ModernExplorer.runtimeconfig.json"
+Type: files; Name: "{app}\ModernExplorer.deps.json"
+Type: files; Name: "{app}\Microsoft.WindowsAppRuntime.Bootstrap*.dll"
 
 [Dirs]
 Name: "{app}"; Permissions: users-modify

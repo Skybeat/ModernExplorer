@@ -545,7 +545,7 @@
                                         <Button Tag="VideoMedia:#EC4899" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#EC4899" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapVideoHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapVideoMediaColor, Mode=OneWay}" PlaceholderText="#3B82F6" />
-                                    <Button Grid.Column="4" Tag="VideoMedia" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn1" Grid.Column="4" Tag="VideoMedia" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 1: Archive & Disk-Images -->
@@ -567,7 +567,7 @@
                                         <Button Tag="ArchiveImage:#6366F1" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#6366F1" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapArchiveHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapArchiveImageColor, Mode=OneWay}" PlaceholderText="#8B5CF6" />
-                                    <Button Grid.Column="4" Tag="ArchiveImage" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn2" Grid.Column="4" Tag="ArchiveImage" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 2: Virtuelle Disks, DB & System -->
@@ -589,7 +589,7 @@
                                         <Button Tag="VirtualDiskSystem:#DC2626" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#DC2626" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapVdiskHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapVirtualDiskSystemColor, Mode=OneWay}" PlaceholderText="#F97316" />
-                                    <Button Grid.Column="4" Tag="VirtualDiskSystem" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn3" Grid.Column="4" Tag="VirtualDiskSystem" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 3: Code, Text & Dokumente -->
@@ -611,7 +611,7 @@
                                         <Button Tag="CodeDocument:#84CC16" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#84CC16" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapCodeHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapCodeDocumentColor, Mode=OneWay}" PlaceholderText="#10B981" />
-                                    <Button Grid.Column="4" Tag="CodeDocument" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn4" Grid.Column="4" Tag="CodeDocument" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 4: Bilder & Grafiken -->
@@ -633,7 +633,7 @@
                                         <Button Tag="PictureGraphic:#F43F5E" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#F43F5E" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapPictureHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapPictureGraphicColor, Mode=OneWay}" PlaceholderText="#06B6D4" />
-                                    <Button Grid.Column="4" Tag="PictureGraphic" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn5" Grid.Column="4" Tag="PictureGraphic" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 5: Programme & Bibliotheken -->
@@ -655,7 +655,7 @@
                                         <Button Tag="BinaryExecutable:#D97706" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#D97706" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapBinaryHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapBinaryExecutableColor, Mode=OneWay}" PlaceholderText="#EAB308" />
-                                    <Button Grid.Column="4" Tag="BinaryExecutable" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn6" Grid.Column="4" Tag="BinaryExecutable" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <!-- Category 6: Sonstige & Temp -->
@@ -677,7 +677,7 @@
                                         <Button Tag="OtherTemp:#78716C" Click="OnTreemapColorPresetClick" Padding="6,5"><Border Width="14" Height="12" CornerRadius="2" Background="#78716C" /></Button>
                                     </StackPanel>
                                     <TextBox x:Name="TreemapOtherHexBox" Grid.Column="3" Text="{x:Bind Settings.TreemapOtherTempColor, Mode=OneWay}" PlaceholderText="#64748B" />
-                                    <Button Grid.Column="4" Tag="OtherTemp" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
+                                    <Button x:Name="TreemapApplyBtn7" Grid.Column="4" Tag="OtherTemp" Content="Übernehmen" Click="OnApplyTreemapHexColorClick" />
                                 </Grid>
 
                                 <Button x:Name="ResetTreemapColorsButton"

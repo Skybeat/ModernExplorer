@@ -278,6 +278,35 @@ public sealed class AboutAndLocalizationTests
         Assert.Equal(SemVerBumpType.Major, GitHubUpdateService.DetermineSemanticVersionBump(["refactor: update API\n\nBREAKING CHANGE: session v2"]));
     }
 
+    [Fact]
+    public void LocalizationService_AllChildWindows_Treemap_And_SettingsCards_AreLocalizedInEnglish()
+    {
+        var loc = LocalizationService.Instance;
+        string prevLang = loc.EffectiveLanguage;
+        try
+        {
+            loc.SetLanguage("en");
+
+            Assert.Equal("Disk Space Analyzer & Graphical Treemap (WinDirStat / Ctrl+Shift+W)", LocalizationService.T("Treemap.WindowTitle"));
+            Assert.Equal("Multi-Rename Tool (Ctrl+M)", LocalizationService.T("BatchRename.HeaderTitle"));
+            Assert.Equal("Synchronize Directories (Ctrl+Shift+S)", LocalizationService.T("DirSync.WindowTitle"));
+            Assert.Equal("Recursive Deep Search (Alt+F7)", LocalizationService.T("DeepSearch.WindowTitle"));
+            Assert.Equal("Duplicate Finder — Locate Identical Files", LocalizationService.T("Duplicates.WindowTitle"));
+            Assert.Equal("FTP / FTPS / SFTP Connection Manager", LocalizationService.T("Remote.WindowTitle"));
+            Assert.Equal("Pack to Archive (Alt+F5)", LocalizationService.T("Archive.WindowTitle"));
+            Assert.Contains("Quick Viewer (F3)", LocalizationService.Format("QuickView.WindowTitle", "test.txt"));
+            Assert.Contains("Editor (F4)", LocalizationService.Format("Editor.WindowTitle", "test.txt"));
+            Assert.Contains("Drag to resize the width", LocalizationService.T("Treemap.SplitterHorizontalTip"));
+            Assert.Contains("Drag to resize the height", LocalizationService.T("Treemap.SplitterVerticalTip"));
+            Assert.Contains("File category colors in Disk Space Analyzer", LocalizationService.T("Settings.Colors.Treemap.Title"));
+            Assert.Contains("Child Windows", LocalizationService.T("Settings.Fonts.ChildWinCardTitle"));
+        }
+        finally
+        {
+            loc.SetLanguage(prevLang);
+        }
+    }
+
     private sealed class ImmediateTestDispatcher : IUiDispatcher
     {
         public bool HasThreadAccess => true;

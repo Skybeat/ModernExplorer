@@ -429,4 +429,43 @@ public sealed class PowerFeaturesTests : IDisposable
             settings.QuickViewerFontSize = origQuickViewerSize;
         }
     }
+
+    [Fact]
+    public async Task StorageTreemapService_LocalizesCategoryNames_And_NoExtensionLabel_InEnglishAndGerman()
+    {
+        string root = Path.Combine(_tempDir, "treemap_loc");
+        Directory.CreateDirectory(root);
+        await File.WriteAllBytesAsync(Path.Combine(root, "README"), new byte[1_024]);
+
+        var loc = LocalizationService.Instance;
+        string prevLang = loc.EffectiveLanguage;
+        try
+        {
+            loc.SetLanguage("en");
+            Assert.Equal("Video & Audio", StorageTreemapService.GetCategoryDisplayName(StorageCategory.VideoAudio));
+            Assert.Equal("Virtual Disks, DB & System", StorageTreemapService.GetCategoryDisplayName(StorageCategory.VirtualDiskSystem));
+            Assert.Contains("Disk Space Analyzer & Graphical Treemap", LocalizationService.T("Treemap.WindowTitle"));
+
+            var enTree = await StorageTreemapService.ScanDirectoryTreeAsync(root);
+            var enFile = enTree.Children.Single(c => c.Name == "README");
+            Assert.Equal("<no extension>", enFile.Extension);
+
+            var enStats = StorageTreemapService.ComputeExtensionStats(enTree);
+            Assert.Single(enStats);
+            Assert.Equal("<no extension>", enStats[0].Extension);
+
+            loc.SetLanguage("de");
+            Assert.Equal("Video & Audio", StorageTreemapService.GetCategoryDisplayName(StorageCategory.VideoAudio));
+            Assert.Equal("Virtuelle Disks, DB & System", StorageTreemapService.GetCategoryDisplayName(StorageCategory.VirtualDiskSystem));
+            Assert.Contains("Speicherplatz-Analysator", LocalizationService.T("Treemap.WindowTitle"));
+
+            var deTree = await StorageTreemapService.ScanDirectoryTreeAsync(root);
+            var deFile = deTree.Children.Single(c => c.Name == "README");
+            Assert.Equal("<ohne Endung>", deFile.Extension);
+        }
+        finally
+        {
+            loc.SetLanguage(prevLang);
+        }
+    }
 }

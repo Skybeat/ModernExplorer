@@ -148,13 +148,13 @@ public static class StorageTreemapService
 
     public static string GetCategoryDisplayName(StorageCategory category) => category switch
     {
-        StorageCategory.VideoMedia => "Video & Audio",
-        StorageCategory.ArchiveImage => "Archive & Disk-Images",
-        StorageCategory.VirtualDiskSystem => "Virtuelle Disks, DB & System",
-        StorageCategory.CodeDocument => "Code, Text & Dokumente",
-        StorageCategory.PictureGraphic => "Bilder & Grafiken",
-        StorageCategory.BinaryExecutable => "Programme & Bibliotheken",
-        _ => "Sonstige & Temp",
+        StorageCategory.VideoMedia => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.VideoMedia"),
+        StorageCategory.ArchiveImage => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.ArchiveImage"),
+        StorageCategory.VirtualDiskSystem => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.VirtualDiskSystem"),
+        StorageCategory.CodeDocument => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.CodeDocument"),
+        StorageCategory.PictureGraphic => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.PictureGraphic"),
+        StorageCategory.BinaryExecutable => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.BinaryExecutable"),
+        _ => ModernExplorer.Core.Localization.LocalizationService.T("Treemap.Cat.OtherTemp"),
     };
 
     public static (StorageCategory Category, string ColorHex, string CategoryLabel) ClassifyExtension(string? fileNameOrExtension)
@@ -255,7 +255,9 @@ public static class StorageTreemapService
                     long len = 0;
                     try { len = fi.Length; } catch { }
 
-                    string ext = string.IsNullOrEmpty(fi.Extension) ? "<ohne Endung>" : fi.Extension.ToLowerInvariant();
+                    string ext = string.IsNullOrEmpty(fi.Extension)
+                        ? ModernExplorer.Core.Localization.LocalizationService.T("Treemap.NoExtension")
+                        : fi.Extension.ToLowerInvariant();
                     var (cat, colorHex, _) = ClassifyExtension(ext);
                     string relPath;
                     try { relPath = Path.GetRelativePath(normalizedRoot, fi.FullName); }
@@ -359,10 +361,12 @@ public static class StorageTreemapService
         {
             if (!node.IsDirectory)
             {
-                string ext = string.IsNullOrWhiteSpace(node.Extension) ? "<ohne Endung>" : node.Extension.ToLowerInvariant();
+                string ext = string.IsNullOrWhiteSpace(node.Extension) || node.Extension.StartsWith('<')
+                    ? ModernExplorer.Core.Localization.LocalizationService.T("Treemap.NoExtension")
+                    : node.Extension.ToLowerInvariant();
                 if (!map.TryGetValue(ext, out var cur))
                 {
-                    var (cat, color, label) = ClassifyExtension(ext);
+                    var (cat, color, label) = ClassifyExtension(ext.StartsWith('<') ? "" : ext);
                     cur = (cat, label, color, 0L, 0);
                 }
                 map[ext] = (cur.Cat, cur.Label, cur.Color, cur.Bytes + node.SizeBytes, cur.Count + 1);
