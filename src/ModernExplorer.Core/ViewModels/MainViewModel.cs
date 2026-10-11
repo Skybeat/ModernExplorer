@@ -547,6 +547,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             {
                 if (ActivePanel.ActiveTab is { } t) await t.AnalyzeDirectorySizesAsync(sortBySizeDescending: true);
             })
+            .Register("tools.storageTreemap", "Grafischer Speicherplatz-Analysator / Treemap (WinDirStat) (Strg+Shift+W)", "Werkzeuge", async _ => await OpenStorageTreemapAsync())
             .Register("tools.remoteConnect", "FTP / FTPS / SFTP-Verbindungsmanager (Strg+Shift+C)", "Werkzeuge", async _ => await OpenRemoteConnectDialogAsync())
             .Register("archive.pack", "In Archiv packen (.zip / .tar.gz / .7z) (Alt+F5)", "Archiv", async _ => await PackSelectedToArchiveAsync())
             .Register("archive.extract", "Archiv entpacken (Alt+F9)", "Archiv", async _ => await ExtractSelectedArchiveAsync())
@@ -670,6 +671,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (ActivePanel.ActiveTab is not null)
                 await ActivePanel.ActiveTab.ReloadAsync();
         }
+    }
+
+    public async Task OpenStorageTreemapAsync(string? targetDirectory = null)
+    {
+        var dir = !string.IsNullOrWhiteSpace(targetDirectory) && Directory.Exists(targetDirectory)
+            ? targetDirectory
+            : ActivePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false, IsSearchResultsTab: false } t && Directory.Exists(t.CurrentPath)
+                ? t.CurrentPath
+                : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        await _ui.ShowStorageTreemapDialogAsync(dir);
     }
 
     public async Task OpenRemoteConnectDialogAsync()

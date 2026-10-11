@@ -89,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 3, 0);
+        return new Version(1, 3, 1);
     }
 
     public static string GetCurrentVersionString()
@@ -630,10 +630,53 @@ public sealed class GitHubUpdateService
         sb.AppendLine("    }");
         sb.AppendLine("} catch { }");
         sb.AppendLine("Set-UpdateProgress 100 $doneText $exePath");
-        sb.AppendLine("Start-Sleep -Milliseconds 500");
-        sb.AppendLine("$form.Close()");
-        sb.AppendLine("$form.Dispose()");
-        sb.AppendLine("Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\"");
+        sb.AppendLine("Add-Type -TypeDefinition @'");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Runtime.InteropServices;");
+        sb.AppendLine("public static class MeWin32Fg {");
+        sb.AppendLine("    [DllImport(\"user32.dll\")] public static extern bool AllowSetForegroundWindow(int dwProcessId);");
+        sb.AppendLine("    [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd);");
+        sb.AppendLine("    [DllImport(\"user32.dll\")] public static extern bool BringWindowToTop(IntPtr hWnd);");
+        sb.AppendLine("    [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);");
+        sb.AppendLine("    [DllImport(\"user32.dll\")] public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);");
+        sb.AppendLine("}");
+        sb.AppendLine("'@ -ErrorAction SilentlyContinue");
+        sb.AppendLine("try { [MeWin32Fg]::AllowSetForegroundWindow(-1) | Out-Null } catch { }");
+        sb.AppendLine("$form.Activate()");
+        sb.AppendLine("[System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("$launched = Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\" -PassThru");
+        sb.AppendLine("if ($launched) {");
+        sb.AppendLine("    try { [MeWin32Fg]::AllowSetForegroundWindow($launched.Id) | Out-Null } catch { }");
+        sb.AppendLine("    $hWnd = [IntPtr]::Zero");
+        sb.AppendLine("    for ($k = 0; $k -lt 40; $k++) {");
+        sb.AppendLine("        Start-Sleep -Milliseconds 100");
+        sb.AppendLine("        [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("        try {");
+        sb.AppendLine("            $launched.Refresh()");
+        sb.AppendLine("            if ($launched.MainWindowHandle -ne [IntPtr]::Zero) {");
+        sb.AppendLine("                $hWnd = $launched.MainWindowHandle");
+        sb.AppendLine("                break");
+        sb.AppendLine("            }");
+        sb.AppendLine("        } catch { }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    $form.Close()");
+        sb.AppendLine("    $form.Dispose()");
+        sb.AppendLine("    try {");
+        sb.AppendLine("        $wsh = New-Object -ComObject WScript.Shell");
+        sb.AppendLine("        $wsh.AppActivate($launched.Id) | Out-Null");
+        sb.AppendLine("    } catch { }");
+        sb.AppendLine("    if ($hWnd -ne [IntPtr]::Zero) {");
+        sb.AppendLine("        try {");
+        sb.AppendLine("            [MeWin32Fg]::ShowWindow($hWnd, 9) | Out-Null");
+        sb.AppendLine("            [MeWin32Fg]::BringWindowToTop($hWnd) | Out-Null");
+        sb.AppendLine("            [MeWin32Fg]::SetForegroundWindow($hWnd) | Out-Null");
+        sb.AppendLine("            [MeWin32Fg]::SwitchToThisWindow($hWnd, $true)");
+        sb.AppendLine("        } catch { }");
+        sb.AppendLine("    }");
+        sb.AppendLine("} else {");
+        sb.AppendLine("    $form.Close()");
+        sb.AppendLine("    $form.Dispose()");
+        sb.AppendLine("}");
         return sb.ToString();
     }
 

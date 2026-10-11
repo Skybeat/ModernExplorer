@@ -320,5 +320,52 @@ public sealed class PowerFeaturesTests : IDisposable
         string parent = RemoteFileSystemService.GetParentRemoteUri(uri);
         Assert.Equal("sftp://deploy@sftp.example.com:2222/var", parent);
     }
+
+    [Fact]
+    public async Task StorageTreemapService_ScansTree_ComputesStats_LayoutsRects_And_RecalculatesOnRemove()
+    {
+        string root = Path.Combine(_tempDir, "TreemapRoot");
+        string mediaDir = Path.Combine(root, "Media");
+        string codeDir = Path.Combine(root, "Code");
+        Directory.CreateDirectory(mediaDir);
+        Directory.CreateDirectory(codeDir);
+
+        string videoFile = Path.Combine(mediaDir, "movie.mp4");
+        string zipFile = Path.Combine(mediaDir, "backup.zip");
+        string csFile = Path.Combine(codeDir, "Program.cs");
+
+        await File.WriteAllBytesAsync(videoFile, new byte[40_000]);
+        await File.WriteAllBytesAsync(zipFile, new byte[20_000]);
+        await File.WriteAllBytesAsync(csFile, new byte[10_000]);
+
+        var progressUpdates = new List<StorageScanProgress>();
+        var progress = new Progress<StorageScanProgress>(p => progressUpdates.Add(p));
+
+        var tree = await StorageTreemapService.ScanDirectoryTreeAsync(root, progress);
+
+        Assert.Equal(70_000, tree.Size);
+        Assert.Equal(3, tree.FileCount);
+        Assert.Equal(2, tree.FolderCount);
+        Assert.NotEmpty(progressUpdates);
+
+        var stats = StorageTreemapService.ComputeExtensionStats(tree);
+        Assert.Equal(3, stats.Count);
+        Assert.Equal(".mp4", stats[0].Extension);
+        Assert.Equal(40_000, stats[0].TotalBytes);
+        Assert.Equal(StorageCategory.VideoAudio, stats[0].Category);
+
+        var rects = StorageTreemapService.BuildSquarifiedTreemapLayout(tree, 800, 500, maxDepth: 2);
+        Assert.NotEmpty(rects);
+        Assert.Contains(rects, r => r.Node.Name == "movie.mp4" && !r.IsGroupContainer);
+
+        var zipNode = tree.Children
+            .First(c => c.Name == "Media")
+            .Children.First(c => c.Name == "backup.zip");
+
+        StorageTreemapService.RemoveNodeAndRecalculate(zipNode);
+        Assert.Equal(50_000, tree.Size);
+        Assert.Equal(2, tree.FileCount);
+    }
 }
+
 

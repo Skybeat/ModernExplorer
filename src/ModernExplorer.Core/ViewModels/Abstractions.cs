@@ -52,6 +52,7 @@ public interface IShellUi
     Task<bool> ShowDirectorySyncDialogAsync(string leftDir, string rightDir) => Task.FromResult(false);
     Task ShowDeepSearchDialogAsync(string initialDirectory) => Task.CompletedTask;
     Task<bool> ShowDuplicateFinderDialogAsync(string initialDirectory) => Task.FromResult(false);
+    Task ShowStorageTreemapDialogAsync(string initialDirectory) => Task.CompletedTask;
     Task<string?> ShowRemoteConnectionManagerDialogAsync() => Task.FromResult<string?>(null);
     Task<string?> ShowCreateArchiveDialogAsync(IReadOnlyList<string> sourcePaths, string defaultOutputDirectory) => Task.FromResult<string?>(null);
 

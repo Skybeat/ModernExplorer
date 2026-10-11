@@ -102,4 +102,91 @@ public static partial class WindowChromeHelper
         }
         catch { }
     }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+
+    private const int SW_SHOW = 5;
+    private const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// Reliably brings the specified WinUI 3 window to the foreground and gives it input focus,
+    /// bypassing Windows foreground lock restrictions after a self-update restart.
+    /// </summary>
+    public static void BringWindowToForeground(Window window)
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            if (hwnd != IntPtr.Zero)
+            {
+                if (window.AppWindow?.Presenter is OverlappedPresenter pCheck &&
+                    pCheck.State == OverlappedPresenterState.Minimized)
+                {
+                    _ = ShowWindow(hwnd, SW_RESTORE);
+                }
+                else
+                {
+                    _ = ShowWindow(hwnd, SW_SHOW);
+                }
+
+                IntPtr fgHwnd = GetForegroundWindow();
+                uint fgThread = fgHwnd != IntPtr.Zero ? GetWindowThreadProcessId(fgHwnd, out _) : 0;
+                uint curThread = GetCurrentThreadId();
+                bool attached = false;
+
+                try
+                {
+                    if (fgThread != 0 && fgThread != curThread)
+                        attached = AttachThreadInput(fgThread, curThread, true);
+
+                    _ = BringWindowToTop(hwnd);
+                    _ = SetForegroundWindow(hwnd);
+                    SwitchToThisWindow(hwnd, true);
+                }
+                finally
+                {
+                    if (attached)
+                        _ = AttachThreadInput(fgThread, curThread, false);
+                }
+            }
+
+            if (window.AppWindow?.Presenter is OverlappedPresenter presenter)
+            {
+                bool wasTop = presenter.IsAlwaysOnTop;
+                presenter.IsAlwaysOnTop = true;
+                window.Activate();
+                presenter.IsAlwaysOnTop = wasTop;
+            }
+            else
+            {
+                window.Activate();
+            }
+        }
+        catch
+        {
+            try { window.Activate(); } catch { }
+        }
+    }
 }

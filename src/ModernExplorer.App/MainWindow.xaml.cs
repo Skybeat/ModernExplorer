@@ -178,6 +178,7 @@ public sealed partial class MainWindow : Window
             UpdateDualLayout();
             UpdateActivePanelVisuals();
             Bindings.Update();
+            WindowChromeHelper.BringWindowToForeground(this);
             FocusFileList(ViewModel.ActiveSide);
 
             if (tearOutTab is null && ViewModel.Settings.CheckForUpdatesOnStartup)
@@ -292,6 +293,11 @@ public sealed partial class MainWindow : Window
         {
             DuplicateFinderToolbarButton.Content = loc["Feature.Duplicates.Label"];
             SetTip(DuplicateFinderToolbarButton, loc["Feature.Duplicates.Tip"]);
+        }
+        if (StorageTreemapToolbarButton is not null)
+        {
+            StorageTreemapToolbarButton.Content = loc["Feature.Treemap.Label"];
+            SetTip(StorageTreemapToolbarButton, loc["Feature.Treemap.Tip"]);
         }
         if (PackArchiveToolbarButton is not null)
         {
@@ -1350,6 +1356,7 @@ public sealed partial class MainWindow : Window
     private void OnDeepSearchClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.deepSearch");
     private void OnDirectorySyncClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.syncDirs");
     private void OnDuplicateFinderClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.findDuplicates");
+    private void OnStorageTreemapClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.storageTreemap");
     private void OnPackArchiveClick(object sender, RoutedEventArgs e) => ExecuteCommand("archive.pack");
     private void OnRemoteConnectClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.remoteConnect");
     private void OnToggleQuickPreviewClick(object sender, RoutedEventArgs e) => ExecuteCommand("view.quickPreview");

@@ -613,6 +613,11 @@
                             Click="OnDuplicateFinderClick"
                             Padding="7,2"
                             FontSize="11.5" />
+                    <Button x:Name="StorageTreemapToolbarButton"
+                            Content="🗺 Treemap"
+                            Click="OnStorageTreemapClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
                     <Button x:Name="PackArchiveToolbarButton"
                             Content="📦 Packen"
                             Click="OnPackArchiveClick"

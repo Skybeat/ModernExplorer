@@ -89,6 +89,7 @@
     { "key": "Alt+F7",          "command": "tools.deepSearch",         "when": "global" },
     { "key": "Ctrl+Shift+F",    "command": "tools.deepSearch",         "when": "global" },
     { "key": "Ctrl+Shift+S",    "command": "tools.syncDirs",           "when": "global" },
+    { "key": "Ctrl+Shift+W",    "command": "tools.storageTreemap",     "when": "global" },
     { "key": "Alt+F5",          "command": "archive.pack",             "when": "fileList" },
     { "key": "Alt+F9",          "command": "archive.extract",          "when": "fileList" },
 

@@ -42,10 +42,11 @@ All feature dialogs open as large, freely resizable and maximizable child window
 | **Directory Compare & Synchronize** | `Ctrl+Shift+S` / `⇄ Sync` | Compare left and right directories recursively by **Size & Timestamp**, **Size Only**, or **SHA-256 Content**. Supports **Bidirectional Merge (newer wins)**, **Left → Right Mirror**, and **Right → Left Mirror** with optional orphan deletion and live progress feedback. |
 | **Recursive Deep Search** | `Alt+F7` / `🔍 Deep Search` | High-speed recursive file search by wildcard (`*.cs;*.json`), Regular Expression, file size, date range, attributes, and **full-text content search** inside files. Results can be opened directly as a virtual tab or jumped to in the active pane. |
 | **Duplicate File Finder** | `🧹 Duplicates` | 3-stage duplicate scanner (**File Size grouping → 4 KB Partial Hash → Full SHA-256 Hash**) with a **real-time ProgressBar, percentage indicator, and live file counter**. Calculates wasted disk space and offers one-click selection of all duplicates (preserving the original per group). |
+| **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with a **real-time scan ProgressBar**. Color-codes files and folders by category (Video/Audio, Archives/Disk Images, Virtual Disks/Databases/System, Code/Documents, Images, Executables, Other), provides a **Top Space Consumers hierarchy list**, a **File Extension Statistics & Color Legend** (click an extension to highlight all matching tiles), **Drill-Down zooming** (`Double-Click` / `⬆ Up` / `🏠 Root`), rich hover tooltips, and direct actions (**Show in Explorer Tab**, **Open Folder as New Tab**, and **Delete Selected Space Hog with instant live Treemap recalculation**). |
 | **Archive Browser & Packer** | `Alt+F5` (`📦 Pack`) / `Alt+F9` (Extract) | Browse inside archives (`.zip`, `.7z`, `.rar`, `.tar`, `.gz`, `.bz2`, `.xz`, `.tgz`, `.nupkg`, `.jar`) transparently like normal folders (`archive://`), extract individual or all entries, and pack selected files/folders into `.zip`, `.tar.gz`, or `.7z` archives. |
-| **Built-in FTP / FTPS / SFTP Client** | `Ctrl+Shift+F` / `🌐 FTP/SFTP` | Connect directly to remote servers via **SFTP (SSH)**, **FTPS (Explicit TLS)**, or **FTP** as virtual paths (`sftp://`, `ftps://`, `ftp://`). Includes a Connection Manager with **Windows DPAPI password encryption**, SSH private key authentication, and seamless upload/download/rename/delete/mkdir via `F5`/`F6`/`F7`/`F8`. |
+| **Built-in FTP / FTPS / SFTP Client** | `Ctrl+Shift+C` / `🌐 FTP/SFTP` | Connect directly to remote servers via **SFTP (SSH)**, **FTPS (Explicit TLS)**, or **FTP** as virtual paths (`sftp://`, `ftps://`, `ftp://`). Includes a Connection Manager with **Windows DPAPI password encryption**, SSH private key authentication, and seamless upload/download/rename/delete/mkdir via `F5`/`F6`/`F7`/`F8`. |
 | **Branch View (Flat View)** | `Ctrl+B` / `🌿` | Flattens the current directory and all subdirectories into a single unified file list showing relative subpaths. |
-| **TreeSize Disk Space Analyzer** | `Ctrl+Shift+Q` / `📊` | Recursively calculates folder sizes in the background and renders proportional visual allocation bars directly inside the `Size` column. |
+| **TreeSize Disk Space Analyzer** | `📊` | Recursively calculates folder sizes in the background and renders proportional visual allocation bars directly inside the `Size` column. |
 | **Git Repository Integration** | Automatic | Detects Git repositories automatically, displays the current branch badge (`⎇ main`) in the address bar, and shows per-file status badges (`M`, `A`, `?`, `D`, `R`, `!`) in the file list. |
 | **Docked Quick Preview Pane** | `Ctrl+Q` / `👁 Preview` | Toggleable third column displaying live previews for the currently selected file (images, Markdown/code/text, CSV/JSON/XML, media, and SHA-256/MD5/CRC32 file metadata) as you navigate with the arrow keys. |
 | **Favorites / Bookmarks Bar & Undo** | `Ctrl+D` (`☆`) / `Ctrl+Z` (`↶ Undo`) | Pin frequently used folders to the Favorites bar for one-click navigation and undo recent file operations (rename, batch rename, copy, move, new folder/file) via `Ctrl+Z`. |
@@ -71,7 +72,7 @@ All feature dialogs open as large, freely resizable and maximizable child window
 
 ### 6. Live Customization & Automatic Self-Updater
 - **Appearance & Design**: Switch live between Dark, Light, and System themes, customize selection/focus/marked-item/active-border colors, adjust font sizes and row heights, and configure image hover previews.
-- **Elevated Self-Updater (`ModernExplorer.Updater`)**: Checks GitHub Releases on startup (or manually in the About window), downloads the matching architecture installer/package, closes Modern Explorer, and launches a dedicated graphical progress window (`ProgressBar` + live status) with automatic UAC elevation support for per-machine (`Program Files`) installations.
+- **Elevated Self-Updater (`ModernExplorer.Updater`)**: Checks GitHub Releases on startup (or manually in the About window), downloads the matching architecture installer/package, closes Modern Explorer, launches a dedicated graphical progress window (`ProgressBar` + live status) with automatic UAC elevation support for per-machine (`Program Files`) installations, and automatically brings the restarted application window to the foreground.
 
 ---
 
@@ -88,18 +89,17 @@ All feature dialogs open as large, freely resizable and maximizable child window
 | `F7` / `Shift+F7` | New File from Template (`F7`) / New Folder (`Shift+F7`) |
 | `F8` / `Delete` | Move to Recycle Bin (`Shift+Delete` for permanent delete) |
 | `F9` | Open Terminal in current directory |
-| `F10` | Toggle Dual-Pane / Single-Pane layout |
-| `F11` | Open Settings window |
-| `F12` | Open Command Palette (`Ctrl+Shift+P`) |
+| `F10` | Open Command Palette (`Ctrl+Shift+P`) |
+| `F11` | Toggle Fullscreen |
+| `F12` | Toggle Dual-Pane / Single-Pane layout (`Shift+F12` Swap Panels) |
 | `Tab` | Switch active pane (Left ↔ Right) |
 | `Space` / `Insert` | Mark / unmark file and advance selection |
 | `Ctrl+M` | Open Multi-Rename Tool (Batch Rename) |
 | `Ctrl+Shift+S` | Open Directory Compare & Synchronize |
-| `Alt+F7` | Open Recursive Deep Search |
+| `Ctrl+Shift+W` | Open Graphical Disk Space Analyzer & Squarified Treemap (WinDirStat) |
+| `Alt+F7` / `Ctrl+Shift+F` | Open Recursive Deep Search |
 | `Alt+F5` / `Alt+F9` | Pack into Archive (`.zip`, `.tar.gz`, `.7z`) / Extract Archive |
-| `Ctrl+Shift+F` | Open FTP / FTPS / SFTP Connection Manager |
 | `Ctrl+B` | Toggle Branch View (Flat View) |
-| `Ctrl+Shift+Q` | Toggle TreeSize Disk Space Analyzer |
 | `Ctrl+Q` | Toggle Docked Quick Preview Pane |
 | `Ctrl+D` | Add / Remove current folder in Favorites Bar |
 | `Ctrl+Z` | Undo last file operation |
