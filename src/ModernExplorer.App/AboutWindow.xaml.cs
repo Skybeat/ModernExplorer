@@ -173,9 +173,8 @@ public sealed partial class AboutWindow : Window
             bool shouldExit = await ViewModel.InstallFoundUpdateAsync();
             if (shouldExit)
             {
-                _owner.ViewModel.SaveSessionImmediately();
                 Close();
-                _owner.Close();
+                _owner.PrepareForUpdateAndExit();
             }
         }
         catch (Exception ex)

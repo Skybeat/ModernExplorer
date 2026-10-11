@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Modern Explorer (Windows x64, ARM64, x86)
 #ifndef AppVersion
-  #define AppVersion "1.0.1"
+  #define AppVersion "1.0.2"
 #endif
 #ifndef TargetRid
   #define TargetRid "win-x64"
@@ -34,7 +34,7 @@ Compression=lzma2/fast
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
-RestartApplications=no
+RestartApplications=yes
 #if TargetRid == "win-x64"
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -57,6 +57,9 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+[Dirs]
+Name: "{app}"; Permissions: users-modify
+
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -65,5 +68,6 @@ Name: "{autoprograms}\Modern Explorer"; Filename: "{app}\ModernExplorer.exe"; Ic
 Name: "{autodesktop}\Modern Explorer"; Filename: "{app}\ModernExplorer.exe"; IconFilename: "{app}\Assets\AppIcon.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\ModernExplorer.exe"; Description: "{cm:LaunchProgram,Modern Explorer}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ModernExplorer.exe"; Description: "{cm:LaunchProgram,Modern Explorer}"; Flags: nowait postinstall
+
 

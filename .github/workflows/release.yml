@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag (e.g. v1.0.1)'
+        description: 'Release tag (e.g. v1.0.2)'
         required: true
-        default: 'v1.0.1'
+        default: 'v1.0.2'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+') { $version = "1.0.1" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+') { $version = "1.0.2" }
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $distFull = (Resolve-Path dist).Path
@@ -86,7 +86,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.1"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.2"; fi
 
           mkdir -p dist
           dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
@@ -137,7 +137,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.1"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+ ]]; then VERSION="1.0.2"; fi
 
           mkdir -p dist
           dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
@@ -189,10 +189,10 @@ jobs:
             ## What's New in Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Changelog
-            - **Complete Dynamic UI Localization on Language Switch:** Fixed all remaining UI texts that previously did not update immediately when changing the application language in Settings. All Settings categories, headers, descriptions, toggle switches, buttons, main window toolbar items, panel navigation tooltips, address/filter placeholders, file/folder type labels (`<Folder>`, `Folder`, `File`), drive capacity tooltips, status bar summaries, background operations panel labels, F-key bar labels (`F1`–`F12`), and context menus now update live across all 10 supported languages (`de`, `en`, `es`, `fr`, `it`, `nl`, `pl`, `pt`, `ja`, `zh`).
-            - **New "About" (`Über`) Button & About Window with Live GitHub Update Check:** Added an **About** (`ℹ Über` / `ℹ About`) button to the right of the **Help** (`F1`) button in the top title bar. Clicking it opens a dedicated About window displaying a short overview of Modern Explorer, a clickable link to the official GitHub repository (`https://github.com/Skybeat/ModernExplorer`), the currently installed version number, and the latest version found on GitHub. When a newer release is available on GitHub, a one-click **Update Now** button is shown right inside the About window to download and install the update automatically.
-            - **Automatic Version Incrementing for Releases (`v1.0.1`+):** Configured the release pipeline and project version metadata so that every new GitHub release increments the version number automatically starting with `1.0.1`.
-            - **Multi-OS Native Installers & Portable Archives:** Built and attached native installers (`.exe` Setup for Windows x64/ARM64/x86, `.deb` & `.sh` for Linux x64/ARM64, `.dmg` & `.pkg` for macOS Intel/Apple Silicon) alongside portable `.zip` archives for all supported operating systems.
+            - **Fixed Self-Update ("Update Now") Failing to Overwrite Installed Files:** Fixed an issue where clicking **Update Now** downloaded the update archive and restarted Modern Explorer without replacing the installed application binaries when installed in protected directories (such as `C:\Program Files\ModernExplorer`) or when files were still briefly locked during shutdown.
+            - **Automatic UAC Elevation & Write-Permission Detection:** Added `GitHubUpdateService.CanWriteToDirectory` to detect whether the installation directory requires administrator privileges and automatically elevate the self-updater script (`Verb = "runas"`) and grant modify permissions (`users-modify`) for seamless future updates.
+            - **Resilient File-by-File Updater Script & Immediate Process Exit:** Replaced the single-pass wildcard copy in `apply-update.ps1` with a 15-attempt retry loop performing recursive file-by-file replacement after ensuring all running `ModernExplorer` processes have exited (`PrepareForUpdateAndExit`), and automatically updating the Windows Uninstall registry `DisplayVersion`.
+            - **Windows Installer (`ModernExplorer-Setup-win-*.exe`) Directory Permissions:** Updated the Inno Setup installer configuration (`ModernExplorer.iss`) to configure `users-modify` permissions on `{app}` so future in-place updates work out of the box without permission errors.
           generate_release_notes: true
           files: |
             release-assets/*.zip

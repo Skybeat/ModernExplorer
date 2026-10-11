@@ -168,5 +168,47 @@ public sealed class AboutAndLocalizationTests
         Assert.NotEqual("Menu.OpenFolder", LocalizationService.T("Menu.OpenFolder"));
         Assert.NotEqual("Menu.Tab.New", LocalizationService.T("Menu.Tab.New"));
     }
+
+    [Fact]
+    public void GitHubUpdateService_CanWriteToDirectory_And_BuildSelfUpdatePowerShellScript_CopiesFilesCorrectly()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"me_update_test_{Guid.NewGuid():N}");
+        var stagingDir = Path.Combine(tempRoot, "staging");
+        var targetDir = Path.Combine(tempRoot, "target");
+
+        try
+        {
+            Directory.CreateDirectory(stagingDir);
+            Directory.CreateDirectory(targetDir);
+            Directory.CreateDirectory(Path.Combine(stagingDir, "Assets"));
+            Directory.CreateDirectory(Path.Combine(targetDir, "Assets"));
+
+            File.WriteAllText(Path.Combine(targetDir, "ModernExplorer.runtimeconfig.json"), "{\"old\":true}");
+            File.WriteAllText(Path.Combine(targetDir, "Assets", "AppIcon.ico"), "old-icon");
+            File.WriteAllText(Path.Combine(stagingDir, "ModernExplorer.runtimeconfig.json"), "{\"new\":true}");
+            File.WriteAllText(Path.Combine(stagingDir, "Assets", "AppIcon.ico"), "new-icon");
+
+            Assert.True(GitHubUpdateService.CanWriteToDirectory(targetDir));
+            Assert.False(GitHubUpdateService.CanWriteToDirectory(Path.Combine(tempRoot, "non_existent_folder")));
+
+            var exePath = Path.Combine(targetDir, "ModernExplorer.exe");
+            var script = GitHubUpdateService.BuildSelfUpdatePowerShellScript(999999, stagingDir, targetDir, exePath);
+
+            Assert.Contains($"$exePath = \"{exePath}\"", script);
+            Assert.Contains($"$targetAppDir = \"{targetDir}\"", script);
+            Assert.Contains("for ($attempt = 1; $attempt -le 15; $attempt++)", script);
+            Assert.Contains("Get-ChildItem -LiteralPath $stagingDir -Recurse -Force", script);
+            Assert.Contains("Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force -ErrorAction Stop", script);
+            Assert.Contains("icacls $targetAppDir /grant '*S-1-5-32-545:(OI)(CI)M'", script);
+            Assert.Contains("-Verb RunAs", script);
+            Assert.Contains("Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\"", script);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }
+
 

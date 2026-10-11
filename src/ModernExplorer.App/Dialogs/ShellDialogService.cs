@@ -866,8 +866,7 @@ public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictRe
                 bool shouldExit = await updateService.DownloadAndInstallUpdateAsync(release);
                 if (shouldExit)
                 {
-                    owner.ViewModel.SaveSessionImmediately();
-                    owner.Close();
+                    owner.PrepareForUpdateAndExit();
                 }
             }
             catch (Exception ex)

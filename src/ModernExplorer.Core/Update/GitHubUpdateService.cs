@@ -60,7 +60,7 @@ public sealed class GitHubUpdateService
         }
         else
         {
-            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+            _httpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("ModernExplorer", GetCurrentVersionString()));
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         }
@@ -76,7 +76,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 0, 1);
+        return new Version(1, 0, 2);
     }
 
     public static string GetCurrentVersionString()
@@ -323,18 +323,114 @@ public sealed class GitHubUpdateService
     }
 
     /// <summary>
+    /// Checks whether the current user process has write and modify permissions in the specified directory.
+    /// </summary>
+    public static bool CanWriteToDirectory(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            return false;
+
+        try
+        {
+            var probeFile = Path.Combine(directoryPath, $".me_update_probe_{Guid.NewGuid():N}.tmp");
+            using (var fs = new FileStream(probeFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+            {
+                fs.WriteByte(0);
+            }
+
+            var existingConfig = Path.Combine(directoryPath, "ModernExplorer.runtimeconfig.json");
+            if (File.Exists(existingConfig))
+            {
+                using var existingFs = new FileStream(existingConfig, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Builds the PowerShell self-updater script that waits for the running process to exit,
-    /// copies extracted update files into the application directory, and restarts the executable.
+    /// copies extracted update files into the application directory with a retry loop, and restarts the executable.
     /// </summary>
     public static string BuildSelfUpdatePowerShellScript(int processId, string stagingDir, string targetAppDir, string exePath)
     {
+        var cleanStaging = stagingDir.TrimEnd('\\', '/');
+        var cleanTarget = targetAppDir.TrimEnd('\\', '/');
         var sb = new StringBuilder();
-        sb.AppendLine("$ErrorActionPreference = 'SilentlyContinue'");
+        sb.AppendLine("$ErrorActionPreference = 'Continue'");
+        sb.AppendLine($"$stagingDir = \"{cleanStaging}\"");
+        sb.AppendLine($"$targetAppDir = \"{cleanTarget}\"");
+        sb.AppendLine($"$exePath = \"{exePath}\"");
+        sb.AppendLine("$logFile = Join-Path (Split-Path -Parent $stagingDir) 'update.log'");
+        sb.AppendLine("\"Update started at $(Get-Date -Format o)\" | Out-File -FilePath $logFile -Encoding UTF8 -Force");
         sb.AppendLine($"$proc = Get-Process -Id {processId} -ErrorAction SilentlyContinue");
-        sb.AppendLine("if ($proc) { $proc.WaitForExit(15000) | Out-Null }");
-        sb.AppendLine("Start-Sleep -Milliseconds 600");
-        sb.AppendLine($"Copy-Item -Path \"{stagingDir}\\*\" -Destination \"{targetAppDir}\" -Recurse -Force");
-        sb.AppendLine($"Start-Process -FilePath \"{exePath}\"");
+        sb.AppendLine("if ($proc) { try { $proc.WaitForExit(15000) | Out-Null } catch { } }");
+        sb.AppendLine("for ($w = 0; $w -lt 12; $w++) {");
+        sb.AppendLine("    $running = @(Get-Process -Name 'ModernExplorer' -ErrorAction SilentlyContinue | Where-Object {");
+        sb.AppendLine("        try { $_.MainModule.FileName -eq $exePath } catch { $false }");
+        sb.AppendLine("    })");
+        sb.AppendLine("    if ($running.Count -eq 0) { break }");
+        sb.AppendLine("    if ($w -ge 4) { $running | Stop-Process -Force -ErrorAction SilentlyContinue }");
+        sb.AppendLine("    Start-Sleep -Milliseconds 300");
+        sb.AppendLine("}");
+        sb.AppendLine("Start-Sleep -Milliseconds 400");
+        sb.AppendLine("$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)");
+        sb.AppendLine("if ($isAdmin) {");
+        sb.AppendLine("    icacls $targetAppDir /grant '*S-1-5-32-545:(OI)(CI)M' /T /C /Q | Out-Null");
+        sb.AppendLine("}");
+        sb.AppendLine("if (-not (Test-Path -LiteralPath $targetAppDir)) {");
+        sb.AppendLine("    New-Item -ItemType Directory -Path $targetAppDir -Force | Out-Null");
+        sb.AppendLine("}");
+        sb.AppendLine("for ($attempt = 1; $attempt -le 15; $attempt++) {");
+        sb.AppendLine("    try {");
+        sb.AppendLine("        $items = Get-ChildItem -LiteralPath $stagingDir -Recurse -Force -ErrorAction Stop");
+        sb.AppendLine("        foreach ($item in $items) {");
+        sb.AppendLine("            $relPath = $item.FullName.Substring($stagingDir.Length).TrimStart('\\', '/')");
+        sb.AppendLine("            $destPath = Join-Path $targetAppDir $relPath");
+        sb.AppendLine("            if ($item.PSIsContainer) {");
+        sb.AppendLine("                if (-not (Test-Path -LiteralPath $destPath)) {");
+        sb.AppendLine("                    New-Item -ItemType Directory -Path $destPath -Force -ErrorAction Stop | Out-Null");
+        sb.AppendLine("                }");
+        sb.AppendLine("            } else {");
+        sb.AppendLine("                $destParent = Split-Path -Parent $destPath");
+        sb.AppendLine("                if (-not (Test-Path -LiteralPath $destParent)) {");
+        sb.AppendLine("                    New-Item -ItemType Directory -Path $destParent -Force -ErrorAction Stop | Out-Null");
+        sb.AppendLine("                }");
+        sb.AppendLine("                Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force -ErrorAction Stop");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("        \"Update copy succeeded on attempt $attempt\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("        break");
+        sb.AppendLine("    } catch [System.UnauthorizedAccessException] {");
+        sb.AppendLine("        \"Attempt $attempt unauthorized: $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("        if (-not $isAdmin -and $PSCommandPath) {");
+        sb.AppendLine("            Start-Process -FilePath 'powershell.exe' -ArgumentList \"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$PSCommandPath`\"\" -Verb RunAs");
+        sb.AppendLine("            exit");
+        sb.AppendLine("        }");
+        sb.AppendLine("        Start-Sleep -Milliseconds 500");
+        sb.AppendLine("    } catch {");
+        sb.AppendLine("        \"Attempt $attempt failed: $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("        Start-Sleep -Milliseconds 500");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine("try {");
+        sb.AppendLine("    $ver = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exePath).FileVersion");
+        sb.AppendLine("    if ($ver) {");
+        sb.AppendLine("        $shortVer = ($ver -split '\\.')[0..2] -join '.'");
+        sb.AppendLine("        foreach ($hive in @('HKLM:', 'HKCU:')) {");
+        sb.AppendLine("            $regPath = \"$hive\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{8F4B9A2E-5C31-4E9B-A712-9D6E4B12C8F0}_is1\"");
+        sb.AppendLine("            if (Test-Path -LiteralPath $regPath) {");
+        sb.AppendLine("                Set-ItemProperty -LiteralPath $regPath -Name 'DisplayVersion' -Value $shortVer -ErrorAction SilentlyContinue");
+        sb.AppendLine("                Set-ItemProperty -LiteralPath $regPath -Name 'DisplayName' -Value \"Modern Explorer $shortVer\" -ErrorAction SilentlyContinue");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine("} catch { }");
+        sb.AppendLine("Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\"");
         return sb.ToString();
     }
 
@@ -391,11 +487,17 @@ public sealed class GitHubUpdateService
             asset.Name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) ||
             asset.Name.EndsWith(".msix", StringComparison.OrdinalIgnoreCase))
         {
-            Process.Start(new ProcessStartInfo
+            var installerPsi = new ProcessStartInfo
             {
                 FileName = downloadFile,
                 UseShellExecute = true,
-            });
+            };
+            if (asset.Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) &&
+                asset.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                installerPsi.Arguments = "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS";
+            }
+            Process.Start(installerPsi);
             return true;
         }
 
@@ -412,8 +514,17 @@ public sealed class GitHubUpdateService
                 stagingDir = subDirs[0];
 
             var defaultExeName = OperatingSystem.IsWindows() ? "ModernExplorer.exe" : "ModernExplorer";
-            var exePath = currentExePath ?? Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, defaultExeName);
-            var targetDir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory.TrimEnd('\\', '/');
+            var resolvedProcessPath = Environment.ProcessPath;
+            if (!string.IsNullOrWhiteSpace(resolvedProcessPath) &&
+                string.Equals(Path.GetFileNameWithoutExtension(resolvedProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase))
+            {
+                resolvedProcessPath = null;
+            }
+
+            var exePath = currentExePath
+                ?? resolvedProcessPath
+                ?? Path.Combine(AppContext.BaseDirectory, defaultExeName);
+            var targetDir = (Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory).TrimEnd('\\', '/');
 
             if (OperatingSystem.IsWindows())
             {
@@ -421,13 +532,23 @@ public sealed class GitHubUpdateService
                 var scriptContent = BuildSelfUpdatePowerShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
                 await File.WriteAllTextAsync(scriptPath, scriptContent, Encoding.UTF8, ct).ConfigureAwait(false);
 
-                Process.Start(new ProcessStartInfo
+                bool needsElevation = !CanWriteToDirectory(targetDir);
+                var psi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
                     Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                });
+                    UseShellExecute = needsElevation,
+                    CreateNoWindow = !needsElevation,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                };
+
+                if (needsElevation)
+                {
+                    psi.Verb = "runas";
+                }
+
+                var started = Process.Start(psi);
+                return started is not null;
             }
             else
             {
@@ -435,16 +556,15 @@ public sealed class GitHubUpdateService
                 var scriptContent = BuildSelfUpdateShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
                 await File.WriteAllTextAsync(scriptPath, scriptContent, new UTF8Encoding(false), ct).ConfigureAwait(false);
 
-                Process.Start(new ProcessStartInfo
+                var started = Process.Start(new ProcessStartInfo
                 {
                     FileName = "/bin/sh",
                     ArgumentList = { scriptPath },
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 });
+                return started is not null;
             }
-
-            return true;
         }
 
         OpenUrlInBrowser(release.HtmlUrl);

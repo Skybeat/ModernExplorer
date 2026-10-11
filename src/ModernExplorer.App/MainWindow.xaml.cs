@@ -151,6 +151,23 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    public void PrepareForUpdateAndExit()
+    {
+        try
+        {
+            SaveCurrentMainWindowBounds();
+            CloseSettingsWindow();
+            CloseAboutWindow();
+            CloseChildWindows();
+            ViewModel.SaveSessionImmediately();
+            _keyBindingWatcher?.Dispose();
+        }
+        catch { }
+
+        try { Application.Current.Exit(); } catch { }
+        Environment.Exit(0);
+    }
+
     public Visibility HasText(string? text) =>
         string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
 
