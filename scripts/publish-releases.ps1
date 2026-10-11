@@ -65,10 +65,10 @@ New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
 Write-Output "=== 1. Building Windows Native WinUI 3 Releases (win-x64, win-arm64) ==="
 dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:Version=$Version
-Compress-Archive -Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64\*" -DestinationPath "$DistDir\ModernExplorer-win-x64.zip" -Force
+Compress-Archive -Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64\*" -DestinationPath "$DistDir\ModernExplorer-windows-x64.zip" -Force
 
 dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:Version=$Version
-Compress-Archive -Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64\*" -DestinationPath "$DistDir\ModernExplorer-win-arm64.zip" -Force
+Compress-Archive -Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64\*" -DestinationPath "$DistDir\ModernExplorer-windows-arm64.zip" -Force
 
 Write-Output "=== 2. Building Cross-Platform Desktop Releases (win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64) ==="
 $CrossPlatformRids = @("win-x86", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")
@@ -83,7 +83,8 @@ foreach ($rid in $CrossPlatformRids) {
         -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:Version=$Version `
         -o $pubDir
-    Compress-Archive -Path "$pubDir\*" -DestinationPath "$DistDir\ModernExplorer-$rid.zip" -Force
+    $zipName = if ($rid -like "win-*") { "ModernExplorer-windows-$($rid.Substring(4)).zip" } else { "ModernExplorer-$rid.zip" }
+    Compress-Archive -Path "$pubDir\*" -DestinationPath "$DistDir\$zipName" -Force
     Remove-Item $pubDir -Recurse -Force
 }
 

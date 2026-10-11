@@ -76,7 +76,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 0, 2);
+        return new Version(1, 0, 3);
     }
 
     public static string GetCurrentVersionString()
@@ -278,6 +278,21 @@ public sealed class GitHubUpdateService
         var osPrefix = parts[0]; // "win", "linux", "osx"
         var arch = parts.Length > 1 ? parts[1] : "x64";
 
+        // When running from an All-Users / Inno Setup installation on Windows, prefer the Setup.exe updater
+        if (targetRid is null && osPrefix == "win")
+        {
+            var baseDir = AppContext.BaseDirectory.TrimEnd('\\', '/');
+            bool isInstalledApp = File.Exists(Path.Combine(baseDir, "unins000.exe")) || !CanWriteToDirectory(baseDir);
+            if (isInstalledApp)
+            {
+                var setupExe = release.Assets.FirstOrDefault(a =>
+                    a.Name.Contains(rid, StringComparison.OrdinalIgnoreCase) &&
+                    a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                if (setupExe is not null)
+                    return setupExe;
+            }
+        }
+
         // 1. Exact RID match (e.g., "ModernExplorer-win-x64.zip", "ModernExplorer-linux-x64.zip", "ModernExplorer-osx-arm64.zip")
         var exactArchive = release.Assets.FirstOrDefault(a =>
             a.Name.Contains(rid, StringComparison.OrdinalIgnoreCase) &&
@@ -353,8 +368,10 @@ public sealed class GitHubUpdateService
     }
 
     /// <summary>
-    /// Builds the PowerShell self-updater script that waits for the running process to exit,
-    /// copies extracted update files into the application directory with a retry loop, and restarts the executable.
+    /// Builds the PowerShell self-updater script that opens a dedicated GUI Update Progress Window
+    /// with a ProgressBar, waits for the running ModernExplorer process to exit, ensures write permissions
+    /// for All-Users installations (e.g., C:\Program Files\ModernExplorer), copies extracted update files
+    /// with live progress feedback and retry logic, and restarts the updated executable.
     /// </summary>
     public static string BuildSelfUpdatePowerShellScript(int processId, string stagingDir, string targetAppDir, string exePath)
     {
@@ -367,56 +384,177 @@ public sealed class GitHubUpdateService
         sb.AppendLine($"$exePath = \"{exePath}\"");
         sb.AppendLine("$logFile = Join-Path (Split-Path -Parent $stagingDir) 'update.log'");
         sb.AppendLine("\"Update started at $(Get-Date -Format o)\" | Out-File -FilePath $logFile -Encoding UTF8 -Force");
-        sb.AppendLine($"$proc = Get-Process -Id {processId} -ErrorAction SilentlyContinue");
-        sb.AppendLine("if ($proc) { try { $proc.WaitForExit(15000) | Out-Null } catch { } }");
-        sb.AppendLine("for ($w = 0; $w -lt 12; $w++) {");
-        sb.AppendLine("    $running = @(Get-Process -Name 'ModernExplorer' -ErrorAction SilentlyContinue | Where-Object {");
-        sb.AppendLine("        try { $_.MainModule.FileName -eq $exePath } catch { $false }");
-        sb.AppendLine("    })");
-        sb.AppendLine("    if ($running.Count -eq 0) { break }");
-        sb.AppendLine("    if ($w -ge 4) { $running | Stop-Process -Force -ErrorAction SilentlyContinue }");
-        sb.AppendLine("    Start-Sleep -Milliseconds 300");
-        sb.AppendLine("}");
-        sb.AppendLine("Start-Sleep -Milliseconds 400");
         sb.AppendLine("$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)");
-        sb.AppendLine("if ($isAdmin) {");
-        sb.AppendLine("    icacls $targetAppDir /grant '*S-1-5-32-545:(OI)(CI)M' /T /C /Q | Out-Null");
+        sb.AppendLine("$progFilesDir = Join-Path $env:ProgramFiles 'ModernExplorer'");
+        sb.AppendLine("$targetDirs = [System.Collections.Generic.List[string]]::new()");
+        sb.AppendLine("$targetDirs.Add($targetAppDir)");
+        sb.AppendLine("if ((Test-Path -LiteralPath $progFilesDir) -and ($progFilesDir.TrimEnd('\\') -ne $targetAppDir.TrimEnd('\\'))) {");
+        sb.AppendLine("    $targetDirs.Add($progFilesDir)");
         sb.AppendLine("}");
-        sb.AppendLine("if (-not (Test-Path -LiteralPath $targetAppDir)) {");
-        sb.AppendLine("    New-Item -ItemType Directory -Path $targetAppDir -Force | Out-Null");
-        sb.AppendLine("}");
-        sb.AppendLine("for ($attempt = 1; $attempt -le 15; $attempt++) {");
+        sb.AppendLine("$needsElevation = $false");
+        sb.AppendLine("foreach ($checkDir in $targetDirs) {");
         sb.AppendLine("    try {");
-        sb.AppendLine("        $items = Get-ChildItem -LiteralPath $stagingDir -Recurse -Force -ErrorAction Stop");
-        sb.AppendLine("        foreach ($item in $items) {");
-        sb.AppendLine("            $relPath = $item.FullName.Substring($stagingDir.Length).TrimStart('\\', '/')");
-        sb.AppendLine("            $destPath = Join-Path $targetAppDir $relPath");
-        sb.AppendLine("            if ($item.PSIsContainer) {");
-        sb.AppendLine("                if (-not (Test-Path -LiteralPath $destPath)) {");
-        sb.AppendLine("                    New-Item -ItemType Directory -Path $destPath -Force -ErrorAction Stop | Out-Null");
-        sb.AppendLine("                }");
-        sb.AppendLine("            } else {");
-        sb.AppendLine("                $destParent = Split-Path -Parent $destPath");
-        sb.AppendLine("                if (-not (Test-Path -LiteralPath $destParent)) {");
-        sb.AppendLine("                    New-Item -ItemType Directory -Path $destParent -Force -ErrorAction Stop | Out-Null");
-        sb.AppendLine("                }");
-        sb.AppendLine("                Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force -ErrorAction Stop");
-        sb.AppendLine("            }");
+        sb.AppendLine("        if (-not (Test-Path -LiteralPath $checkDir)) { New-Item -ItemType Directory -Path $checkDir -Force -ErrorAction Stop | Out-Null }");
+        sb.AppendLine("        $probe = Join-Path $checkDir (\".me_probe_\" + [Guid]::NewGuid().ToString('N') + \".tmp\")");
+        sb.AppendLine("        [System.IO.File]::WriteAllText($probe, '1')");
+        sb.AppendLine("        Remove-Item -LiteralPath $probe -Force -ErrorAction Stop");
+        sb.AppendLine("        $cfg = Join-Path $checkDir 'ModernExplorer.runtimeconfig.json'");
+        sb.AppendLine("        if (Test-Path -LiteralPath $cfg) {");
+        sb.AppendLine("            $fs = [System.IO.File]::Open($cfg, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite)");
+        sb.AppendLine("            $fs.Dispose()");
         sb.AppendLine("        }");
-        sb.AppendLine("        \"Update copy succeeded on attempt $attempt\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
-        sb.AppendLine("        break");
-        sb.AppendLine("    } catch [System.UnauthorizedAccessException] {");
-        sb.AppendLine("        \"Attempt $attempt unauthorized: $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
-        sb.AppendLine("        if (-not $isAdmin -and $PSCommandPath) {");
-        sb.AppendLine("            Start-Process -FilePath 'powershell.exe' -ArgumentList \"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$PSCommandPath`\"\" -Verb RunAs");
-        sb.AppendLine("            exit");
-        sb.AppendLine("        }");
-        sb.AppendLine("        Start-Sleep -Milliseconds 500");
         sb.AppendLine("    } catch {");
-        sb.AppendLine("        \"Attempt $attempt failed: $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
-        sb.AppendLine("        Start-Sleep -Milliseconds 500");
+        sb.AppendLine("        $needsElevation = $true");
         sb.AppendLine("    }");
         sb.AppendLine("}");
+        sb.AppendLine("if ($needsElevation -and (-not $isAdmin) -and $PSCommandPath) {");
+        sb.AppendLine("    \"Elevating updater script via RunAs...\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("    try {");
+        sb.AppendLine("        Start-Process -FilePath 'powershell.exe' -WorkingDirectory $env:SystemRoot -ArgumentList \"-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `\"$PSCommandPath`\"\" -Verb RunAs -ErrorAction Stop");
+        sb.AppendLine("    } catch {");
+        sb.AppendLine("        $shell = New-Object -ComObject Shell.Application");
+        sb.AppendLine("        $shell.ShellExecute('powershell.exe', \"-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `\"$PSCommandPath`\"\", $env:SystemRoot, 'runas', 0)");
+        sb.AppendLine("    }");
+        sb.AppendLine("    exit");
+        sb.AppendLine("}");
+        sb.AppendLine("if ($isAdmin) {");
+        sb.AppendLine("    foreach ($dir in $targetDirs) {");
+        sb.AppendLine("        icacls $dir /grant '*S-1-5-32-545:(OI)(CI)M' /T /C /Q | Out-Null");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine("Add-Type -AssemblyName System.Windows.Forms");
+        sb.AppendLine("Add-Type -AssemblyName System.Drawing");
+        sb.AppendLine("[System.Windows.Forms.Application]::EnableVisualStyles()");
+        sb.AppendLine("$isDe = ([System.Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName -eq 'de')");
+        sb.AppendLine("$titleText = if ($isDe) { 'Modern Explorer – Update wird installiert' } else { 'Modern Explorer – Installing Update' }");
+        sb.AppendLine("$waitText  = if ($isDe) { 'Warte auf das Schließen von Modern Explorer...' } else { 'Waiting for Modern Explorer to close...' }");
+        sb.AppendLine("$copyText  = if ($isDe) { 'Aktualisiere Programmdateien' } else { 'Updating application files' }");
+        sb.AppendLine("$doneText  = if ($isDe) { 'Update abgeschlossen! Starte Modern Explorer neu...' } else { 'Update complete! Restarting Modern Explorer...' }");
+        sb.AppendLine("$form = New-Object System.Windows.Forms.Form");
+        sb.AppendLine("$form.Text = $titleText");
+        sb.AppendLine("$form.Size = New-Object System.Drawing.Size(520, 215)");
+        sb.AppendLine("$form.StartPosition = 'CenterScreen'");
+        sb.AppendLine("$form.FormBorderStyle = 'FixedDialog'");
+        sb.AppendLine("$form.MaximizeBox = $false");
+        sb.AppendLine("$form.MinimizeBox = $false");
+        sb.AppendLine("$form.ControlBox = $false");
+        sb.AppendLine("$form.TopMost = $true");
+        sb.AppendLine("$form.BackColor = [System.Drawing.Color]::FromArgb(24, 24, 32)");
+        sb.AppendLine("$form.ForeColor = [System.Drawing.Color]::FromArgb(240, 244, 248)");
+        sb.AppendLine("$headerLabel = New-Object System.Windows.Forms.Label");
+        sb.AppendLine("$headerLabel.Text = $titleText");
+        sb.AppendLine("$headerLabel.Font = New-Object System.Drawing.Font('Segoe UI', 12, [System.Drawing.FontStyle]::Bold)");
+        sb.AppendLine("$headerLabel.ForeColor = [System.Drawing.Color]::FromArgb(56, 189, 248)");
+        sb.AppendLine("$headerLabel.Location = New-Object System.Drawing.Point(24, 20)");
+        sb.AppendLine("$headerLabel.Size = New-Object System.Drawing.Size(460, 28)");
+        sb.AppendLine("$form.Controls.Add($headerLabel)");
+        sb.AppendLine("$statusLabel = New-Object System.Windows.Forms.Label");
+        sb.AppendLine("$statusLabel.Text = $waitText");
+        sb.AppendLine("$statusLabel.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)");
+        sb.AppendLine("$statusLabel.ForeColor = [System.Drawing.Color]::FromArgb(210, 216, 226)");
+        sb.AppendLine("$statusLabel.Location = New-Object System.Drawing.Point(24, 54)");
+        sb.AppendLine("$statusLabel.Size = New-Object System.Drawing.Size(390, 22)");
+        sb.AppendLine("$form.Controls.Add($statusLabel)");
+        sb.AppendLine("$percentLabel = New-Object System.Windows.Forms.Label");
+        sb.AppendLine("$percentLabel.Text = '0 %'");
+        sb.AppendLine("$percentLabel.Font = New-Object System.Drawing.Font('Segoe UI', 9.5, [System.Drawing.FontStyle]::Bold)");
+        sb.AppendLine("$percentLabel.ForeColor = [System.Drawing.Color]::FromArgb(56, 189, 248)");
+        sb.AppendLine("$percentLabel.TextAlign = 'TopRight'");
+        sb.AppendLine("$percentLabel.Location = New-Object System.Drawing.Point(414, 54)");
+        sb.AppendLine("$percentLabel.Size = New-Object System.Drawing.Size(70, 22)");
+        sb.AppendLine("$form.Controls.Add($percentLabel)");
+        sb.AppendLine("$progressBar = New-Object System.Windows.Forms.ProgressBar");
+        sb.AppendLine("$progressBar.Location = New-Object System.Drawing.Point(24, 84)");
+        sb.AppendLine("$progressBar.Size = New-Object System.Drawing.Size(460, 26)");
+        sb.AppendLine("$progressBar.Minimum = 0");
+        sb.AppendLine("$progressBar.Maximum = 100");
+        sb.AppendLine("$progressBar.Value = 0");
+        sb.AppendLine("$progressBar.Style = 'Continuous'");
+        sb.AppendLine("$form.Controls.Add($progressBar)");
+        sb.AppendLine("$detailLabel = New-Object System.Windows.Forms.Label");
+        sb.AppendLine("$detailLabel.Text = $targetAppDir");
+        sb.AppendLine("$detailLabel.Font = New-Object System.Drawing.Font('Consolas', 8.5)");
+        sb.AppendLine("$detailLabel.ForeColor = [System.Drawing.Color]::FromArgb(148, 163, 184)");
+        sb.AppendLine("$detailLabel.AutoEllipsis = $true");
+        sb.AppendLine("$detailLabel.Location = New-Object System.Drawing.Point(24, 122)");
+        sb.AppendLine("$detailLabel.Size = New-Object System.Drawing.Size(460, 22)");
+        sb.AppendLine("$form.Controls.Add($detailLabel)");
+        sb.AppendLine("function Set-UpdateProgress([int]$pct, [string]$status, [string]$detail) {");
+        sb.AppendLine("    $clamped = [Math]::Max(0, [Math]::Min(100, $pct))");
+        sb.AppendLine("    $progressBar.Value = $clamped");
+        sb.AppendLine("    $percentLabel.Text = \"$clamped %\"");
+        sb.AppendLine("    if ($status) { $statusLabel.Text = $status }");
+        sb.AppendLine("    if ($detail) { $detailLabel.Text = $detail }");
+        sb.AppendLine("    [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("}");
+        sb.AppendLine("$form.Show()");
+        sb.AppendLine("$form.Activate()");
+        sb.AppendLine("Set-UpdateProgress 5 $waitText $exePath");
+        sb.AppendLine($"$proc = Get-Process -Id {processId} -ErrorAction SilentlyContinue");
+        sb.AppendLine("if ($proc) {");
+        sb.AppendLine("    for ($t = 0; $t -lt 60; $t++) {");
+        sb.AppendLine("        if ($proc.HasExited) { break }");
+        sb.AppendLine("        [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("        Start-Sleep -Milliseconds 100");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine("for ($w = 0; $w -lt 15; $w++) {");
+        sb.AppendLine("    $running = @(Get-Process -Name 'ModernExplorer' -ErrorAction SilentlyContinue)");
+        sb.AppendLine("    if ($running.Count -eq 0) { break }");
+        sb.AppendLine("    if ($w -ge 4) { $running | Stop-Process -Force -ErrorAction SilentlyContinue }");
+        sb.AppendLine("    [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("    Start-Sleep -Milliseconds 200");
+        sb.AppendLine("}");
+        sb.AppendLine("Start-Sleep -Milliseconds 300");
+        sb.AppendLine("Set-UpdateProgress 12 \"$copyText...\" $targetAppDir");
+        sb.AppendLine("$items = @(Get-ChildItem -LiteralPath $stagingDir -Recurse -Force -ErrorAction Stop)");
+        sb.AppendLine("$totalItems = [Math]::Max(1, $items.Count)");
+        sb.AppendLine("$idx = 0");
+        sb.AppendLine("foreach ($item in $items) {");
+        sb.AppendLine("    $idx++");
+        sb.AppendLine("    $relPath = $item.FullName.Substring($stagingDir.Length).TrimStart('\\', '/')");
+        sb.AppendLine("    $pct = 12 + [int](($idx * 83) / $totalItems)");
+        sb.AppendLine("    Set-UpdateProgress $pct \"$copyText ($idx / $totalItems)...\" $relPath");
+        sb.AppendLine("    foreach ($dir in $targetDirs) {");
+        sb.AppendLine("        $destPath = Join-Path $dir $relPath");
+        sb.AppendLine("        for ($attempt = 1; $attempt -le 15; $attempt++) {");
+        sb.AppendLine("            try {");
+        sb.AppendLine("                if ($item.PSIsContainer) {");
+        sb.AppendLine("                    if (-not (Test-Path -LiteralPath $destPath)) {");
+        sb.AppendLine("                        New-Item -ItemType Directory -Path $destPath -Force -ErrorAction Stop | Out-Null");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                } else {");
+        sb.AppendLine("                    $destParent = Split-Path -Parent $destPath");
+        sb.AppendLine("                    if (-not (Test-Path -LiteralPath $destParent)) {");
+        sb.AppendLine("                        New-Item -ItemType Directory -Path $destParent -Force -ErrorAction Stop | Out-Null");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                    Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force -ErrorAction Stop");
+        sb.AppendLine("                }");
+        sb.AppendLine("                break");
+        sb.AppendLine("            } catch [System.UnauthorizedAccessException] {");
+        sb.AppendLine("                \"Attempt $attempt unauthorized on ${destPath} - $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("                if (-not $isAdmin -and $PSCommandPath) {");
+        sb.AppendLine("                    $form.Close()");
+        sb.AppendLine("                    try {");
+        sb.AppendLine("                        Start-Process -FilePath 'powershell.exe' -WorkingDirectory $env:SystemRoot -ArgumentList \"-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `\"$PSCommandPath`\"\" -Verb RunAs -ErrorAction Stop");
+        sb.AppendLine("                    } catch {");
+        sb.AppendLine("                        $shell = New-Object -ComObject Shell.Application");
+        sb.AppendLine("                        $shell.ShellExecute('powershell.exe', \"-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `\"$PSCommandPath`\"\", $env:SystemRoot, 'runas', 0)");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                    exit");
+        sb.AppendLine("                }");
+        sb.AppendLine("                [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("                Start-Sleep -Milliseconds 300");
+        sb.AppendLine("            } catch {");
+        sb.AppendLine("                \"Attempt $attempt failed on ${destPath} - $($_.Exception.Message)\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
+        sb.AppendLine("                [System.Windows.Forms.Application]::DoEvents()");
+        sb.AppendLine("                Start-Sleep -Milliseconds 300");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine("    if (($idx % 3) -eq 0) { Start-Sleep -Milliseconds 15 }");
+        sb.AppendLine("}");
+        sb.AppendLine("\"Update copy succeeded for $($items.Count) items\" | Out-File -FilePath $logFile -Append -Encoding UTF8");
         sb.AppendLine("try {");
         sb.AppendLine("    $ver = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exePath).FileVersion");
         sb.AppendLine("    if ($ver) {");
@@ -430,6 +568,10 @@ public sealed class GitHubUpdateService
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("} catch { }");
+        sb.AppendLine("Set-UpdateProgress 100 $doneText $exePath");
+        sb.AppendLine("Start-Sleep -Milliseconds 500");
+        sb.AppendLine("$form.Close()");
+        sb.AppendLine("$form.Dispose()");
         sb.AppendLine("Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\"");
         return sb.ToString();
     }
@@ -530,22 +672,17 @@ public sealed class GitHubUpdateService
             {
                 var scriptPath = Path.Combine(updateRoot, "apply-update.ps1");
                 var scriptContent = BuildSelfUpdatePowerShellScript(Environment.ProcessId, stagingDir, targetDir, exePath);
-                await File.WriteAllTextAsync(scriptPath, scriptContent, Encoding.UTF8, ct).ConfigureAwait(false);
+                await File.WriteAllTextAsync(scriptPath, scriptContent, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), ct).ConfigureAwait(false);
 
-                bool needsElevation = !CanWriteToDirectory(targetDir);
                 var psi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
-                    UseShellExecute = needsElevation,
-                    CreateNoWindow = !needsElevation,
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File \"{scriptPath}\"",
+                    WorkingDirectory = Environment.SystemDirectory,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden,
                 };
-
-                if (needsElevation)
-                {
-                    psi.Verb = "runas";
-                }
 
                 var started = Process.Start(psi);
                 return started is not null;

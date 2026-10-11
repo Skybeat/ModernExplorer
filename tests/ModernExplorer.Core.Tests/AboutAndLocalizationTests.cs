@@ -196,10 +196,13 @@ public sealed class AboutAndLocalizationTests
 
             Assert.Contains($"$exePath = \"{exePath}\"", script);
             Assert.Contains($"$targetAppDir = \"{targetDir}\"", script);
+            Assert.Contains("New-Object System.Windows.Forms.Form", script);
+            Assert.Contains("New-Object System.Windows.Forms.ProgressBar", script);
+            Assert.Contains("function Set-UpdateProgress", script);
             Assert.Contains("for ($attempt = 1; $attempt -le 15; $attempt++)", script);
             Assert.Contains("Get-ChildItem -LiteralPath $stagingDir -Recurse -Force", script);
             Assert.Contains("Copy-Item -LiteralPath $item.FullName -Destination $destPath -Force -ErrorAction Stop", script);
-            Assert.Contains("icacls $targetAppDir /grant '*S-1-5-32-545:(OI)(CI)M'", script);
+            Assert.Contains("icacls $dir /grant '*S-1-5-32-545:(OI)(CI)M'", script);
             Assert.Contains("-Verb RunAs", script);
             Assert.Contains("Start-Process -FilePath \"$exePath\" -WorkingDirectory \"$targetAppDir\"", script);
         }
