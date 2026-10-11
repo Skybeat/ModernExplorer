@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
+using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.Commands;
+using ModernExplorer.Core.Favorites;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Input;
 using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Operations;
+using ModernExplorer.Core.Remote;
 using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 
@@ -32,7 +35,12 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public KeyRouter Router { get; }
     public PanelViewModel Left { get; }
     public PanelViewModel Right { get; }
+    public FavoritesStore Favorites { get; }
+    public UndoHistoryService UndoHistory { get; } = new();
     public ObservableCollection<OperationItemViewModel> Operations { get; } = [];
+
+    public bool CanUndo => UndoHistory.CanUndo;
+    public string UndoDescription => UndoHistory.NextUndoDescription is { } d ? $"Rückgängig: {d} (Strg+Z)" : "Rückgängig (Strg+Z)";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActivePanel), nameof(OppositePanel))]
@@ -55,6 +63,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private bool _isSettingsOpen;
+
+    [ObservableProperty]
+    private bool _isQuickPreviewPanelOpen;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(F1Label), nameof(F2Label), nameof(F3Label), nameof(F4Label), nameof(F5Label), nameof(F6Label), nameof(F7Label), nameof(F8Label), nameof(F9Label), nameof(F10Label), nameof(F11Label), nameof(F12Label))]
@@ -84,7 +95,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         SessionStore sessionStore,
         IUiDispatcher dispatcher,
         IShellUi ui,
-        SettingsStore? settingsStore = null)
+        SettingsStore? settingsStore = null,
+        FavoritesStore? favoritesStore = null)
     {
         Settings = new SettingsViewModel(settingsStore);
         KeyBindings = keyBindings;
@@ -94,12 +106,31 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         _sessionStore = sessionStore;
         _dispatcher = dispatcher;
         _ui = ui;
+        Favorites = favoritesStore ?? new FavoritesStore();
 
         Left = new PanelViewModel(PanelSide.Left, watcherHub, dispatcher, OnTabClosed) { IsActivePanel = true };
         Right = new PanelViewModel(PanelSide.Right, watcherHub, dispatcher, OnTabClosed) { IsActivePanel = false };
 
-        Left.StateChanged += (_, _) => RequestSessionSave();
-        Right.StateChanged += (_, _) => RequestSessionSave();
+        Left.StateChanged += (_, _) =>
+        {
+            UpdateTabsBookmarkedState();
+            RequestSessionSave();
+        };
+        Right.StateChanged += (_, _) =>
+        {
+            UpdateTabsBookmarkedState();
+            RequestSessionSave();
+        };
+
+        Favorites.FavoritesChanged += (_, _) => UpdateTabsBookmarkedState();
+        UndoHistory.HistoryChanged += (_, _) =>
+        {
+            _dispatcher.Post(() =>
+            {
+                OnPropertyChanged(nameof(CanUndo));
+                OnPropertyChanged(nameof(UndoDescription));
+            });
+        };
 
         Settings.SaveSessionChanged += (_, _) =>
         {
@@ -442,6 +473,18 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 ActivePanel.ActiveTab?.SetViewMode(FileViewMode.Content);
                 RequestSessionSave();
             })
+            .Register("view.branchView", "Flache Ordneransicht / Branch View (Strg+B)", "Ansicht", async _ =>
+            {
+                if (ActivePanel.ActiveTab is { } t) await t.ToggleBranchViewAsync();
+            })
+            .Register("view.quickPreview", "Schnellvorschau-Panel ein-/ausblenden (Strg+Q)", "Ansicht", _ =>
+            {
+                IsQuickPreviewPanelOpen = !IsQuickPreviewPanelOpen;
+            })
+            .Register("favorites.toggle", "Ordner als Favorit merken / entfernen (Strg+D)", "Navigation", _ =>
+            {
+                ToggleCurrentFolderBookmark();
+            })
 
             // Selection & clipboard
             .Register("select.toggle", "Eintrag markieren / abwählen", "Auswahl", _ => ActivePanel.ActiveTab?.ToggleMarkFocusedAndAdvance())
@@ -477,19 +520,16 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 var kind = clip.Value.Cut ? OpKind.Move : OpKind.Copy;
                 _operationQueue.Enqueue(new FileOperation(kind, clip.Value.Paths, t.CurrentPath, new OperationOptions()));
             })
+            .Register("edit.undo", "Letzte Dateioperation rückgängig machen (Strg+Z)", "Bearbeiten", async _ =>
+            {
+                await UndoLastOperationAsync();
+            })
 
-            // File operations (F2–F9)
+            // File operations (F2–F9) & Tools
             .Register("file.rename", "Umbenennen (F2)", "Datei", async _ => await RenameFocusedAsync())
-            .Register("file.view", "Quick-Viewer öffnen (F3)", "Datei", _ =>
-            {
-                var f = ActivePanel.ActiveTab?.FocusedItem;
-                if (f is { IsParentLink: false }) _ui.OpenViewer(f.FullPath);
-            })
-            .Register("file.edit", "Im Editor öffnen (F4)", "Datei", _ =>
-            {
-                var f = ActivePanel.ActiveTab?.FocusedItem;
-                if (f is { IsDirectory: false }) _ui.OpenEditor(f.FullPath);
-            })
+            .Register("file.batchRename", "Mehrfach-Umbenennungstool (Strg+M)", "Datei", async _ => await BatchRenameSelectedAsync())
+            .Register("file.view", "Quick-Viewer öffnen (F3)", "Datei", async _ => await OpenViewerForFocusedAsync())
+            .Register("file.edit", "Im Editor öffnen (F4)", "Datei", async _ => await OpenEditorForFocusedAsync())
             .Register("fileOp.copy", "Kopieren (F5)", "Datei", async ctx =>
                 await CopyOrMoveAsync(OpKind.Copy, ctx.Arg("showDialog", false)))
             .Register("fileOp.move", "Verschieben (F6)", "Datei", async ctx =>
@@ -500,6 +540,17 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 await DeleteTargetsAsync(ctx.Arg("recycle", true)))
             .Register("terminal.open", "Terminal im aktuellen Pfad öffnen (F9)", "Werkzeuge", ctx =>
                 OpenTerminal(ctx.Arg("elevated", false)))
+            .Register("tools.deepSearch", "Rekursive Tiefensuche (Alt+F7)", "Werkzeuge", async _ => await OpenDeepSearchAsync())
+            .Register("tools.syncDirs", "Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)", "Werkzeuge", async _ => await OpenDirectorySyncAsync())
+            .Register("tools.findDuplicates", "Duplikat-Finder öffnen", "Werkzeuge", async _ => await OpenDuplicateFinderAsync())
+            .Register("tools.treeSize", "Speicherplatz-Analyse / Ordnergrößen (TreeSize)", "Werkzeuge", async _ =>
+            {
+                if (ActivePanel.ActiveTab is { } t) await t.AnalyzeDirectorySizesAsync(sortBySizeDescending: true);
+            })
+            .Register("tools.remoteConnect", "FTP / FTPS / SFTP-Verbindungsmanager (Strg+Shift+C)", "Werkzeuge", async _ => await OpenRemoteConnectDialogAsync())
+            .Register("archive.pack", "In Archiv packen (.zip / .tar.gz / .7z) (Alt+F5)", "Archiv", async _ => await PackSelectedToArchiveAsync())
+            .Register("archive.extract", "Archiv entpacken (Alt+F9)", "Archiv", async _ => await ExtractSelectedArchiveAsync())
+            .Register("remote.chmod", "Remote-Berechtigungen ändern (chmod)", "Remote", async _ => await ChangeRemotePermissionsAsync())
 
             // Tabs
             .Register("tab.new", "Neuer Tab (Strg+T)", "Tabs", async _ => await ActivePanel.CreateTabAsync())
@@ -528,6 +579,261 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             });
     }
 
+    public void UpdateTabsBookmarkedState()
+    {
+        foreach (var tab in Left.Tabs.Concat(Right.Tabs))
+            tab.IsBookmarked = Favorites.IsBookmarked(tab.CurrentPath);
+    }
+
+    public void ToggleCurrentFolderBookmark()
+    {
+        if (ActivePanel.ActiveTab is not { } tab || string.IsNullOrWhiteSpace(tab.CurrentPath))
+            return;
+        bool added = Favorites.ToggleBookmark(tab.CurrentPath, tab.Title);
+        tab.IsBookmarked = added;
+        StatusNotification = added
+            ? $"Favorit hinzugefügt: {tab.Title}"
+            : $"Favorit entfernt: {tab.Title}";
+    }
+
+    public async Task NavigateToFavoriteAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        if (ActivePanel.ActiveTab is { } tab)
+            await tab.NavigateAsync(path, addToHistory: true);
+    }
+
+    public async Task UndoLastOperationAsync()
+    {
+        if (!UndoHistory.CanUndo)
+        {
+            StatusNotification = "Keine rückgängig machbare Aktion im Verlauf";
+            return;
+        }
+
+        var res = await Task.Run(() => UndoHistory.UndoLast());
+        StatusNotification = res.Summary;
+        if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+        if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        if (!res.Success)
+            _ui.ShowMessage("Rückgängig", res.Summary);
+    }
+
+    public async Task BatchRenameSelectedAsync()
+    {
+        if (ActivePanel.ActiveTab is not { } tab || tab.IsVirtualArchive || tab.IsRemoteConnection)
+            return;
+
+        var marked = tab.Items.Where(i => i.IsMarked && !i.IsParentLink).Select(i => i.Entry).ToList();
+        if (marked.Count == 0 && tab.FocusedItem is { IsParentLink: false } f)
+            marked.Add(f.Entry);
+        if (marked.Count == 0)
+            marked = tab.Items.Where(i => !i.IsParentLink).Select(i => i.Entry).ToList();
+        if (marked.Count == 0)
+            return;
+
+        if (await _ui.ShowBatchRenameDialogAsync(marked))
+            await tab.ReloadAsync();
+    }
+
+    public async Task OpenDeepSearchAsync()
+    {
+        var dir = ActivePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false, IsSearchResultsTab: false } t && !string.IsNullOrEmpty(t.CurrentPath)
+            ? t.CurrentPath
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        await _ui.ShowDeepSearchDialogAsync(dir);
+    }
+
+    public async Task OpenDirectorySyncAsync()
+    {
+        string leftDir = Left.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } lt && Directory.Exists(lt.CurrentPath)
+            ? lt.CurrentPath
+            : Environment.CurrentDirectory;
+        string rightDir = Right.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } rt && Directory.Exists(rt.CurrentPath)
+            ? rt.CurrentPath
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        if (await _ui.ShowDirectorySyncDialogAsync(leftDir, rightDir))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenDuplicateFinderAsync()
+    {
+        var dir = ActivePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false, IsSearchResultsTab: false } t && Directory.Exists(t.CurrentPath)
+            ? t.CurrentPath
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (await _ui.ShowDuplicateFinderDialogAsync(dir))
+        {
+            if (ActivePanel.ActiveTab is not null)
+                await ActivePanel.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenRemoteConnectDialogAsync()
+    {
+        var uri = await _ui.ShowRemoteConnectionManagerDialogAsync();
+        if (!string.IsNullOrWhiteSpace(uri) && ActivePanel.ActiveTab is { } tab)
+            await tab.NavigateAsync(uri, addToHistory: true);
+    }
+
+    public async Task PackSelectedToArchiveAsync()
+    {
+        if (ActivePanel.ActiveTab is not { IsVirtualArchive: false, IsRemoteConnection: false } srcTab)
+            return;
+
+        var sources = srcTab.GetTargetPaths();
+        if (sources.Count == 0) return;
+
+        string defaultDestDir = IsDualMode && OppositePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } opp && Directory.Exists(opp.CurrentPath)
+            ? opp.CurrentPath
+            : srcTab.CurrentPath;
+
+        var createdArchive = await _ui.ShowCreateArchiveDialogAsync(sources, defaultDestDir);
+        if (!string.IsNullOrWhiteSpace(createdArchive))
+        {
+            StatusNotification = $"Archiv erstellt: {Path.GetFileName(createdArchive)}";
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task ExtractSelectedArchiveAsync()
+    {
+        if (ActivePanel.ActiveTab is not { } srcTab) return;
+
+        string? archivePath = null;
+        if (srcTab.IsVirtualArchive && ArchiveService.TryParseVirtualArchivePath(srcTab.CurrentPath, out var parsedArch, out _))
+        {
+            archivePath = parsedArch;
+        }
+        else if (srcTab.FocusedItem is { IsDirectory: false } focusedFile && ArchiveService.IsSupportedArchiveFile(focusedFile.FullPath))
+        {
+            archivePath = focusedFile.FullPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(archivePath) || !File.Exists(archivePath))
+        {
+            _ui.ShowMessage("Archiv entpacken", "Bitte wählen Sie eine unterstützte Archivdatei (.zip, .7z, .tar.gz, .rar) aus.");
+            return;
+        }
+
+        string defaultDest = IsDualMode && OppositePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } opp && Directory.Exists(opp.CurrentPath)
+            ? Path.Combine(opp.CurrentPath, Path.GetFileNameWithoutExtension(archivePath))
+            : Path.Combine(Path.GetDirectoryName(archivePath) ?? "", Path.GetFileNameWithoutExtension(archivePath));
+
+        var destDir = await _ui.PromptAsync("Archiv entpacken (Alt+F9)", $"Zielordner für „{Path.GetFileName(archivePath)}“:", defaultDest, defaultDest.Length);
+        if (string.IsNullOrWhiteSpace(destDir)) return;
+
+        try
+        {
+            StatusNotification = $"Entpacke {Path.GetFileName(archivePath)}…";
+            int count = await ArchiveService.ExtractArchiveAsync(archivePath, destDir);
+            StatusNotification = $"{count} Datei(en) nach {destDir} entpackt";
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            _ui.ShowMessage("Entpacken fehlgeschlagen", ex.Message);
+        }
+    }
+
+    public async Task ChangeRemotePermissionsAsync()
+    {
+        if (ActivePanel.ActiveTab is not { IsRemoteConnection: true } tab || tab.FocusedItem is not { IsParentLink: false } item)
+            return;
+
+        string initialOctal = "755";
+        var oct = await _ui.PromptAsync("Berechtigungen ändern (chmod)", $"Oktaler Modus (z.B. 755 oder 644) für „{item.Name}“:", initialOctal, initialOctal.Length);
+        if (string.IsNullOrWhiteSpace(oct)) return;
+
+        try
+        {
+            short mode = Convert.ToInt16(oct.Trim(), 8);
+            await RemoteFileSystemService.ChangePermissionsAsync(item.FullPath, mode);
+            StatusNotification = $"chmod {oct.Trim()} auf {item.Name} angewendet";
+            await tab.ReloadAsync(item.Name);
+        }
+        catch (Exception ex)
+        {
+            _ui.ShowMessage("chmod fehlgeschlagen", ex.Message);
+        }
+    }
+
+    public async Task OpenViewerForFocusedAsync()
+    {
+        if (ActivePanel.ActiveTab is not { } tab || tab.FocusedItem is not { IsParentLink: false } item)
+            return;
+
+        try
+        {
+            if (item.Entry.IsArchiveVirtualEntry)
+            {
+                if (item.IsDirectory) return;
+                var temp = await ArchiveService.ExtractVirtualEntryToTempFileAsync(item.FullPath);
+                if (temp is not null) _ui.OpenViewer(temp);
+                return;
+            }
+
+            if (item.Entry.IsRemoteEntry)
+            {
+                if (item.IsDirectory) return;
+                StatusNotification = $"Lade Vorschau für {item.Name}…";
+                var temp = await RemoteFileSystemService.DownloadToTempFileAsync(item.FullPath);
+                StatusNotification = null;
+                _ui.OpenViewer(temp);
+                return;
+            }
+
+            _ui.OpenViewer(item.FullPath);
+        }
+        catch (Exception ex)
+        {
+            _ui.ShowMessage("Vorschau fehlgeschlagen", ex.Message);
+        }
+    }
+
+    public async Task OpenEditorForFocusedAsync()
+    {
+        if (ActivePanel.ActiveTab is not { } tab || tab.FocusedItem is not { IsDirectory: false, IsParentLink: false } item)
+            return;
+
+        try
+        {
+            if (item.Entry.IsArchiveVirtualEntry)
+            {
+                var temp = await ArchiveService.ExtractVirtualEntryToTempFileAsync(item.FullPath);
+                if (temp is not null) _ui.OpenEditor(temp);
+                return;
+            }
+
+            if (item.Entry.IsRemoteEntry)
+            {
+                StatusNotification = $"Lade {item.Name} zum Bearbeiten herunter…";
+                string remoteTargetUri = item.FullPath;
+                string itemName = item.Name;
+                var temp = await RemoteFileSystemService.DownloadToTempFileAsync(remoteTargetUri);
+                StatusNotification = $"Remote-Datei geöffnet: {itemName}";
+                _ui.OpenEditorWithSaveCallback(temp, async savedLocalPath =>
+                {
+                    await RemoteFileSystemService.UploadSingleFileAsync(savedLocalPath, remoteTargetUri);
+                    StatusNotification = $"Remote gespeichert: {itemName}";
+                    await tab.ReloadAsync(itemName);
+                });
+                return;
+            }
+
+            _ui.OpenEditor(item.FullPath);
+        }
+        catch (Exception ex)
+        {
+            _ui.ShowMessage("Editor konnte nicht geöffnet werden", ex.Message);
+        }
+    }
+
     public async Task OpenFocusedEntryAsync()
     {
         if (ActivePanel.ActiveTab is not { } t || t.FocusedItem is not { } item) return;
@@ -541,6 +847,20 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             await t.NavigateAsync(item.FullPath);
             return;
         }
+
+        // Open supported archives (.zip, .7z, .tar.gz, .rar) seamlessly like virtual folders
+        if (!t.IsVirtualArchive && !t.IsRemoteConnection && ArchiveService.IsSupportedArchiveFile(item.FullPath))
+        {
+            await t.NavigateAsync(ArchiveService.BuildVirtualArchivePath(item.FullPath));
+            return;
+        }
+
+        if (item.Entry.IsArchiveVirtualEntry || item.Entry.IsRemoteEntry)
+        {
+            await OpenViewerForFocusedAsync();
+            return;
+        }
+
         try
         {
             Process.Start(new ProcessStartInfo(item.FullPath) { UseShellExecute = true });
@@ -554,6 +874,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public async Task CreateNewFileAsync()
     {
         if (ActivePanel.ActiveTab is not { } tab || string.IsNullOrEmpty(tab.CurrentPath)) return;
+        if (tab.IsVirtualArchive || tab.IsRemoteConnection || tab.IsSearchResultsTab) return;
+
         var templates = _creationService.Templates.Templates;
         var def = _creationService.Templates.Default;
 
@@ -573,6 +895,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
+        UndoHistory.RecordCreateFile(result.FullPath);
         await tab.ReloadAsync(Path.GetFileName(result.FullPath));
         if (req.OpenAfterCreate)
             _ui.OpenEditor(result.FullPath);
@@ -581,8 +904,24 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public async Task CreateNewFolderAsync()
     {
         if (ActivePanel.ActiveTab is not { } tab || string.IsNullOrEmpty(tab.CurrentPath)) return;
+        if (tab.IsVirtualArchive || tab.IsSearchResultsTab) return;
+
         var name = await _ui.ShowNewFolderDialogAsync(tab.CurrentPath, NameValidator.ValidateRelativePath);
         if (string.IsNullOrWhiteSpace(name)) return;
+
+        if (tab.IsRemoteConnection)
+        {
+            try
+            {
+                await RemoteFileSystemService.CreateDirectoryAsync(tab.CurrentPath, name.Trim());
+                await tab.ReloadAsync(name.Trim());
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Remote-Ordner konnte nicht erstellt werden", ex.Message);
+            }
+            return;
+        }
 
         var result = _creationService.CreateFolder(tab.CurrentPath, name);
         if (!result.Success || result.FullPath is null)
@@ -593,17 +932,35 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
+        UndoHistory.RecordCreateFolder(result.FullPath);
         await tab.ReloadAsync(Path.GetFileName(result.FullPath));
     }
 
     public async Task RenameFocusedAsync()
     {
         if (ActivePanel.ActiveTab is not { } tab || tab.FocusedItem is not { IsParentLink: false } item) return;
+        if (tab.IsVirtualArchive) return;
+
         int stemLen = item.IsDirectory ? item.Name.Length : NameValidator.StemLength(item.Name);
         var newName = await _ui.PromptAsync("Umbenennen (F2)", $"Neuer Name für „{item.Name}“:", item.Name, stemLen, NameValidator.Validate);
         if (string.IsNullOrWhiteSpace(newName) || newName == item.Name) return;
 
-        var handle = await _operationQueue.RunAsync(new FileOperation(OpKind.Rename, [item.FullPath], null, new OperationOptions())
+        if (tab.IsRemoteConnection)
+        {
+            try
+            {
+                await RemoteFileSystemService.RenameAsync(item.FullPath, newName.Trim());
+                await tab.ReloadAsync(newName.Trim());
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Remote-Umbenennen fehlgeschlagen", ex.Message);
+            }
+            return;
+        }
+
+        string oldFullPath = item.FullPath;
+        var handle = await _operationQueue.RunAsync(new FileOperation(OpKind.Rename, [oldFullPath], null, new OperationOptions())
         {
             NewName = newName,
         });
@@ -613,6 +970,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             _ui.ShowMessage("Umbenennen fehlgeschlagen", handle.Error.Message);
             return;
         }
+
+        var parentDir = Path.GetDirectoryName(oldFullPath);
+        if (!string.IsNullOrEmpty(parentDir))
+            UndoHistory.RecordRename(oldFullPath, Path.Combine(parentDir, newName));
+
         await tab.ReloadAsync(newName);
     }
 
@@ -634,25 +996,126 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             if (string.IsNullOrWhiteSpace(destination)) return;
         }
 
+        // Virtual archive extraction on F5
+        if (srcTab.IsVirtualArchive)
+        {
+            if (ArchiveService.TryParseVirtualArchivePath(srcTab.CurrentPath, out var archFile, out _))
+            {
+                try
+                {
+                    StatusNotification = $"Entpacke aus {Path.GetFileName(archFile)}…";
+                    int extracted = 0;
+                    foreach (var s in sources)
+                    {
+                        extracted += await ArchiveService.ExtractArchiveAsync(s, destination!);
+                    }
+                    StatusNotification = $"{extracted} Datei(en) entpackt";
+                    if (OppositePanel.ActiveTab is not null) await OppositePanel.ActiveTab.ReloadAsync();
+                }
+                catch (Exception ex)
+                {
+                    _ui.ShowMessage("Entpacken fehlgeschlagen", ex.Message);
+                }
+            }
+            return;
+        }
+
+        // Remote download (Remote -> Local)
+        if (srcTab.IsRemoteConnection && !RemoteFileSystemService.IsRemoteUri(destination))
+        {
+            try
+            {
+                StatusNotification = $"Lade {sources.Count} Element(e) herunter…";
+                int count = await RemoteFileSystemService.DownloadEntriesAsync(sources, destination!);
+                if (kind == OpKind.Move)
+                {
+                    foreach (var s in sources)
+                    {
+                        var entry = srcTab.Items.FirstOrDefault(i => i.FullPath == s);
+                        await RemoteFileSystemService.DeleteAsync(s, entry?.IsDirectory ?? false);
+                    }
+                    await srcTab.ReloadAsync();
+                }
+                StatusNotification = $"{count} Datei(en) heruntergeladen";
+                if (OppositePanel.ActiveTab is not null) await OppositePanel.ActiveTab.ReloadAsync();
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Download fehlgeschlagen", ex.Message);
+            }
+            return;
+        }
+
+        // Remote upload (Local -> Remote)
+        if (!srcTab.IsRemoteConnection && RemoteFileSystemService.IsRemoteUri(destination))
+        {
+            try
+            {
+                StatusNotification = $"Lade {sources.Count} Element(e) hoch…";
+                int count = await RemoteFileSystemService.UploadEntriesAsync(sources, destination!);
+                StatusNotification = $"{count} Datei(en) hochgeladen";
+                if (OppositePanel.ActiveTab is not null) await OppositePanel.ActiveTab.ReloadAsync();
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Upload fehlgeschlagen", ex.Message);
+            }
+            return;
+        }
+
+        // Local Copy / Move: record in UndoHistory
+        if (!string.IsNullOrWhiteSpace(destination) && Directory.Exists(destination))
+        {
+            if (kind == OpKind.Copy)
+            {
+                var created = sources.Select(s => Path.Combine(destination, Path.GetFileName(s.TrimEnd('\\', '/')))).ToList();
+                UndoHistory.RecordCopy(created, $"Kopieren ({sources.Count} Elemente)");
+            }
+            else if (kind == OpKind.Move)
+            {
+                var moves = sources.Select(s => (s, Path.Combine(destination, Path.GetFileName(s.TrimEnd('\\', '/'))))).ToList();
+                UndoHistory.RecordMove(moves, $"Verschieben ({sources.Count} Elemente)");
+            }
+        }
+
         _operationQueue.Enqueue(new FileOperation(kind, sources, destination, new OperationOptions()));
     }
 
     public async Task DeleteTargetsAsync(bool recycle)
     {
-        if (ActivePanel.ActiveTab is not { } tab) return;
+        if (ActivePanel.ActiveTab is not { } tab || tab.IsVirtualArchive) return;
         var targets = tab.GetTargetPaths();
         if (targets.Count == 0) return;
 
-        if (!recycle || Settings.ConfirmDeleteToRecycleBin)
+        if (!recycle || Settings.ConfirmDeleteToRecycleBin || tab.IsRemoteConnection)
         {
-            var what = targets.Count == 1 ? $"„{Path.GetFileName(targets[0].TrimEnd('\\'))}“" : $"{targets.Count} ausgewählte Elemente";
-            var title = recycle ? "In den Papierkorb verschieben (F8)" : "Endgültig löschen (Shift+F8)";
-            var msg = recycle
+            var what = targets.Count == 1 ? $"„{Path.GetFileName(targets[0].TrimEnd('\\', '/'))}“" : $"{targets.Count} ausgewählte Elemente";
+            var title = (recycle && !tab.IsRemoteConnection) ? "In den Papierkorb verschieben (F8)" : "Endgültig löschen (Shift+F8)";
+            var msg = (recycle && !tab.IsRemoteConnection)
                 ? $"Möchten Sie {what} in den Papierkorb verschieben?"
                 : $"Möchten Sie {what} unwiderruflich löschen?";
 
-            if (!await _ui.ConfirmAsync(title, msg, recycle ? "In Papierkorb" : "Endgültig löschen", destructive: !recycle))
+            if (!await _ui.ConfirmAsync(title, msg, (recycle && !tab.IsRemoteConnection) ? "In Papierkorb" : "Endgültig löschen", destructive: !recycle || tab.IsRemoteConnection))
                 return;
+        }
+
+        if (tab.IsRemoteConnection)
+        {
+            try
+            {
+                foreach (var target in targets)
+                {
+                    var item = tab.Items.FirstOrDefault(i => i.FullPath == target);
+                    await RemoteFileSystemService.DeleteAsync(target, item?.IsDirectory ?? false);
+                }
+                StatusNotification = $"{targets.Count} Remote-Element(e) gelöscht";
+                await tab.ReloadAsync();
+            }
+            catch (Exception ex)
+            {
+                _ui.ShowMessage("Remote-Löschen fehlgeschlagen", ex.Message);
+            }
+            return;
         }
 
         _operationQueue.Enqueue(new FileOperation(OpKind.Delete, targets, null, new OperationOptions { Recycle = recycle }));
@@ -678,6 +1141,8 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private void OpenTerminal(bool elevated)
     {
         var dir = ActivePanel.ActiveTab?.CurrentPath ?? Environment.CurrentDirectory;
+        if (ArchiveService.IsVirtualArchivePath(dir) || RemoteFileSystemService.IsRemoteUri(dir) || dir.StartsWith("search://", StringComparison.OrdinalIgnoreCase))
+            dir = Environment.CurrentDirectory;
 
         if (OperatingSystem.IsMacOS())
         {
@@ -761,3 +1226,4 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         await _operationQueue.DisposeAsync();
     }
 }
+

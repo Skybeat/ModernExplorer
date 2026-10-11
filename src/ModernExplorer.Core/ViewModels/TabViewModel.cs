@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Localization;
+using ModernExplorer.Core.Remote;
 using ModernExplorer.Core.Session;
 
 namespace ModernExplorer.Core.ViewModels;
@@ -16,6 +18,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private readonly WatcherHub _watcherHub;
     private readonly IUiDispatcher _dispatcher;
     private readonly List<FileItemViewModel> _allItems = [];
+    private readonly List<FileEntry> _customSearchResults = [];
     private readonly Stack<string> _back = new();
     private readonly Stack<string> _forward = new();
     private CancellationTokenSource? _loadCts;
@@ -26,7 +29,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public SettingsViewModel Settings => SettingsViewModel.Current;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Title), nameof(DisplayTitle), nameof(CanGoUp))]
+    [NotifyPropertyChangedFor(nameof(Title), nameof(DisplayTitle), nameof(CanGoUp), nameof(IsVirtualArchive), nameof(IsRemoteConnection), nameof(IsSearchResultsTab))]
     private string _currentPath = "";
 
     [ObservableProperty]
@@ -46,6 +49,21 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDetailsView), nameof(ViewModeDisplayName), nameof(ViewModeIconGlyph), nameof(ViewModeButtonLabel))]
     private FileViewMode _viewMode = FileViewMode.Details;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayTitle))]
+    private bool _isBranchView;
+
+    [ObservableProperty]
+    private bool _isTreeSizeActive;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGitRepository))]
+    private string _gitSummaryBadge = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BookmarkGlyph))]
+    private bool _isBookmarked;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -75,6 +93,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<FileItemViewModel> Items { get; } = [];
     public ObservableCollection<BreadcrumbSegment> Breadcrumbs { get; } = [];
+
+    public bool IsVirtualArchive => ArchiveService.IsVirtualArchivePath(CurrentPath);
+    public bool IsRemoteConnection => RemoteFileSystemService.IsRemoteUri(CurrentPath);
+    public bool IsSearchResultsTab => CurrentPath.StartsWith("search://", StringComparison.OrdinalIgnoreCase);
+    public bool HasGitRepository => !string.IsNullOrEmpty(GitSummaryBadge);
+    public string BookmarkGlyph => IsBookmarked ? "★" : "☆";
 
     public static IReadOnlyList<FileViewMode> AllViewModes { get; } =
     [
@@ -134,13 +158,36 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public bool CanGoBack => _back.Count > 0;
     public bool CanGoForward => _forward.Count > 0;
-    public bool CanGoUp => !string.IsNullOrEmpty(CurrentPath) && Directory.GetParent(CurrentPath) is not null;
+    public bool CanGoUp
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(CurrentPath)) return false;
+            if (IsVirtualArchive) return !string.IsNullOrEmpty(ArchiveService.GetParentPathForVirtualArchive(CurrentPath));
+            if (IsRemoteConnection) return !string.IsNullOrEmpty(RemoteFileSystemService.GetParentRemoteUri(CurrentPath));
+            if (IsSearchResultsTab) return false;
+            try { return Directory.GetParent(CurrentPath) is not null; }
+            catch { return false; }
+        }
+    }
 
     public string Title
     {
         get
         {
             if (string.IsNullOrEmpty(CurrentPath)) return "Tab";
+            if (IsSearchResultsTab) return "🔍 " + CurrentPath["search://".Length..];
+            if (IsVirtualArchive && ArchiveService.TryParseVirtualArchivePath(CurrentPath, out var arch, out var inner))
+            {
+                return string.IsNullOrEmpty(inner)
+                    ? "📦 " + Path.GetFileName(arch)
+                    : "📦 " + Path.GetFileName(inner);
+            }
+            if (IsRemoteConnection && RemoteFileSystemService.TryParseRemoteUri(CurrentPath, out var proto, out var host, out _, out _, out var rPath))
+            {
+                string leaf = rPath == "/" ? host : $"{host}:{Path.GetFileName(rPath)}";
+                return $"🌐 {proto.ToString().ToUpperInvariant()} {leaf}";
+            }
             var trimmed = CurrentPath.TrimEnd('\\');
             var name = Path.GetFileName(trimmed);
             return string.IsNullOrEmpty(name) ? trimmed : name;
@@ -151,7 +198,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var prefix = (IsPinned ? "📌 " : "") + (IsLocked ? "🔒 " : "") + (HasPathWarning ? "⚠ " : "");
+            var prefix = (IsPinned ? "📌 " : "") + (IsLocked ? "🔒 " : "") + (IsBranchView ? "🌿 " : "") + (HasPathWarning ? "⚠ " : "");
             return prefix + Title;
         }
     }
@@ -310,20 +357,61 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
         var preferredName = selectName ?? FocusedItem?.Name;
         IsLoading = true;
+        ErrorBanner = HasPathWarning ? ErrorBanner : null;
         _allItems.Clear();
         Items.Clear();
 
         try
         {
-            await foreach (var batch in DirectoryEnumerator.EnumerateBatchesAsync(CurrentPath, ShowHidden, ct: token))
+            if (IsSearchResultsTab)
             {
-                token.ThrowIfCancellationRequested();
-                foreach (var entry in batch)
+                foreach (var entry in _customSearchResults)
                     _allItems.Add(new FileItemViewModel(entry));
+                GitSummaryBadge = "";
+                RebuildVisibleList(preferredName);
             }
+            else if (IsVirtualArchive)
+            {
+                var entries = await Task.Run(() => ArchiveService.ListVirtualArchiveEntries(CurrentPath), token);
+                foreach (var entry in entries)
+                    _allItems.Add(new FileItemViewModel(entry));
+                GitSummaryBadge = "";
+                RebuildVisibleList(preferredName);
+            }
+            else if (IsRemoteConnection)
+            {
+                var entries = await RemoteFileSystemService.ListDirectoryAsync(CurrentPath, token);
+                foreach (var entry in entries)
+                {
+                    if (ShowHidden || !entry.IsHidden)
+                        _allItems.Add(new FileItemViewModel(entry));
+                }
+                GitSummaryBadge = "";
+                RebuildVisibleList(preferredName);
+            }
+            else if (IsBranchView)
+            {
+                var entries = await Task.Run(() => EnumerateBranchFiles(CurrentPath, ShowHidden, token), token);
+                foreach (var entry in entries)
+                    _allItems.Add(new FileItemViewModel(entry));
+                RebuildVisibleList(preferredName);
+                _ = RefreshGitStatusAsync(CurrentPath, token);
+            }
+            else
+            {
+                await foreach (var batch in DirectoryEnumerator.EnumerateBatchesAsync(CurrentPath, ShowHidden, ct: token))
+                {
+                    token.ThrowIfCancellationRequested();
+                    foreach (var entry in batch)
+                        _allItems.Add(new FileItemViewModel(entry));
+                }
 
-            token.ThrowIfCancellationRequested();
-            RebuildVisibleList(preferredName);
+                token.ThrowIfCancellationRequested();
+                RebuildVisibleList(preferredName);
+                _ = RefreshGitStatusAsync(CurrentPath, token);
+                if (IsTreeSizeActive)
+                    _ = AnalyzeDirectorySizesAsync(sortBySizeDescending: false);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -340,9 +428,194 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
+    public async Task ToggleBranchViewAsync()
+    {
+        if (IsVirtualArchive || IsRemoteConnection || IsSearchResultsTab)
+            return;
+        IsBranchView = !IsBranchView;
+        await ReloadAsync(FocusedItem?.Name);
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public async Task ToggleTreeSizeAsync()
+    {
+        if (IsTreeSizeActive)
+        {
+            IsTreeSizeActive = false;
+            foreach (var item in Items)
+            {
+                item.ComputedFolderSize = null;
+                item.SizeRatio = 0;
+            }
+            return;
+        }
+
+        await AnalyzeDirectorySizesAsync(sortBySizeDescending: true);
+    }
+
+    public void RefreshBookmarkState()
+    {
+        OnPropertyChanged(nameof(IsBookmarked));
+        OnPropertyChanged(nameof(BookmarkGlyph));
+    }
+
+    public async Task AnalyzeDirectorySizesAsync(bool sortBySizeDescending = true)
+    {
+        if (IsVirtualArchive || IsRemoteConnection || IsSearchResultsTab || string.IsNullOrEmpty(CurrentPath))
+            return;
+
+        IsTreeSizeActive = true;
+        var dirItems = Items.Where(i => i.IsDirectory && !i.IsParentLink).ToList();
+
+        await Task.Run(() =>
+        {
+            Parallel.ForEach(dirItems, new ParallelOptions { MaxDegreeOfParallelism = 4 }, item =>
+            {
+                try
+                {
+                    long sum = 0;
+                    var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = 0 };
+                    foreach (var f in new DirectoryInfo(item.FullPath).EnumerateFiles("*", opts))
+                        sum += f.Length;
+                    _dispatcher.Post(() => item.ComputedFolderSize = sum);
+                }
+                catch { }
+            });
+        });
+
+        _dispatcher.Post(() =>
+        {
+            long maxBytes = Items.Where(i => !i.IsParentLink).Select(i => i.EffectiveSize).DefaultIfEmpty(0).Max();
+            foreach (var item in Items.Where(i => !i.IsParentLink))
+            {
+                item.SizeRatio = maxBytes > 0 ? (double)item.EffectiveSize / maxBytes : 0;
+            }
+            if (sortBySizeDescending)
+            {
+                Sort = new SortSpec
+                {
+                    Column = SortColumn.Size,
+                    Descending = true,
+                    FoldersFirst = false,
+                };
+                RebuildVisibleList(FocusedItem?.Name);
+                // Reapply ratios after rebuild
+                long max2 = Items.Where(i => !i.IsParentLink).Select(i => i.EffectiveSize).DefaultIfEmpty(0).Max();
+                foreach (var item in Items.Where(i => !i.IsParentLink))
+                    item.SizeRatio = max2 > 0 ? (double)item.EffectiveSize / max2 : 0;
+            }
+            UpdateStatusSummary();
+        });
+    }
+
+    public async Task LoadSearchResultsAsync(string queryTitle, IReadOnlyList<FileEntry> results)
+    {
+        _customSearchResults.Clear();
+        _customSearchResults.AddRange(results);
+        string virtualPath = $"search://{queryTitle}";
+        await NavigateAsync(virtualPath, addToHistory: true, bypassLock: true);
+    }
+
+    private async Task RefreshGitStatusAsync(string directoryPath, CancellationToken ct)
+    {
+        try
+        {
+            var snap = await GitStatusService.GetStatusForDirectoryAsync(directoryPath, ct);
+            if (ct.IsCancellationRequested || !string.Equals(CurrentPath, directoryPath, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _dispatcher.Post(() =>
+            {
+                if (!snap.IsGitRepository)
+                {
+                    GitSummaryBadge = "";
+                    foreach (var item in Items)
+                        item.GitStatusBadge = "";
+                    return;
+                }
+
+                GitSummaryBadge = snap.SummaryBadge;
+
+                foreach (var item in Items)
+                {
+                    if (item.IsParentLink) continue;
+                    var norm = item.FullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    item.GitStatusBadge = snap.EntryStatusBadges.TryGetValue(norm, out var badge) ? badge : "";
+                }
+            });
+        }
+        catch
+        {
+            // Ignore Git inspection errors
+        }
+    }
+
+    private static List<FileEntry> EnumerateBranchFiles(string rootDir, bool showHidden, CancellationToken ct)
+    {
+        var list = new List<FileEntry>();
+        if (!Directory.Exists(rootDir)) return list;
+
+        var opts = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = showHidden ? 0 : FileAttributes.Hidden,
+        };
+
+        foreach (var file in new DirectoryInfo(rootDir).EnumerateFiles("*", opts))
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                string rel = Path.GetRelativePath(rootDir, file.FullName);
+                list.Add(new FileEntry(
+                    file.Name,
+                    file.FullName,
+                    false,
+                    file.Length,
+                    file.LastWriteTime,
+                    file.Attributes)
+                {
+                    RelativeSubPath = rel
+                });
+            }
+            catch { }
+        }
+        return list;
+    }
+
     public async Task GoUpAsync()
     {
         if (string.IsNullOrEmpty(CurrentPath)) return;
+
+        if (IsVirtualArchive)
+        {
+            var parentArch = ArchiveService.GetParentPathForVirtualArchive(CurrentPath);
+            if (!string.IsNullOrEmpty(parentArch))
+            {
+                string? select = null;
+                if (ArchiveService.TryParseVirtualArchivePath(CurrentPath, out var archPath, out var inner))
+                    select = string.IsNullOrEmpty(inner) ? Path.GetFileName(archPath) : Path.GetFileName(inner);
+                await NavigateAsync(parentArch, addToHistory: true, selectName: select);
+            }
+            return;
+        }
+
+        if (IsRemoteConnection)
+        {
+            var parentUri = RemoteFileSystemService.GetParentRemoteUri(CurrentPath);
+            if (!string.IsNullOrEmpty(parentUri))
+            {
+                string? select = null;
+                if (RemoteFileSystemService.TryParseRemoteUri(CurrentPath, out _, out _, out _, out _, out var rPath))
+                    select = Path.GetFileName(rPath.TrimEnd('/'));
+                await NavigateAsync(parentUri, addToHistory: true, selectName: select);
+            }
+            return;
+        }
+
+        if (IsSearchResultsTab) return;
+
         var parent = Directory.GetParent(CurrentPath);
         if (parent is null) return;
         var childName = Path.GetFileName(CurrentPath.TrimEnd('\\'));
@@ -403,7 +676,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (FocusedItem is null || FocusedItem.IsParentLink) return;
         var item = FocusedItem;
         item.IsMarked = !item.IsMarked;
-        if (item.IsMarked && item.IsDirectory && item.ComputedFolderSize is null && Settings.AutoCalculateFolderSizeOnMark)
+        if (item.IsMarked && item.IsDirectory && item.ComputedFolderSize is null && Settings.AutoCalculateFolderSizeOnMark && !IsRemoteConnection && !IsVirtualArchive)
             _ = ComputeFolderSizeAsync(item);
 
         int idx = Items.IndexOf(item);
@@ -437,7 +710,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void SelectByPath(string fullPath)
     {
-        var name = Path.GetFileName(fullPath.TrimEnd('\\'));
+        var name = Path.GetFileName(fullPath.TrimEnd('\\', '/'));
         var match = Items.FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
         if (match is not null) FocusedItem = match;
     }
@@ -485,6 +758,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             string[] shells = ["shell:Downloads", "shell:Documents", "shell:Desktop", "shell:Pictures", "shell:Music", "shell:Videos", "shell:UserProfile", "shell:AppData"];
             return shells.Where(s => s.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase)).ToList();
         }
+
+        if (trimmed.Contains("://", StringComparison.Ordinal))
+            return results;
 
         var expanded = Environment.ExpandEnvironmentVariables(trimmed);
         try
@@ -545,8 +821,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         _watcherSub?.Dispose();
         _watcherSub = null;
-        if (_isWatcherActive && !string.IsNullOrEmpty(CurrentPath) && Directory.Exists(CurrentPath))
+        if (_isWatcherActive && !IsVirtualArchive && !IsRemoteConnection && !IsSearchResultsTab &&
+            !string.IsNullOrEmpty(CurrentPath) && Directory.Exists(CurrentPath))
+        {
             _watcherSub = _watcherHub.Subscribe(CurrentPath, OnWatcherBatch);
+        }
     }
 
     private void OnWatcherBatch(IReadOnlyList<FsChange> changes)
@@ -556,7 +835,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     internal void ApplyWatcherChanges(IReadOnlyList<FsChange> changes)
     {
-        if (changes.Any(c => c.Kind == FsChangeKind.Overflow))
+        if (IsBranchView || changes.Any(c => c.Kind == FsChangeKind.Overflow))
         {
             _ = ReloadAsync(FocusedItem?.Name);
             return;
@@ -592,6 +871,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
 
         RebuildVisibleList(focusedName);
+        if (!string.IsNullOrEmpty(CurrentPath))
+            _ = RefreshGitStatusAsync(CurrentPath, CancellationToken.None);
     }
 
     private void RebuildVisibleList(string? preferredFocusName)
@@ -604,9 +885,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             .ToList();
 
         Items.Clear();
-        var parent = string.IsNullOrEmpty(CurrentPath) ? null : Directory.GetParent(CurrentPath);
-        if (parent is not null)
-            Items.Add(new FileItemViewModel(FileEntry.ParentLink(parent.FullName)));
+
+        if (IsVirtualArchive)
+        {
+            var parentArch = ArchiveService.GetParentPathForVirtualArchive(CurrentPath);
+            if (!string.IsNullOrEmpty(parentArch))
+                Items.Add(new FileItemViewModel(FileEntry.ParentLink(parentArch)));
+        }
+        else if (IsRemoteConnection)
+        {
+            var parentUri = RemoteFileSystemService.GetParentRemoteUri(CurrentPath);
+            if (!string.IsNullOrEmpty(parentUri))
+                Items.Add(new FileItemViewModel(FileEntry.ParentLink(parentUri)));
+        }
+        else if (!IsSearchResultsTab)
+        {
+            var parent = string.IsNullOrEmpty(CurrentPath) ? null : Directory.GetParent(CurrentPath);
+            if (parent is not null)
+                Items.Add(new FileItemViewModel(FileEntry.ParentLink(parent.FullName)));
+        }
 
         foreach (var item in filtered)
         {
@@ -638,6 +935,49 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         Breadcrumbs.Clear();
         if (string.IsNullOrEmpty(path)) return;
+
+        if (IsSearchResultsTab)
+        {
+            Breadcrumbs.Add(new BreadcrumbSegment(Title, path));
+            return;
+        }
+
+        if (IsVirtualArchive && ArchiveService.TryParseVirtualArchivePath(path, out var arch, out var inner))
+        {
+            Breadcrumbs.Add(new BreadcrumbSegment("📦 " + Path.GetFileName(arch), ArchiveService.BuildVirtualArchivePath(arch)));
+            if (!string.IsNullOrEmpty(inner))
+            {
+                string accum = "";
+                foreach (var part in inner.Split('/', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    accum = string.IsNullOrEmpty(accum) ? part : $"{accum}/{part}";
+                    Breadcrumbs.Add(new BreadcrumbSegment(part, ArchiveService.BuildVirtualArchivePath(arch, accum)));
+                }
+            }
+            return;
+        }
+
+        if (IsRemoteConnection && RemoteFileSystemService.TryParseRemoteUri(path, out var proto, out var host, out var port, out var user, out var rPath))
+        {
+            string scheme = proto switch
+            {
+                RemoteProtocol.Ftp => "ftp",
+                RemoteProtocol.Ftps => "ftps",
+                _ => "sftp"
+            };
+            string userPart = string.IsNullOrEmpty(user) ? "" : $"{Uri.EscapeDataString(user)}@";
+            string rootUri = $"{scheme}://{userPart}{host}:{port}/";
+            Breadcrumbs.Add(new BreadcrumbSegment($"🌐 {host}", rootUri));
+
+            string accum = "";
+            foreach (var part in rPath.Split('/', StringSplitOptions.RemoveEmptyEntries))
+            {
+                accum = $"{accum}/{part}";
+                Breadcrumbs.Add(new BreadcrumbSegment(part, $"{scheme}://{userPart}{host}:{port}{accum}"));
+            }
+            return;
+        }
+
         var root = Path.GetPathRoot(path);
         if (string.IsNullOrEmpty(root)) return;
 
@@ -655,6 +995,30 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void UpdateDriveSummary(string path)
     {
+        if (IsVirtualArchive)
+        {
+            if (ArchiveService.TryParseVirtualArchivePath(path, out var arch, out _) && File.Exists(arch))
+                DriveSummary = $"📦 {Path.GetFileName(arch)} ({Format.Size(new FileInfo(arch).Length)})";
+            else
+                DriveSummary = "📦 Archive";
+            return;
+        }
+
+        if (IsRemoteConnection)
+        {
+            if (RemoteFileSystemService.TryParseRemoteUri(path, out var proto, out var host, out var port, out _, out _))
+                DriveSummary = $"🌐 {proto.ToString().ToUpperInvariant()} {host}:{port}";
+            else
+                DriveSummary = "🌐 Remote";
+            return;
+        }
+
+        if (IsSearchResultsTab)
+        {
+            DriveSummary = "🔍 Search";
+            return;
+        }
+
         try
         {
             var root = Path.GetPathRoot(path);
@@ -713,6 +1077,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (string.IsNullOrWhiteSpace(rawPath)) return null;
         var trimmed = rawPath.Trim().Trim('"');
 
+        if (ArchiveService.IsVirtualArchivePath(trimmed))
+            return trimmed;
+
+        if (RemoteFileSystemService.IsRemoteUri(trimmed))
+            return trimmed;
+
+        if (trimmed.StartsWith("search://", StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+
         if (trimmed.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
         {
             var key = trimmed["shell:".Length..].ToLowerInvariant();
@@ -736,6 +1109,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         catch { return null; }
 
         if (Directory.Exists(full)) return full;
+
+        // If user entered an archive file path directly, open it as a virtual archive
+        if (File.Exists(full) && ArchiveService.IsSupportedArchiveFile(full))
+            return ArchiveService.BuildVirtualArchivePath(full);
 
         // Fall back to the nearest existing parent directory (per specification 2.4)
         var current = Directory.GetParent(full);

@@ -22,7 +22,7 @@ using Windows.UI;
 
 namespace ModernExplorer.App.Dialogs;
 
-public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictResolver
+public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, IConflictResolver
 {
     private XamlRoot Root => owner.RootElement.XamlRoot;
 
@@ -310,7 +310,8 @@ public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictRe
     public void OpenNewWindow(TabState tab) => owner.OpenTearOutWindow(tab);
 
     public void OpenViewer(string path) => _ = ShowQuickViewerAsync(path);
-    public void OpenEditor(string path) => _ = ShowEditorAsync(path);
+    public void OpenEditor(string path) => _ = ShowEditorAsync(path, null);
+    public void OpenEditorWithSaveCallback(string path, Func<string, Task> onSaveAsync) => _ = ShowEditorAsync(path, onSaveAsync);
 
     public void SetClipboardText(string text)
     {
@@ -449,6 +450,17 @@ public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictRe
               Strg+Tab        Nächster Tab (Strg+Shift+Tab: vorheriger, Strg+1..9: direkt)
               Strg+Shift+←/→  Tab ins Gegenpanel verschieben
               Strg+Shift+N    Tab in neues Fenster herauslösen
+
+            Power-Werkzeuge & Ansichten:
+              Strg+M          Mehrfach-Umbenennungstool (Batch-Rename)
+              Strg+Z          Letzte Aktion rückgängig machen (Undo)
+              Strg+B          Flache Ordneransicht (Branch View)
+              Strg+Q          Integriertes Schnellvorschau-Panel
+              Strg+D          Aktuellen Ordner als Favorit merken / entfernen
+              Alt+F7          Rekursive Tiefensuche (auch Strg+Shift+F)
+              Strg+Shift+S    Verzeichnisse vergleichen & synchronisieren
+              Alt+F5 / Alt+F9 In Archiv packen / Archiv entpacken (.zip, .7z, .tar.gz)
+              Strg+Shift+1..8 Ansichtsmodus direkt wählen (Symbole, Liste, Details, Kacheln, Inhalt)
             """;
 
         var scroll = new ScrollViewer
@@ -477,7 +489,7 @@ public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictRe
     private async Task ShowQuickViewerAsync(string path) =>
         await QuickViewerWindowBuilder.ShowAsync(owner, this, path);
 
-    private async Task ShowEditorAsync(string path)
+    private async Task ShowEditorAsync(string path, Func<string, Task>? onSaveAsync = null)
     {
         var fi = new FileInfo(path);
         if (fi.Exists && fi.Length > FileContentService.LargeFileWarningBytes)
@@ -530,9 +542,18 @@ public sealed class ShellDialogService(MainWindow owner) : IShellUi, IConflictRe
             try
             {
                 await FileContentService.SaveAtomicAsync(path, editorBox.Text, doc.Encoding, doc.NewLine);
-                statusLabel.Text = $"Gespeichert um {DateTime.Now:HH:mm:ss} · {doc.Encoding.WebName.ToUpperInvariant()}";
-                if (owner.ViewModel.ActivePanel.ActiveTab is { } t)
-                    await t.ReloadAsync(Path.GetFileName(path));
+                if (onSaveAsync is not null)
+                {
+                    statusLabel.Text = "Lade auf Remote-Server hoch…";
+                    await onSaveAsync(path);
+                    statusLabel.Text = $"Remote gespeichert um {DateTime.Now:HH:mm:ss} · {doc.Encoding.WebName.ToUpperInvariant()}";
+                }
+                else
+                {
+                    statusLabel.Text = $"Gespeichert um {DateTime.Now:HH:mm:ss} · {doc.Encoding.WebName.ToUpperInvariant()}";
+                    if (owner.ViewModel.ActivePanel.ActiveTab is { } t)
+                        await t.ReloadAsync(Path.GetFileName(path));
+                }
             }
             catch (Exception ex)
             {

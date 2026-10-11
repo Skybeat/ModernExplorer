@@ -22,10 +22,25 @@ public sealed partial class FileItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isFocused;
 
-    /// <summary>Calculated folder size (after marking a folder with Space).</summary>
+    /// <summary>Calculated folder size (after marking a folder with Space or running TreeSize analysis).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SizeText), nameof(TileSecondaryText), nameof(ContentSizeLabelText))]
+    [NotifyPropertyChangedFor(nameof(SizeText), nameof(TileSecondaryText), nameof(ContentSizeLabelText), nameof(EffectiveSize))]
     private long? _computedFolderSize;
+
+    /// <summary>Git working-tree status badge (e.g. "M", "A", "U", "D", "●") when inside a Git repository.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGitStatusBadge))]
+    private string _gitStatusBadge = "";
+
+    /// <summary>Relative size ratio (0.0 to 1.0) when TreeSize space analysis is active.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeBarWidth), nameof(HasSizeBar), nameof(SizePercentText))]
+    private double _sizeRatio;
+
+    public bool HasGitStatusBadge => !string.IsNullOrEmpty(GitStatusBadge);
+    public bool HasSizeBar => SizeRatio > 0.002 && !Entry.IsParentLink;
+    public double SizeBarWidth => Math.Clamp(SizeRatio * 102.0, 0.0, 102.0);
+    public string SizePercentText => HasSizeBar ? $"{SizeRatio * 100.0:0.#}%" : "";
 
     public string Name => Entry.Name;
 
@@ -33,10 +48,19 @@ public sealed partial class FileItemViewModel : ObservableObject
     {
         get
         {
+            string rawName = !string.IsNullOrEmpty(Entry.RelativeSubPath)
+                ? Entry.RelativeSubPath!
+                : Entry.Name;
+
             if (Entry.IsDirectory || Entry.IsParentLink || Settings.ShowFileExtensions)
-                return Entry.Name;
-            var stem = Path.GetFileNameWithoutExtension(Entry.Name);
-            return string.IsNullOrEmpty(stem) ? Entry.Name : stem;
+                return rawName;
+
+            var dirPart = Path.GetDirectoryName(rawName);
+            var stem = Path.GetFileNameWithoutExtension(rawName);
+            if (string.IsNullOrEmpty(stem))
+                return rawName;
+
+            return string.IsNullOrEmpty(dirPart) ? stem : Path.Combine(dirPart, stem);
         }
     }
 

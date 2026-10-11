@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:ModernExplorer.App"
     xmlns:vm="using:ModernExplorer.Core.ViewModels"
+    xmlns:fav="using:ModernExplorer.Core.Favorites"
     Title="ModernExplorer">
 
     <Grid x:Name="RootGrid"
@@ -68,19 +69,45 @@
                                Width="16"
                                Height="16"
                                VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="2"
-                                   Text="{x:Bind DisplayName, Mode=OneWay}"
-                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                   TextTrimming="CharacterEllipsis"
-                                   VerticalAlignment="Center"
-                                   FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
-                        <TextBlock Grid.Column="3"
-                                   Text="{x:Bind SizeText, Mode=OneWay}"
-                                   Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                   HorizontalAlignment="Right"
-                                   VerticalAlignment="Center"
-                                   Opacity="0.8"
-                                   FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        <Grid Grid.Column="2" ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="{x:Bind DisplayName, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"
+                                       FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                            <Border Grid.Column="1"
+                                    Visibility="{x:Bind HasGitStatusBadge, Mode=OneWay}"
+                                    Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                    CornerRadius="3"
+                                    Padding="4,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind GitStatusBadge, Mode=OneWay}"
+                                           FontFamily="Consolas"
+                                           FontSize="10.5"
+                                           FontWeight="Bold" />
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Column="3">
+                            <Border HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Height="14"
+                                    CornerRadius="3"
+                                    Width="{x:Bind SizeBarWidth, Mode=OneWay}"
+                                    Visibility="{x:Bind HasSizeBar, Mode=OneWay}"
+                                    Background="{ThemeResource SystemAccentColor}"
+                                    Opacity="0.28" />
+                            <TextBlock Text="{x:Bind SizeText, Mode=OneWay}"
+                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Opacity="0.85"
+                                       FontSize="{x:Bind Settings.FileListDetailsFontSize, Mode=OneWay}" />
+                        </Grid>
                         <TextBlock Grid.Column="4"
                                    Text="{x:Bind ModifiedText, Mode=OneWay}"
                                    Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
@@ -436,6 +463,7 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="38" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -506,12 +534,111 @@
             </Grid>
         </Border>
 
+        <!-- ======================= FAVORITES BAR (Ctrl+D) & POWER-TOOLS BAR ======================= -->
+        <Border Grid.Row="1"
+                Padding="6,3"
+                Background="{ThemeResource ExplorerDriveBarBackgroundBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                AllowDrop="True"
+                DragOver="OnFavoritesBarDragOver"
+                Drop="OnFavoritesBarDrop">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="ToggleFavoriteButton"
+                        Grid.Column="0"
+                        Content="{x:Bind ViewModel.ActivePanel.ActiveTab.BookmarkGlyph, Mode=OneWay}"
+                        ToolTipService.ToolTip="Aktuellen Ordner als Favorit speichern / entfernen (Strg+D)"
+                        Click="OnToggleBookmarkClick"
+                        Padding="7,2"
+                        FontSize="13" />
+
+                <ScrollViewer Grid.Column="1"
+                              HorizontalScrollBarVisibility="Hidden"
+                              HorizontalScrollMode="Enabled"
+                              VerticalScrollMode="Disabled">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Favorites.Items, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="fav:FavoriteItem">
+                                <Button Tag="{x:Bind Path}"
+                                        ToolTipService.ToolTip="{x:Bind ToolTipText}"
+                                        Click="OnFavoriteItemClick"
+                                        RightTapped="OnFavoriteItemRightTapped"
+                                        Padding="8,2"
+                                        CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="{x:Bind IconGlyph}" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock Text="{x:Bind Label}" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Content="↶ Undo"
+                            IsEnabled="{x:Bind ViewModel.CanUndo, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UndoDescription, Mode=OneWay}"
+                            Click="OnUndoClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="✏ Mehrfach-Umbenennen"
+                            ToolTipService.ToolTip="Mehrfach-Umbenennungstool (Strg+M)"
+                            Click="OnBatchRenameClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="🔍 Tiefensuche"
+                            ToolTipService.ToolTip="Rekursive Tiefensuche (Alt+F7 / Strg+Shift+F)"
+                            Click="OnDeepSearchClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="⇄ Sync"
+                            ToolTipService.ToolTip="Verzeichnisse vergleichen &amp; synchronisieren (Strg+Shift+S)"
+                            Click="OnDirectorySyncClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="🧹 Duplikate"
+                            ToolTipService.ToolTip="Duplikat-Finder öffnen"
+                            Click="OnDuplicateFinderClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="📦 Packen"
+                            ToolTipService.ToolTip="Auswahl in Archiv packen (.zip / .tar.gz / .7z) (Alt+F5)"
+                            Click="OnPackArchiveClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="🌐 FTP/SFTP"
+                            ToolTipService.ToolTip="FTP / FTPS / SFTP-Server verbinden"
+                            Click="OnRemoteConnectClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                    <Button Content="👁 Vorschau"
+                            ToolTipService.ToolTip="Integriertes Schnellvorschau-Panel ein-/ausblenden (Strg+Q)"
+                            Click="OnToggleQuickPreviewClick"
+                            Padding="7,2"
+                            FontSize="11.5" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- ======================= DUAL-PANEL WORKSPACE ======================= -->
-        <Grid x:Name="PanelsGrid" Grid.Row="1">
+        <Grid x:Name="PanelsGrid" Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="LeftColumn" Width="*" />
                 <ColumnDefinition x:Name="SplitterColumn" Width="6" />
                 <ColumnDefinition x:Name="RightColumn" Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <!-- ==================== LEFT PANEL ==================== -->
@@ -641,6 +768,8 @@
                             <Button x:Name="LeftForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnLeftForwardClick" Padding="8,3" />
                             <Button x:Name="LeftUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnLeftUpClick" Padding="8,3" />
                             <Button x:Name="LeftRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnLeftRefreshClick" Padding="8,3" />
+                            <Button Content="🌿" ToolTipService.ToolTip="Flache Ordneransicht / Branch View (Strg+B)" Click="OnLeftBranchViewClick" Padding="7,3" />
+                            <Button Content="📊" ToolTipService.ToolTip="Ordnergrößen berechnen / TreeSize-Balken anzeigen" Click="OnLeftTreeSizeClick" Padding="7,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="LeftAddressBox"
@@ -666,29 +795,45 @@
                                 FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}" />
                     </Grid>
 
-                    <!-- Breadcrumbs Left -->
-                    <ScrollViewer Grid.Row="3"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  HorizontalScrollMode="Enabled"
-                                  VerticalScrollMode="Disabled"
-                                  Padding="6,0,6,4">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.Left.ActiveTab.Breadcrumbs, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="2" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:BreadcrumbSegment">
-                                    <Button Content="{x:Bind Label}"
-                                            Tag="{x:Bind FullPath}"
-                                            Click="OnLeftBreadcrumbClick"
-                                            Padding="6,1"
-                                            FontSize="{x:Bind Settings.BreadcrumbFontSize, Mode=OneWay}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Breadcrumbs + Git Badge Left -->
+                    <Grid Grid.Row="3" Padding="6,0,6,4" ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ScrollViewer Grid.Column="0"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      HorizontalScrollMode="Enabled"
+                                      VerticalScrollMode="Disabled">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Left.ActiveTab.Breadcrumbs, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BreadcrumbSegment">
+                                        <Button Content="{x:Bind Label}"
+                                                Tag="{x:Bind FullPath}"
+                                                Click="OnLeftBreadcrumbClick"
+                                                Padding="6,1"
+                                                FontSize="{x:Bind Settings.BreadcrumbFontSize, Mode=OneWay}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <Border Grid.Column="1"
+                                Visibility="{x:Bind ViewModel.Left.ActiveTab.HasGitRepository, Mode=OneWay}"
+                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="7,1"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.Left.ActiveTab.GitSummaryBadge, Mode=OneWay}"
+                                       FontFamily="Consolas"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold" />
+                        </Border>
+                    </Grid>
 
                     <!-- Column Headers Left -->
                     <Grid x:Name="LeftColumnHeaderGrid"
@@ -914,6 +1059,8 @@
                             <Button x:Name="RightForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnRightForwardClick" Padding="8,3" />
                             <Button x:Name="RightUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnRightUpClick" Padding="8,3" />
                             <Button x:Name="RightRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnRightRefreshClick" Padding="8,3" />
+                            <Button Content="🌿" ToolTipService.ToolTip="Flache Ordneransicht / Branch View (Strg+B)" Click="OnRightBranchViewClick" Padding="7,3" />
+                            <Button Content="📊" ToolTipService.ToolTip="Ordnergrößen berechnen / TreeSize-Balken anzeigen" Click="OnRightTreeSizeClick" Padding="7,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="RightAddressBox"
@@ -939,29 +1086,45 @@
                                 FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}" />
                     </Grid>
 
-                    <!-- Breadcrumbs Right -->
-                    <ScrollViewer Grid.Row="3"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  HorizontalScrollMode="Enabled"
-                                  VerticalScrollMode="Disabled"
-                                  Padding="6,0,6,4">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.Right.ActiveTab.Breadcrumbs, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="2" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:BreadcrumbSegment">
-                                    <Button Content="{x:Bind Label}"
-                                            Tag="{x:Bind FullPath}"
-                                            Click="OnRightBreadcrumbClick"
-                                            Padding="6,1"
-                                            FontSize="{x:Bind Settings.BreadcrumbFontSize, Mode=OneWay}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Breadcrumbs + Git Badge Right -->
+                    <Grid Grid.Row="3" Padding="6,0,6,4" ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ScrollViewer Grid.Column="0"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      HorizontalScrollMode="Enabled"
+                                      VerticalScrollMode="Disabled">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Right.ActiveTab.Breadcrumbs, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BreadcrumbSegment">
+                                        <Button Content="{x:Bind Label}"
+                                                Tag="{x:Bind FullPath}"
+                                                Click="OnRightBreadcrumbClick"
+                                                Padding="6,1"
+                                                FontSize="{x:Bind Settings.BreadcrumbFontSize, Mode=OneWay}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <Border Grid.Column="1"
+                                Visibility="{x:Bind ViewModel.Right.ActiveTab.HasGitRepository, Mode=OneWay}"
+                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="7,1"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.Right.ActiveTab.GitSummaryBadge, Mode=OneWay}"
+                                       FontFamily="Consolas"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold" />
+                        </Border>
+                    </Grid>
 
                     <!-- Column Headers Right -->
                     <Grid x:Name="RightColumnHeaderGrid"
@@ -1052,10 +1215,74 @@
                     </Border>
                 </Grid>
             </Border>
+
+            <!-- ==================== INTEGRATED QUICK-PREVIEW PANEL (Strg+Q) ==================== -->
+            <Border x:Name="QuickPreviewPanelBorder"
+                    Grid.Column="3"
+                    Width="340"
+                    Visibility="{x:Bind ViewModel.IsQuickPreviewPanelOpen, Mode=OneWay}"
+                    Background="{ThemeResource ExplorerPanelBackgroundBrush}"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    Margin="2"
+                    CornerRadius="4">
+                <Grid Padding="10" RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="QuickPreviewTitleText"
+                                   Text="👁 Schnellvorschau (Strg+Q)"
+                                   FontWeight="SemiBold"
+                                   FontSize="13"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="×"
+                                ToolTipService.ToolTip="Schnellvorschau schließen (Strg+Q)"
+                                Click="OnToggleQuickPreviewClick"
+                                Padding="7,2" />
+                    </Grid>
+
+                    <TextBlock x:Name="QuickPreviewMetaText"
+                               Grid.Row="1"
+                               FontSize="11.5"
+                               Opacity="0.75"
+                               TextWrapping="Wrap" />
+
+                    <Grid Grid.Row="2">
+                        <Border x:Name="QuickPreviewImageContainer"
+                                Visibility="Collapsed"
+                                Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                                CornerRadius="6"
+                                Padding="6">
+                            <Image x:Name="QuickPreviewImage"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        </Border>
+                        <TextBox x:Name="QuickPreviewTextBox"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas"
+                                 FontSize="12"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
 
         <!-- ======================= OPERATIONS PANEL ======================= -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Visibility="{x:Bind ViewModel.IsOperationsPanelOpen, Mode=OneWay}"
                 MaxHeight="150"
                 Padding="10,6"
@@ -1111,7 +1338,7 @@
         </Border>
 
         <!-- ======================= FUNCTION KEY BAR (F1-F12) ======================= -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Visibility="{x:Bind ViewModel.Settings.ShowFunctionKeyBar, Mode=OneWay}"
                 Padding="6,4"
                 Background="{ThemeResource ExplorerFunctionBarBackgroundBrush}"
@@ -1151,7 +1378,7 @@
         <!-- ======================= IMAGE HOVER PREVIEW ======================= -->
         <Canvas x:Name="ImageHoverCanvas"
                 Grid.Row="0"
-                Grid.RowSpan="4"
+                Grid.RowSpan="5"
                 IsHitTestVisible="False"
                 Visibility="Collapsed">
             <Border x:Name="ImageHoverCard"
@@ -1185,3 +1412,4 @@
         </Canvas>
     </Grid>
 </Window>
+

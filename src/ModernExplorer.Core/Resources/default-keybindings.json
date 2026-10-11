@@ -79,7 +79,28 @@
     { "key": "Ctrl+Shift+Right","command": "tab.moveToOppositePanel",  "when": "global" },
     { "key": "Ctrl+Shift+PageUp",   "command": "tab.moveLeft",         "when": "global" },
     { "key": "Ctrl+Shift+PageDown", "command": "tab.moveRight",        "when": "global" },
-    { "key": "Ctrl+Shift+N",    "command": "window.newWithTab",        "when": "global" }
+    { "key": "Ctrl+Shift+N",    "command": "window.newWithTab",        "when": "global" },
+
+    { "key": "Ctrl+M",          "command": "file.batchRename",         "when": "fileList" },
+    { "key": "Ctrl+Z",          "command": "edit.undo",                "when": "fileList" },
+    { "key": "Ctrl+B",          "command": "view.branchView",          "when": "panel" },
+    { "key": "Ctrl+Q",          "command": "view.quickPreview",        "when": "global" },
+    { "key": "Ctrl+D",          "command": "favorites.toggle",         "when": "global" },
+    { "key": "Alt+F7",          "command": "tools.deepSearch",         "when": "global" },
+    { "key": "Ctrl+Shift+F",    "command": "tools.deepSearch",         "when": "global" },
+    { "key": "Ctrl+Shift+S",    "command": "tools.syncDirs",           "when": "global" },
+    { "key": "Alt+F5",          "command": "archive.pack",             "when": "fileList" },
+    { "key": "Alt+F9",          "command": "archive.extract",          "when": "fileList" },
+
+    { "key": "Ctrl+Shift+1",    "command": "view.mode.extraLargeIcons","when": "panel" },
+    { "key": "Ctrl+Shift+2",    "command": "view.mode.largeIcons",     "when": "panel" },
+    { "key": "Ctrl+Shift+3",    "command": "view.mode.mediumIcons",    "when": "panel" },
+    { "key": "Ctrl+Shift+4",    "command": "view.mode.smallIcons",     "when": "panel" },
+    { "key": "Ctrl+Shift+5",    "command": "view.mode.list",           "when": "panel" },
+    { "key": "Ctrl+Shift+6",    "command": "view.mode.details",        "when": "panel" },
+    { "key": "Ctrl+Shift+7",    "command": "view.mode.tiles",          "when": "panel" },
+    { "key": "Ctrl+Shift+8",    "command": "view.mode.content",        "when": "panel" }
   ]
 }
+
 

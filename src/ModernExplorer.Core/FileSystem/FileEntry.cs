@@ -18,6 +18,18 @@ public sealed record FileEntry(
     /// <summary>Special entry ".." pointing to the parent directory.</summary>
     public bool IsParentLink { get; init; }
 
+    /// <summary>Optional relative subfolder path when displayed in Branch View (Ctrl+B) or Deep Search.</summary>
+    public string? RelativeSubPath { get; init; }
+
+    /// <summary>Optional Unix permissions string (e.g. "rwxr-xr-x (755)") for SFTP/FTP entries.</summary>
+    public string? PermissionsText { get; init; }
+
+    /// <summary>True when this entry lives inside a virtual archive path (archive://...).</summary>
+    public bool IsArchiveVirtualEntry { get; init; }
+
+    /// <summary>True when this entry lives on a remote FTP/FTPS/SFTP server.</summary>
+    public bool IsRemoteEntry { get; init; }
+
     public static FileEntry ParentLink(string parentPath) =>
         new("..", parentPath, true, 0, default, FileAttributes.Directory) { IsParentLink = true };
 

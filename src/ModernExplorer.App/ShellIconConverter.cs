@@ -20,13 +20,57 @@ namespace ModernExplorer.App;
 public sealed class ShellIconConverter : IValueConverter
 {
     private static readonly Dictionary<ShellIconData, ImageSource> BitmapCache = [];
+    private static readonly Dictionary<string, ImageSource> ThumbnailCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Queue<string> ThumbnailLruQueue = new();
+    private const int MaxThumbnailCacheEntries = 300;
+    private static readonly HashSet<string> ThumbnailExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico", ".tif", ".tiff"
+    };
     private static readonly SolidColorBrush TransparentBrush = new(Colors.Transparent);
 
     public static ImageSource? ToImageSource(FileEntry? entry) =>
         entry is null ? null : GetOrCreateBitmap(ShellIconExtractor.GetIconForEntry(entry));
 
-    public static ImageSource? ToLargeImageSource(FileEntry? entry) =>
-        entry is null ? null : GetOrCreateBitmap(ShellIconExtractor.GetLargeIconForEntry(entry));
+    public static ImageSource? ToLargeImageSource(FileEntry? entry)
+    {
+        if (entry is null) return null;
+
+        if (!entry.IsDirectory && !entry.IsParentLink && !entry.IsArchiveVirtualEntry && !entry.IsRemoteEntry &&
+            entry.Size > 0 && entry.Size <= 40L * 1024 * 1024 &&
+            ThumbnailExtensions.Contains(entry.Extension) &&
+            File.Exists(entry.FullPath))
+        {
+            string cacheKey = $"{entry.FullPath}|{entry.LastWriteTime.Ticks}";
+            if (ThumbnailCache.TryGetValue(cacheKey, out var cachedThumb))
+                return cachedThumb;
+
+            try
+            {
+                var bmp = new BitmapImage
+                {
+                    DecodePixelWidth = 128,
+                    DecodePixelType = DecodePixelType.Logical,
+                };
+                bmp.UriSource = new Uri(entry.FullPath);
+
+                if (ThumbnailCache.Count >= MaxThumbnailCacheEntries && ThumbnailLruQueue.Count > 0)
+                {
+                    var oldest = ThumbnailLruQueue.Dequeue();
+                    ThumbnailCache.Remove(oldest);
+                }
+                ThumbnailCache[cacheKey] = bmp;
+                ThumbnailLruQueue.Enqueue(cacheKey);
+                return bmp;
+            }
+            catch
+            {
+                // Fall back to shell icon if URI or image fails
+            }
+        }
+
+        return GetOrCreateBitmap(ShellIconExtractor.GetLargeIconForEntry(entry));
+    }
 
     public static ImageSource? DriveToImageSource(string? rootPath) =>
         string.IsNullOrEmpty(rootPath) ? null : GetOrCreateBitmap(ShellIconExtractor.GetDriveIcon(rootPath));

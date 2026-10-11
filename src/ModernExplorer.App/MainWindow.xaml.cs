@@ -16,6 +16,7 @@ using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 using ModernExplorer.Core.Update;
+using ModernExplorer.Core.Viewer;
 using ModernExplorer.Core.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
@@ -129,7 +130,18 @@ public sealed partial class MainWindow : Window
             if (e.PropertyName == nameof(MainViewModel.IsDualMode))
                 UpdateDualLayout();
             else if (e.PropertyName == nameof(MainViewModel.ActiveSide))
+            {
                 UpdateActivePanelVisuals();
+                Bindings.Update();
+                if (ViewModel.IsQuickPreviewPanelOpen)
+                    _ = RefreshQuickPreviewPanelAsync();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.IsQuickPreviewPanelOpen))
+            {
+                Bindings.Update();
+                if (ViewModel.IsQuickPreviewPanelOpen)
+                    _ = RefreshQuickPreviewPanelAsync();
+            }
             else if (e.PropertyName == nameof(MainViewModel.IsSettingsOpen))
             {
                 if (ViewModel.IsSettingsOpen)
@@ -921,7 +933,7 @@ public sealed partial class MainWindow : Window
         FocusFileList(side);
         e.Handled = true;
 
-        if (item.IsParentLink)
+        if (item.IsParentLink || tab.IsVirtualArchive || tab.IsRemoteConnection)
         {
             ShowFallbackFileContextMenu(fe, e.GetPosition(fe), panel, tab, item);
             return;
@@ -1017,14 +1029,38 @@ public sealed partial class MainWindow : Window
             renameItem.Click += async (_, _) => await ViewModel.RenameFocusedAsync();
             menu.Items.Add(renameItem);
 
+            var batchRenameItem = new MenuFlyoutItem { Text = "✏ Mehrfach-Umbenennen (Strg+M)" };
+            batchRenameItem.Click += (_, _) => ExecuteCommand("file.batchRename");
+            menu.Items.Add(batchRenameItem);
+
             var deleteItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.Delete") };
             deleteItem.Click += async (_, _) => await ViewModel.DeleteTargetsAsync(recycle: true);
             menu.Items.Add(deleteItem);
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
+            var packArchiveItem = new MenuFlyoutItem { Text = "📦 In Archiv packen (Alt+F5)" };
+            packArchiveItem.Click += (_, _) => ExecuteCommand("archive.pack");
+            menu.Items.Add(packArchiveItem);
+
+            if (!item.IsDirectory && ModernExplorer.Core.Archive.ArchiveService.IsSupportedArchive(item.FullPath))
+            {
+                var unpackArchiveItem = new MenuFlyoutItem { Text = "📂 Archiv entpacken (Alt+F9)" };
+                unpackArchiveItem.Click += (_, _) => ExecuteCommand("archive.extract");
+                menu.Items.Add(unpackArchiveItem);
+            }
+
+            if (tab.IsRemoteConnection)
+            {
+                var chmodItem = new MenuFlyoutItem { Text = "🔐 Berechtigungen ändern (chmod)" };
+                chmodItem.Click += (_, _) => ExecuteCommand("remote.chmod");
+                menu.Items.Add(chmodItem);
+            }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             var copyPathItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.CopyPath") };
-            copyPathItem.Click += (_, _) => ExecuteCommand("clip.copyPaths");
+            copyPathItem.Click += (_, _) => ExecuteCommand("clipboard.copyPath");
             menu.Items.Add(copyPathItem);
         }
 
@@ -1153,6 +1189,209 @@ public sealed partial class MainWindow : Window
     private void OnRightViewModeButtonClick(object sender, RoutedEventArgs e) => ShowViewModeFlyout(PanelSide.Right, RightViewModeButton);
 
     // ====================================================================
+    // FAVORITES BAR, POWER-TOOLS TOOLBAR & QUICK-PREVIEW HANDLERS
+    // ====================================================================
+
+    private void OnToggleBookmarkClick(object sender, RoutedEventArgs e)
+    {
+        ExecuteCommand("favorites.toggle");
+        Bindings.Update();
+    }
+
+    private async void OnFavoriteItemClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string path } && !string.IsNullOrWhiteSpace(path))
+        {
+            await ViewModel.NavigateToFavoriteAsync(path);
+            Bindings.Update();
+        }
+    }
+
+    private void OnFavoriteItemRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ModernExplorer.Core.Favorites.FavoriteItem fav } fe)
+        {
+            var menu = new MenuFlyout();
+            var openTabItem = new MenuFlyoutItem { Text = "In neuem Tab öffnen" };
+            openTabItem.Click += async (_, _) =>
+            {
+                await ViewModel.ActivePanel.CreateTabAsync(fav.Path);
+                Bindings.Update();
+            };
+            menu.Items.Add(openTabItem);
+
+            var removeItem = new MenuFlyoutItem { Text = "Aus Favoriten entfernen" };
+            removeItem.Click += (_, _) =>
+            {
+                ViewModel.Favorites.RemoveBookmark(fav.Path);
+                ViewModel.UpdateTabsBookmarkedState();
+                Bindings.Update();
+            };
+            menu.Items.Add(removeItem);
+            menu.ShowAt(fe, e.GetPosition(fe));
+            e.Handled = true;
+        }
+    }
+
+    private void OnFavoritesBarDragOver(object sender, DragEventArgs e)
+    {
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Link;
+            e.DragUIOverride.Caption = "Zu Favoriten hinzufügen";
+            e.Handled = true;
+        }
+    }
+
+    private async void OnFavoritesBarDrop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        try
+        {
+            var items = await e.DataView.GetStorageItemsAsync();
+            foreach (var item in items)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Path) && Directory.Exists(item.Path))
+                {
+                    ViewModel.Favorites.AddBookmark(item.Path);
+                }
+            }
+            ViewModel.UpdateTabsBookmarkedState();
+            Bindings.Update();
+        }
+        catch
+        {
+            // Ignore drop errors
+        }
+    }
+
+    private void OnUndoClick(object sender, RoutedEventArgs e) => ExecuteCommand("edit.undo");
+    private void OnBatchRenameClick(object sender, RoutedEventArgs e) => ExecuteCommand("file.batchRename");
+    private void OnDeepSearchClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.deepSearch");
+    private void OnDirectorySyncClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.syncDirs");
+    private void OnDuplicateFinderClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.findDuplicates");
+    private void OnPackArchiveClick(object sender, RoutedEventArgs e) => ExecuteCommand("archive.pack");
+    private void OnRemoteConnectClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.remoteConnect");
+    private void OnToggleQuickPreviewClick(object sender, RoutedEventArgs e) => ExecuteCommand("view.quickPreview");
+
+    private async void OnLeftBranchViewClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Left;
+        if (ViewModel.Left.ActiveTab is { } t)
+        {
+            await t.ToggleBranchViewAsync();
+            Bindings.Update();
+        }
+    }
+
+    private async void OnLeftTreeSizeClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Left;
+        if (ViewModel.Left.ActiveTab is { } t)
+        {
+            await t.ToggleTreeSizeAsync();
+            Bindings.Update();
+        }
+    }
+
+    private async void OnRightBranchViewClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Right;
+        if (ViewModel.Right.ActiveTab is { } t)
+        {
+            await t.ToggleBranchViewAsync();
+            Bindings.Update();
+        }
+    }
+
+    private async void OnRightTreeSizeClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Right;
+        if (ViewModel.Right.ActiveTab is { } t)
+        {
+            await t.ToggleTreeSizeAsync();
+            Bindings.Update();
+        }
+    }
+
+    private async Task RefreshQuickPreviewPanelAsync()
+    {
+        if (!ViewModel.IsQuickPreviewPanelOpen) return;
+
+        var item = ViewModel.ActivePanel.ActiveTab?.FocusedItem;
+        if (item is null || item.IsParentLink)
+        {
+            QuickPreviewTitleText.Text = "Schnellvorschau (Strg+Q)";
+            QuickPreviewMetaText.Text = "Keine Datei ausgewählt";
+            QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
+            QuickPreviewTextBox.Visibility = Visibility.Visible;
+            QuickPreviewTextBox.Text = "";
+            return;
+        }
+
+        QuickPreviewTitleText.Text = item.Name;
+        QuickPreviewMetaText.Text = item.IsDirectory
+            ? $"Ordner • {item.ModifiedText}"
+            : $"{item.SizeText} • {item.ModifiedText}";
+
+        if (item.IsDirectory)
+        {
+            QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
+            QuickPreviewTextBox.Visibility = Visibility.Visible;
+            try
+            {
+                if (Directory.Exists(item.FullPath))
+                {
+                    var entries = Directory.EnumerateFileSystemEntries(item.FullPath).Take(80).Select(Path.GetFileName).ToList();
+                    QuickPreviewTextBox.Text = entries.Count == 0
+                        ? "(Leerer Ordner)"
+                        : $"Ordnerinhalt ({entries.Count} Einträge):\n\n" + string.Join("\n", entries);
+                }
+                else
+                {
+                    QuickPreviewTextBox.Text = item.FullPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                QuickPreviewTextBox.Text = ex.Message;
+            }
+            return;
+        }
+
+        if (!File.Exists(item.FullPath))
+        {
+            QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
+            QuickPreviewTextBox.Visibility = Visibility.Visible;
+            QuickPreviewTextBox.Text = $"Virtueller / Remote-Eintrag:\n{item.FullPath}\n\nDrücken Sie F3 für die vollständige Schnellansicht.";
+            return;
+        }
+
+        if (item.IsImageFile)
+        {
+            try
+            {
+                QuickPreviewTextBox.Visibility = Visibility.Collapsed;
+                QuickPreviewImageContainer.Visibility = Visibility.Visible;
+                using var stream = File.OpenRead(item.FullPath);
+                var bmp = new BitmapImage { DecodePixelWidth = 420 };
+                await bmp.SetSourceAsync(stream.AsRandomAccessStream());
+                QuickPreviewImage.Source = bmp;
+                return;
+            }
+            catch
+            {
+                // Fall back to text/hex preview
+            }
+        }
+
+        QuickPreviewImageContainer.Visibility = Visibility.Collapsed;
+        QuickPreviewTextBox.Visibility = Visibility.Visible;
+        var preview = await FileContentService.LoadPreviewAsync(item.FullPath, maxBytes: 32768);
+        QuickPreviewTextBox.Text = preview.Content;
+    }
+
+    // ====================================================================
     // VIEW MODES (8 WINDOWS EXPLORER VIEW MODES)
     // ====================================================================
 
@@ -1184,6 +1423,16 @@ public sealed partial class MainWindow : Window
             ViewModel.RequestSessionSave();
             Bindings.Update();
         }
+        else if (e.PropertyName == nameof(TabViewModel.FocusedItem))
+        {
+            if (ViewModel.IsQuickPreviewPanelOpen && ViewModel.ActiveSide == PanelSide.Left)
+                _ = RefreshQuickPreviewPanelAsync();
+        }
+        else if (e.PropertyName is nameof(TabViewModel.CurrentPath) or nameof(TabViewModel.IsBookmarked)
+                 or nameof(TabViewModel.GitSummaryBadge) or nameof(TabViewModel.IsBranchView) or nameof(TabViewModel.IsTreeSizeActive))
+        {
+            Bindings.Update();
+        }
     }
 
     private void OnRightActiveTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -1192,6 +1441,16 @@ public sealed partial class MainWindow : Window
         {
             UpdatePanelViewMode(PanelSide.Right);
             ViewModel.RequestSessionSave();
+            Bindings.Update();
+        }
+        else if (e.PropertyName == nameof(TabViewModel.FocusedItem))
+        {
+            if (ViewModel.IsQuickPreviewPanelOpen && ViewModel.ActiveSide == PanelSide.Right)
+                _ = RefreshQuickPreviewPanelAsync();
+        }
+        else if (e.PropertyName is nameof(TabViewModel.CurrentPath) or nameof(TabViewModel.IsBookmarked)
+                 or nameof(TabViewModel.GitSummaryBadge) or nameof(TabViewModel.IsBranchView) or nameof(TabViewModel.IsTreeSizeActive))
+        {
             Bindings.Update();
         }
     }

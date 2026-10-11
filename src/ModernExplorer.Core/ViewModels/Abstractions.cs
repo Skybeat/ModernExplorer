@@ -46,9 +46,18 @@ public interface IShellUi
     void OpenNewWindow(TabState tab);
     void OpenViewer(string path);
     void OpenEditor(string path);
+    void OpenEditorWithSaveCallback(string path, Func<string, Task> onSaveAsync) => OpenEditor(path);
+
+    Task<bool> ShowBatchRenameDialogAsync(IReadOnlyList<FileEntry> entries) => Task.FromResult(false);
+    Task<bool> ShowDirectorySyncDialogAsync(string leftDir, string rightDir) => Task.FromResult(false);
+    Task ShowDeepSearchDialogAsync(string initialDirectory) => Task.CompletedTask;
+    Task<bool> ShowDuplicateFinderDialogAsync(string initialDirectory) => Task.FromResult(false);
+    Task<string?> ShowRemoteConnectionManagerDialogAsync() => Task.FromResult<string?>(null);
+    Task<string?> ShowCreateArchiveDialogAsync(IReadOnlyList<string> sourcePaths, string defaultOutputDirectory) => Task.FromResult<string?>(null);
 
     void SetClipboardText(string text);
     Task SetClipboardFilesAsync(IReadOnlyList<string> paths, bool cut);
     Task<(IReadOnlyList<string> Paths, bool Cut)?> GetClipboardFilesAsync();
 }
+
 
