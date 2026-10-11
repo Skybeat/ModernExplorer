@@ -73,6 +73,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0"
                                        Text="{x:Bind DisplayName, Mode=OneWay}"
@@ -81,6 +82,20 @@
                                        VerticalAlignment="Center"
                                        FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
                             <Border Grid.Column="1"
+                                    Visibility="{x:Bind HasTag, Mode=OneWay}"
+                                    Background="{x:Bind local:ShellIconConverter.HexToBrush(TagColorHex), Mode=OneWay}"
+                                    ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(TagTooltipText, Settings.ShowToolTips), Mode=OneWay}"
+                                    CornerRadius="3"
+                                    Padding="5,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind TagBadgeText, Mode=OneWay}"
+                                           Foreground="White"
+                                           FontSize="10.5"
+                                           FontWeight="SemiBold"
+                                           MaxWidth="140"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Border>
+                            <Border Grid.Column="2"
                                     Visibility="{x:Bind HasGitStatusBadge, Mode=OneWay}"
                                     Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
                                     CornerRadius="3"
@@ -156,11 +171,23 @@
                                Stretch="Uniform"
                                VerticalAlignment="Center" />
                         <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
-                                       FontWeight="SemiBold"
-                                       Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
-                                       TextTrimming="CharacterEllipsis"
-                                       FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
+                                           TextTrimming="CharacterEllipsis"
+                                           FontSize="{x:Bind Settings.FileListFontSize, Mode=OneWay}" />
+                                <Border Visibility="{x:Bind HasTag, Mode=OneWay}"
+                                        Background="{x:Bind local:ShellIconConverter.HexToBrush(TagColorHex), Mode=OneWay}"
+                                        CornerRadius="3"
+                                        Padding="5,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind TagBadgeText, Mode=OneWay}"
+                                               Foreground="White"
+                                               FontSize="10.5"
+                                               FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
                             <TextBlock Text="{x:Bind TypeText, Mode=OneWay}"
                                        Foreground="{x:Bind local:ShellIconConverter.ItemTextForeground(IsMarked, Settings.MarkedItemTextColor, Settings.Theme), Mode=OneWay}"
                                        Opacity="0.7"
@@ -467,6 +494,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ======================= CUSTOM UNIFIED TITLE / HEADER BAR ======================= -->
@@ -543,98 +571,159 @@
                 AllowDrop="True"
                 DragOver="OnFavoritesBarDragOver"
                 Drop="OnFavoritesBarDrop">
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <StackPanel Spacing="3">
+                <!-- Row A: Favorites + Workspace / Basket / Terminal / QuickPreview -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                <Button x:Name="ToggleFavoriteButton"
-                        Grid.Column="0"
-                        Content="{x:Bind ViewModel.ActivePanel.ActiveTab.BookmarkGlyph, Mode=OneWay}"
-                        ToolTipService.ToolTip="Aktuellen Ordner als Favorit speichern / entfernen (Strg+D)"
-                        Click="OnToggleBookmarkClick"
-                        Padding="7,2"
-                        FontSize="13" />
+                    <Button x:Name="ToggleFavoriteButton"
+                            Grid.Column="0"
+                            Content="{x:Bind ViewModel.ActivePanel.ActiveTab.BookmarkGlyph, Mode=OneWay}"
+                            ToolTipService.ToolTip="Aktuellen Ordner als Favorit speichern / entfernen (Strg+D)"
+                            Click="OnToggleBookmarkClick"
+                            Padding="7,2"
+                            FontSize="13" />
 
-                <ScrollViewer Grid.Column="1"
-                              HorizontalScrollBarVisibility="Hidden"
+                    <ScrollViewer Grid.Column="1"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  HorizontalScrollMode="Enabled"
+                                  VerticalScrollMode="Disabled">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Favorites.Items, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="fav:FavoriteItem">
+                                    <Button Tag="{x:Bind Path}"
+                                            ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(ToolTipText, vm:SettingsViewModel.Current.ShowToolTips), Mode=OneWay}"
+                                            Click="OnFavoriteItemClick"
+                                            RightTapped="OnFavoriteItemRightTapped"
+                                            Padding="8,2"
+                                            CornerRadius="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <TextBlock Text="{x:Bind IconGlyph}" FontSize="12" VerticalAlignment="Center" />
+                                            <TextBlock Text="{x:Bind Label}" FontSize="12" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button x:Name="WorkspacesToolbarButton"
+                                Content="🗂 Workspaces"
+                                Click="OnWorkspacesClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="FileBasketToolbarButton"
+                                Content="🧺 Sammelkorb"
+                                Click="OnFileBasketClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="QuickCommandToolbarButton"
+                                Content=">_ Konsole"
+                                Click="OnToggleQuickCommandBarClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="QuickPreviewToolbarButton"
+                                Content="👁 Vorschau"
+                                Click="OnToggleQuickPreviewClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row B: Scrollable Power-Tools Bar -->
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden"
                               HorizontalScrollMode="Enabled"
                               VerticalScrollMode="Disabled">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.Favorites.Items, Mode=OneWay}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="4" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="fav:FavoriteItem">
-                                <Button Tag="{x:Bind Path}"
-                                        ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(ToolTipText, vm:SettingsViewModel.Current.ShowToolTips), Mode=OneWay}"
-                                        Click="OnFavoriteItemClick"
-                                        RightTapped="OnFavoriteItemRightTapped"
-                                        Padding="8,2"
-                                        CornerRadius="4">
-                                    <StackPanel Orientation="Horizontal" Spacing="5">
-                                        <TextBlock Text="{x:Bind IconGlyph}" FontSize="12" VerticalAlignment="Center" />
-                                        <TextBlock Text="{x:Bind Label}" FontSize="12" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button x:Name="UndoToolbarButton"
+                                Content="↶ Undo"
+                                IsEnabled="{x:Bind ViewModel.CanUndo, Mode=OneWay}"
+                                Click="OnUndoClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="BatchRenameToolbarButton"
+                                Content="✏ Mehrfach-Umbenennen"
+                                Click="OnBatchRenameClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="DeepSearchToolbarButton"
+                                Content="🔍 Tiefensuche"
+                                Click="OnDeepSearchClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="DirectorySyncToolbarButton"
+                                Content="⇄ Sync"
+                                Click="OnDirectorySyncClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="FileDiffToolbarButton"
+                                Content="⚖ Diff"
+                                Click="OnFileDiffClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="DuplicateFinderToolbarButton"
+                                Content="🧹 Duplikate"
+                                Click="OnDuplicateFinderClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="StorageTreemapToolbarButton"
+                                Content="🗺 Treemap"
+                                Click="OnStorageTreemapClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="ChecksumToolbarButton"
+                                Content="🔐 Hashes"
+                                Click="OnChecksumClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="SplitShredToolbarButton"
+                                Content="✂ Split/Shred"
+                                Click="OnSplitShredClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="FileTagToolbarButton"
+                                Content="🏷 Tags"
+                                Click="OnFileTagClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="AttributesExifToolbarButton"
+                                Content="🕒 Attribute/EXIF"
+                                Click="OnAttributesExifClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="SmartExportToolbarButton"
+                                Content="📋 Export"
+                                Click="OnSmartExportClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="PackArchiveToolbarButton"
+                                Content="📦 Packen"
+                                Click="OnPackArchiveClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="RemoteConnectToolbarButton"
+                                Content="🌐 FTP/SFTP"
+                                Click="OnRemoteConnectClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                        <Button x:Name="GitPanelToolbarButton"
+                                Content="⎇ Git"
+                                Click="OnGitPanelClick"
+                                Padding="7,2"
+                                FontSize="11.5" />
+                    </StackPanel>
                 </ScrollViewer>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <Button x:Name="UndoToolbarButton"
-                            Content="↶ Undo"
-                            IsEnabled="{x:Bind ViewModel.CanUndo, Mode=OneWay}"
-                            Click="OnUndoClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="BatchRenameToolbarButton"
-                            Content="✏ Mehrfach-Umbenennen"
-                            Click="OnBatchRenameClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="DeepSearchToolbarButton"
-                            Content="🔍 Tiefensuche"
-                            Click="OnDeepSearchClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="DirectorySyncToolbarButton"
-                            Content="⇄ Sync"
-                            Click="OnDirectorySyncClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="DuplicateFinderToolbarButton"
-                            Content="🧹 Duplikate"
-                            Click="OnDuplicateFinderClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="StorageTreemapToolbarButton"
-                            Content="🗺 Treemap"
-                            Click="OnStorageTreemapClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="PackArchiveToolbarButton"
-                            Content="📦 Packen"
-                            Click="OnPackArchiveClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="RemoteConnectToolbarButton"
-                            Content="🌐 FTP/SFTP"
-                            Click="OnRemoteConnectClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                    <Button x:Name="QuickPreviewToolbarButton"
-                            Content="👁 Vorschau"
-                            Click="OnToggleQuickPreviewClick"
-                            Padding="7,2"
-                            FontSize="11.5" />
-                </StackPanel>
-            </Grid>
+            </StackPanel>
         </Border>
 
         <!-- ======================= DUAL-PANEL WORKSPACE ======================= -->
@@ -827,17 +916,19 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                        <Border Grid.Column="1"
+                        <Button Grid.Column="1"
                                 Visibility="{x:Bind ViewModel.Left.ActiveTab.HasGitRepository, Mode=OneWay}"
                                 Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                Click="OnLeftGitBadgeClick"
                                 CornerRadius="4"
                                 Padding="7,1"
+                                BorderThickness="0"
                                 VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.Left.ActiveTab.GitSummaryBadge, Mode=OneWay}"
                                        FontFamily="Consolas"
                                        FontSize="11.5"
                                        FontWeight="SemiBold" />
-                        </Border>
+                        </Button>
                     </Grid>
 
                     <!-- Column Headers Left -->
@@ -1117,17 +1208,19 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                        <Border Grid.Column="1"
+                        <Button Grid.Column="1"
                                 Visibility="{x:Bind ViewModel.Right.ActiveTab.HasGitRepository, Mode=OneWay}"
                                 Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                Click="OnRightGitBadgeClick"
                                 CornerRadius="4"
                                 Padding="7,1"
+                                BorderThickness="0"
                                 VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind ViewModel.Right.ActiveTab.GitSummaryBadge, Mode=OneWay}"
                                        FontFamily="Consolas"
                                        FontSize="11.5"
                                        FontWeight="SemiBold" />
-                        </Border>
+                        </Button>
                     </Grid>
 
                     <!-- Column Headers Right -->
@@ -1341,8 +1434,124 @@
             </Grid>
         </Border>
 
+        <!-- ======================= EMBEDDED QUICK COMMAND BAR (>_ Strg+Shift+J) ======================= -->
+        <Border x:Name="QuickCommandBarBorder"
+                Grid.Row="4"
+                Visibility="{x:Bind ViewModel.IsQuickCommandBarOpen, Mode=OneWay}"
+                Background="{ThemeResource ExplorerStatusBarBackgroundBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel>
+                <!-- Collapsible Terminal Output Drawer -->
+                <Border x:Name="QuickCommandOutputBorder"
+                        Visibility="Collapsed"
+                        Padding="10,6"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="QuickCommandOutputHeaderText"
+                                       Text=">_ Konsolenausgabe"
+                                       FontFamily="Consolas"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                <Button x:Name="QuickCommandCopyOutputButton"
+                                        Content="📋 Kopieren"
+                                        Click="OnQuickCommandCopyOutputClick"
+                                        Padding="7,1"
+                                        FontSize="11" />
+                                <Button x:Name="QuickCommandClearOutputButton"
+                                        Content="🧹 Leeren"
+                                        Click="OnQuickCommandClearOutputClick"
+                                        Padding="7,1"
+                                        FontSize="11" />
+                                <Button x:Name="QuickCommandHideOutputButton"
+                                        Content="▼ Ausblenden"
+                                        Click="OnQuickCommandHideOutputClick"
+                                        Padding="7,1"
+                                        FontSize="11" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBox x:Name="QuickCommandOutputBox"
+                                 Grid.Row="1"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas"
+                                 FontSize="11.5"
+                                 Height="135"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    </Grid>
+                </Border>
+
+                <!-- Inline Command Input Row -->
+                <Grid Padding="8,4" ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Background="{ThemeResource ExplorerCardBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="8,3"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="QuickCommandPromptText"
+                                   Text="PS &gt;"
+                                   FontFamily="Consolas"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   MaxWidth="320"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
+
+                    <TextBox x:Name="QuickCommandInputBox"
+                             Grid.Column="1"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             PlaceholderText="Befehl eingeben (Enter = Ausführen, ↑/↓ = Verlauf, cd &lt;Ordner&gt;, Esc = Dateiliste) …"
+                             KeyDown="OnQuickCommandInputKeyDown" />
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button x:Name="QuickCommandRunButton"
+                                Content="▶ Ausführen"
+                                Click="OnQuickCommandRunClick"
+                                Padding="9,3"
+                                FontSize="11.5" />
+                        <Button x:Name="QuickCommandToggleOutputButton"
+                                Content="📜 Ausgabe"
+                                Click="OnQuickCommandToggleOutputClick"
+                                Padding="8,3"
+                                FontSize="11.5" />
+                        <Button x:Name="QuickCommandExternalButton"
+                                Content="🖥 Terminal (F9)"
+                                Click="OnF9Click"
+                                Padding="8,3"
+                                FontSize="11.5" />
+                        <Button x:Name="QuickCommandCloseButton"
+                                Content="×"
+                                Click="OnToggleQuickCommandBarClick"
+                                Padding="7,3"
+                                FontSize="11.5" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
         <!-- ======================= FUNCTION KEY BAR (F1-F12) ======================= -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Visibility="{x:Bind ViewModel.Settings.ShowFunctionKeyBar, Mode=OneWay}"
                 Padding="6,4"
                 Background="{ThemeResource ExplorerFunctionBarBackgroundBrush}"
@@ -1382,7 +1591,7 @@
         <!-- ======================= IMAGE HOVER PREVIEW ======================= -->
         <Canvas x:Name="ImageHoverCanvas"
                 Grid.Row="0"
-                Grid.RowSpan="5"
+                Grid.RowSpan="6"
                 IsHitTestVisible="False"
                 Visibility="Collapsed">
             <Border x:Name="ImageHoverCard"

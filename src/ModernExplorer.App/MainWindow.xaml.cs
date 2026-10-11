@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using ModernExplorer.App.Dialogs;
 using ModernExplorer.Core;
+using ModernExplorer.Core.Features;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Input;
 using ModernExplorer.Core.Localization;
@@ -87,6 +88,11 @@ public sealed partial class MainWindow : Window
         ApplyTheme(ViewModel.Settings.Theme);
         ApplyLocalization();
 
+        FileBasketService.BasketChanged += (_, _) =>
+        {
+            DispatcherQueue.TryEnqueue(UpdateFileBasketButtonLabel);
+        };
+
         ViewModel.Settings.ThemeChanged += (_, _) => ApplyTheme(ViewModel.Settings.Theme);
         LocalizationService.Instance.LanguageChanged += (_, _) =>
         {
@@ -118,6 +124,7 @@ public sealed partial class MainWindow : Window
             {
                 AttachPanelTabSubscription(PanelSide.Left);
                 UpdatePanelViewMode(PanelSide.Left);
+                UpdateQuickCommandPrompt();
             }
         };
 
@@ -127,6 +134,7 @@ public sealed partial class MainWindow : Window
             {
                 AttachPanelTabSubscription(PanelSide.Right);
                 UpdatePanelViewMode(PanelSide.Right);
+                UpdateQuickCommandPrompt();
             }
         };
 
@@ -137,6 +145,7 @@ public sealed partial class MainWindow : Window
             else if (e.PropertyName == nameof(MainViewModel.ActiveSide))
             {
                 UpdateActivePanelVisuals();
+                UpdateQuickCommandPrompt();
                 Bindings.Update();
                 if (ViewModel.IsQuickPreviewPanelOpen)
                     _ = RefreshQuickPreviewPanelAsync();
@@ -146,6 +155,10 @@ public sealed partial class MainWindow : Window
                 Bindings.Update();
                 if (ViewModel.IsQuickPreviewPanelOpen)
                     _ = RefreshQuickPreviewPanelAsync();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.IsQuickCommandBarOpen))
+            {
+                SyncQuickCommandBarVisibility();
             }
             else if (e.PropertyName == nameof(MainViewModel.UndoDescription))
             {
@@ -177,6 +190,7 @@ public sealed partial class MainWindow : Window
             UpdatePanelViewMode(PanelSide.Right);
             UpdateDualLayout();
             UpdateActivePanelVisuals();
+            UpdateQuickCommandPrompt();
             Bindings.Update();
             WindowChromeHelper.BringWindowToForeground(this);
             FocusFileList(ViewModel.ActiveSide);
@@ -223,9 +237,18 @@ public sealed partial class MainWindow : Window
 
     public string FormatActiveTheme(string themeName) => LocalizationService.Format("Settings.ActiveThemePrefix", themeName);
 
+    private void UpdateFileBasketButtonLabel()
+    {
+        if (FileBasketToolbarButton is null) return;
+        string baseLabel = LocalizationService.T("Feature.FileBasket.Label");
+        int count = FileBasketService.Count;
+        FileBasketToolbarButton.Content = count > 0 ? $"{baseLabel} ({count})" : baseLabel;
+    }
+
     public void ApplyLocalization()
     {
         var loc = LocalizationService.Instance;
+        bool isDe = loc.EffectiveLanguage == "de";
         string appTitle = $"ModernExplorer v{GitHubUpdateService.GetCurrentVersionString()}";
         Title = appTitle;
         if (AppTitleTextBlock is not null)
@@ -294,6 +317,11 @@ public sealed partial class MainWindow : Window
             DirectorySyncToolbarButton.Content = loc["Feature.DirSync.Label"];
             SetTip(DirectorySyncToolbarButton, loc["Feature.DirSync.Tip"]);
         }
+        if (FileDiffToolbarButton is not null)
+        {
+            FileDiffToolbarButton.Content = loc["Feature.FileDiff.Label"];
+            SetTip(FileDiffToolbarButton, loc["Feature.FileDiff.Tip"]);
+        }
         if (DuplicateFinderToolbarButton is not null)
         {
             DuplicateFinderToolbarButton.Content = loc["Feature.Duplicates.Label"];
@@ -303,6 +331,31 @@ public sealed partial class MainWindow : Window
         {
             StorageTreemapToolbarButton.Content = loc["Feature.Treemap.Label"];
             SetTip(StorageTreemapToolbarButton, loc["Feature.Treemap.Tip"]);
+        }
+        if (ChecksumToolbarButton is not null)
+        {
+            ChecksumToolbarButton.Content = loc["Feature.Checksums.Label"];
+            SetTip(ChecksumToolbarButton, loc["Feature.Checksums.Tip"]);
+        }
+        if (SplitShredToolbarButton is not null)
+        {
+            SplitShredToolbarButton.Content = loc["Feature.SplitShred.Label"];
+            SetTip(SplitShredToolbarButton, loc["Feature.SplitShred.Tip"]);
+        }
+        if (FileTagToolbarButton is not null)
+        {
+            FileTagToolbarButton.Content = loc["Feature.FileTags.Label"];
+            SetTip(FileTagToolbarButton, loc["Feature.FileTags.Tip"]);
+        }
+        if (AttributesExifToolbarButton is not null)
+        {
+            AttributesExifToolbarButton.Content = loc["Feature.AttributesExif.Label"];
+            SetTip(AttributesExifToolbarButton, loc["Feature.AttributesExif.Tip"]);
+        }
+        if (SmartExportToolbarButton is not null)
+        {
+            SmartExportToolbarButton.Content = loc["Feature.SmartExport.Label"];
+            SetTip(SmartExportToolbarButton, loc["Feature.SmartExport.Tip"]);
         }
         if (PackArchiveToolbarButton is not null)
         {
@@ -314,12 +367,50 @@ public sealed partial class MainWindow : Window
             RemoteConnectToolbarButton.Content = loc["Feature.Remote.Label"];
             SetTip(RemoteConnectToolbarButton, loc["Feature.Remote.Tip"]);
         }
+        if (GitPanelToolbarButton is not null)
+        {
+            GitPanelToolbarButton.Content = loc["Feature.GitPanel.Label"];
+            SetTip(GitPanelToolbarButton, loc["Feature.GitPanel.Tip"]);
+        }
+        if (WorkspacesToolbarButton is not null)
+        {
+            WorkspacesToolbarButton.Content = loc["Feature.Workspaces.Label"];
+            SetTip(WorkspacesToolbarButton, loc["Feature.Workspaces.Tip"]);
+        }
+        if (FileBasketToolbarButton is not null)
+        {
+            UpdateFileBasketButtonLabel();
+            SetTip(FileBasketToolbarButton, loc["Feature.FileBasket.Tip"]);
+        }
+        if (QuickCommandToolbarButton is not null)
+        {
+            QuickCommandToolbarButton.Content = isDe ? ">_ Konsole" : ">_ Console";
+            SetTip(QuickCommandToolbarButton, loc["Feature.QuickCmd.Tip"]);
+        }
         if (QuickPreviewToolbarButton is not null)
         {
             QuickPreviewToolbarButton.Content = loc["Feature.QuickPreview.Label"];
             SetTip(QuickPreviewToolbarButton, loc["Feature.QuickPreview.Tip"]);
         }
         SetTip(QuickPreviewCloseButton, loc["Feature.QuickPreview.Close.Tip"]);
+
+        if (QuickCommandInputBox is not null)
+            QuickCommandInputBox.PlaceholderText = loc["QuickCmd.PromptPlaceholder"];
+        if (QuickCommandRunButton is not null)
+            QuickCommandRunButton.Content = loc["QuickCmd.RunButton"];
+        if (QuickCommandToggleOutputButton is not null)
+            QuickCommandToggleOutputButton.Content = isDe ? "📜 Ausgabe" : "📜 Output";
+        if (QuickCommandExternalButton is not null)
+            QuickCommandExternalButton.Content = isDe ? "🖥 Terminal (F9)" : "🖥 Terminal (F9)";
+        if (QuickCommandOutputHeaderText is not null)
+            QuickCommandOutputHeaderText.Text = isDe ? ">_ Konsolenausgabe" : ">_ Console Output";
+        if (QuickCommandCopyOutputButton is not null)
+            QuickCommandCopyOutputButton.Content = isDe ? "📋 Kopieren" : "📋 Copy";
+        if (QuickCommandClearOutputButton is not null)
+            QuickCommandClearOutputButton.Content = isDe ? "🧹 Leeren" : "🧹 Clear";
+        if (QuickCommandHideOutputButton is not null)
+            QuickCommandHideOutputButton.Content = isDe ? "▼ Ausblenden" : "▼ Hide";
+        UpdateQuickCommandPrompt();
 
         SetTip(LeftNewTabButton, loc["Panel.NewTab.Tip"]);
         SetTip(LeftCloseTabButton, loc["Panel.CloseTab.Tip"]);
@@ -1034,7 +1125,8 @@ public sealed partial class MainWindow : Window
         FocusFileList(side);
         e.Handled = true;
 
-        if (item.IsParentLink || tab.IsVirtualArchive || tab.IsRemoteConnection)
+        var currentMods = VirtualKeyMapper.GetCurrentModifiers();
+        if (item.IsParentLink || tab.IsVirtualArchive || tab.IsRemoteConnection || currentMods.HasFlag(KeyModifiers.Ctrl))
         {
             ShowFallbackFileContextMenu(fe, e.GetPosition(fe), panel, tab, item);
             return;
@@ -1083,6 +1175,7 @@ public sealed partial class MainWindow : Window
         TabViewModel tab,
         FileItemViewModel item)
     {
+        bool isDe = LocalizationService.Instance.EffectiveLanguage == "de";
         var menu = new MenuFlyout();
 
         var openItem = new MenuFlyoutItem
@@ -1115,6 +1208,13 @@ public sealed partial class MainWindow : Window
                 editItem.Click += (_, _) => ExecuteCommand("file.edit");
                 menu.Items.Add(editItem);
 
+                var diffItem = new MenuFlyoutItem
+                {
+                    Text = isDe ? "⚖ Datei-Diff vergleichen (Strg+Shift+U)" : "⚖ Compare File Diff (Ctrl+Shift+U)"
+                };
+                diffItem.Click += (_, _) => ExecuteCommand("tools.fileDiff");
+                menu.Items.Add(diffItem);
+
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
@@ -1140,6 +1240,43 @@ public sealed partial class MainWindow : Window
 
             menu.Items.Add(new MenuFlyoutSeparator());
 
+            var tagItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "🏷 Farb-Tag & Notiz vergeben (Strg+Shift+L)" : "🏷 Assign Color Tag & Note (Ctrl+Shift+L)"
+            };
+            tagItem.Click += (_, _) => ExecuteCommand("tools.fileTags");
+            menu.Items.Add(tagItem);
+
+            var basketAddItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "🧺 Zum Sammelkorb hinzufügen" : "🧺 Add to File Basket"
+            };
+            basketAddItem.Click += (_, _) => ExecuteCommand("tools.addToBasket");
+            menu.Items.Add(basketAddItem);
+
+            var attrExifItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "🕒 Attribute, Zeitstempel & EXIF (Strg+Shift+A)" : "🕒 Attributes, Timestamps & EXIF (Ctrl+Shift+A)"
+            };
+            attrExifItem.Click += (_, _) => ExecuteCommand("tools.attributesExif");
+            menu.Items.Add(attrExifItem);
+
+            var checksumItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "🔐 Prüfsummen berechnen / prüfen (Strg+Shift+K)" : "🔐 Calculate / Verify Checksums (Ctrl+Shift+K)"
+            };
+            checksumItem.Click += (_, _) => ExecuteCommand("tools.checksums");
+            menu.Items.Add(checksumItem);
+
+            var splitShredItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "✂ Datei teilen / zusammenfügen / schreddern" : "✂ Split / Join / Secure Shred"
+            };
+            splitShredItem.Click += (_, _) => ExecuteCommand("tools.splitShred");
+            menu.Items.Add(splitShredItem);
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+
             var packArchiveItem = new MenuFlyoutItem { Text = $"{LocalizationService.T("Feature.PackArchive.Label")} (Alt+F5)" };
             packArchiveItem.Click += (_, _) => ExecuteCommand("archive.pack");
             menu.Items.Add(packArchiveItem);
@@ -1155,7 +1292,7 @@ public sealed partial class MainWindow : Window
             {
                 var chmodItem = new MenuFlyoutItem
                 {
-                    Text = LocalizationService.Instance.EffectiveLanguage == "de"
+                    Text = isDe
                         ? "🔐 Berechtigungen ändern (chmod)"
                         : "🔐 Change Permissions (chmod)"
                 };
@@ -1168,6 +1305,13 @@ public sealed partial class MainWindow : Window
             var copyPathItem = new MenuFlyoutItem { Text = LocalizationService.T("Menu.CopyPath") };
             copyPathItem.Click += (_, _) => ExecuteCommand("clipboard.copyPath");
             menu.Items.Add(copyPathItem);
+
+            var smartExportItem = new MenuFlyoutItem
+            {
+                Text = isDe ? "📋 Smart Export (CSV / Markdown / JSON) (Strg+Shift+E)" : "📋 Smart Export (CSV / Markdown / JSON) (Ctrl+Shift+E)"
+            };
+            smartExportItem.Click += (_, _) => ExecuteCommand("tools.smartExport");
+            menu.Items.Add(smartExportItem);
         }
 
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -1377,11 +1521,180 @@ public sealed partial class MainWindow : Window
     private void OnBatchRenameClick(object sender, RoutedEventArgs e) => ExecuteCommand("file.batchRename");
     private void OnDeepSearchClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.deepSearch");
     private void OnDirectorySyncClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.syncDirs");
+    private void OnFileDiffClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.fileDiff");
     private void OnDuplicateFinderClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.findDuplicates");
     private void OnStorageTreemapClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.storageTreemap");
+    private void OnChecksumClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.checksums");
+    private void OnSplitShredClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.splitShred");
+    private void OnFileTagClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.fileTags");
+    private void OnAttributesExifClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.attributesExif");
+    private void OnSmartExportClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.smartExport");
     private void OnPackArchiveClick(object sender, RoutedEventArgs e) => ExecuteCommand("archive.pack");
     private void OnRemoteConnectClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.remoteConnect");
+    private void OnGitPanelClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.gitPanel");
+    private void OnWorkspacesClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.workspaces");
+    private void OnFileBasketClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.fileBasket");
+    private void OnToggleQuickCommandBarClick(object sender, RoutedEventArgs e) => ExecuteCommand("tools.quickCommandBar");
     private void OnToggleQuickPreviewClick(object sender, RoutedEventArgs e) => ExecuteCommand("view.quickPreview");
+
+    private void OnLeftGitBadgeClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Left;
+        ExecuteCommand("tools.gitPanel");
+    }
+
+    private void OnRightGitBadgeClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ActiveSide = PanelSide.Right;
+        ExecuteCommand("tools.gitPanel");
+    }
+
+    // ====================================================================
+    // EMBEDDED QUICK COMMAND BAR (>_ Strg+Shift+J)
+    // ====================================================================
+
+    public void SyncQuickCommandBarVisibility()
+    {
+        if (QuickCommandBarBorder is null) return;
+        QuickCommandBarBorder.Visibility = ViewModel.IsQuickCommandBarOpen ? Visibility.Visible : Visibility.Collapsed;
+        UpdateQuickCommandPrompt();
+        if (ViewModel.IsQuickCommandBarOpen)
+        {
+            QuickCommandInputBox?.Focus(FocusState.Programmatic);
+        }
+        else
+        {
+            FocusFileList(ViewModel.ActiveSide);
+        }
+    }
+
+    private void UpdateQuickCommandPrompt()
+    {
+        if (QuickCommandPromptText is null || ViewModel is null) return;
+        var path = ViewModel.ActivePanel?.ActiveTab?.CurrentPath ?? Environment.CurrentDirectory;
+        string displayPath = path;
+        if (displayPath.Length > 38)
+        {
+            var leaf = Path.GetFileName(displayPath.TrimEnd('\\', '/'));
+            var root = Path.GetPathRoot(displayPath) ?? "";
+            displayPath = string.IsNullOrEmpty(leaf) ? displayPath : $"{root}…\\{leaf}";
+        }
+        QuickCommandPromptText.Text = $"PS {displayPath}>";
+    }
+
+    private async void OnQuickCommandInputKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await RunQuickCommandFromBarAsync();
+        }
+        else if (e.Key == VirtualKey.Up)
+        {
+            e.Handled = true;
+            var prev = ViewModel.CommandRunner.NavigateHistory(-1);
+            if (prev is not null)
+            {
+                QuickCommandInputBox.Text = prev;
+                QuickCommandInputBox.SelectionStart = prev.Length;
+            }
+        }
+        else if (e.Key == VirtualKey.Down)
+        {
+            e.Handled = true;
+            var next = ViewModel.CommandRunner.NavigateHistory(1);
+            if (next is not null)
+            {
+                QuickCommandInputBox.Text = next;
+                QuickCommandInputBox.SelectionStart = next.Length;
+            }
+        }
+        else if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            FocusFileList(ViewModel.ActiveSide);
+        }
+    }
+
+    private async void OnQuickCommandRunClick(object sender, RoutedEventArgs e) =>
+        await RunQuickCommandFromBarAsync();
+
+    private void OnQuickCommandToggleOutputClick(object sender, RoutedEventArgs e)
+    {
+        if (QuickCommandOutputBorder is null) return;
+        QuickCommandOutputBorder.Visibility = QuickCommandOutputBorder.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
+
+    private void OnQuickCommandHideOutputClick(object sender, RoutedEventArgs e)
+    {
+        if (QuickCommandOutputBorder is not null)
+            QuickCommandOutputBorder.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnQuickCommandClearOutputClick(object sender, RoutedEventArgs e)
+    {
+        if (QuickCommandOutputBox is not null)
+            QuickCommandOutputBox.Text = "";
+    }
+
+    private void OnQuickCommandCopyOutputClick(object sender, RoutedEventArgs e)
+    {
+        if (QuickCommandOutputBox is null || string.IsNullOrEmpty(QuickCommandOutputBox.Text)) return;
+        var pkg = new DataPackage();
+        pkg.SetText(QuickCommandOutputBox.Text);
+        Clipboard.SetContent(pkg);
+    }
+
+    private async Task RunQuickCommandFromBarAsync()
+    {
+        if (QuickCommandInputBox is null) return;
+        string cmd = QuickCommandInputBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(cmd)) return;
+
+        var activeTab = ViewModel.ActivePanel.ActiveTab;
+        string workingDir = activeTab is { IsVirtualArchive: false, IsRemoteConnection: false } && Directory.Exists(activeTab.CurrentPath)
+            ? activeTab.CurrentPath
+            : Environment.CurrentDirectory;
+
+        QuickCommandInputBox.Text = "";
+        QuickCommandRunButton.IsEnabled = false;
+
+        try
+        {
+            var res = await ViewModel.CommandRunner.ExecuteAsync(cmd, workingDir);
+            if (!string.IsNullOrWhiteSpace(res.NavigatedDirectory) && activeTab is not null)
+            {
+                await activeTab.NavigateAsync(res.NavigatedDirectory);
+                UpdateQuickCommandPrompt();
+            }
+
+            string header = $"[{DateTime.Now:HH:mm:ss}] PS {workingDir}> {res.Command} (Exit {res.ExitCode}, {res.Elapsed.TotalMilliseconds:F0} ms)";
+            string body = string.IsNullOrWhiteSpace(res.CombinedOutput) ? "(OK)" : res.CombinedOutput;
+            string entry = $"{header}\n{body}\n{new string('─', 72)}\n";
+
+            QuickCommandOutputBox.Text = string.IsNullOrEmpty(QuickCommandOutputBox.Text)
+                ? entry
+                : QuickCommandOutputBox.Text + "\n" + entry;
+
+            QuickCommandOutputBorder.Visibility = Visibility.Visible;
+            QuickCommandOutputBox.SelectionStart = QuickCommandOutputBox.Text.Length;
+
+            if (activeTab is not null && string.IsNullOrWhiteSpace(res.NavigatedDirectory))
+                await activeTab.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            QuickCommandOutputBox.Text += $"\n[ERROR] {ex.Message}\n";
+            QuickCommandOutputBorder.Visibility = Visibility.Visible;
+        }
+        finally
+        {
+            QuickCommandRunButton.IsEnabled = true;
+            QuickCommandInputBox.Focus(FocusState.Programmatic);
+        }
+    }
 
     private async void OnLeftBranchViewClick(object sender, RoutedEventArgs e)
     {
@@ -1545,6 +1858,7 @@ public sealed partial class MainWindow : Window
         else if (e.PropertyName is nameof(TabViewModel.CurrentPath) or nameof(TabViewModel.IsBookmarked)
                  or nameof(TabViewModel.GitSummaryBadge) or nameof(TabViewModel.IsBranchView) or nameof(TabViewModel.IsTreeSizeActive))
         {
+            UpdateQuickCommandPrompt();
             Bindings.Update();
         }
     }
@@ -1565,6 +1879,7 @@ public sealed partial class MainWindow : Window
         else if (e.PropertyName is nameof(TabViewModel.CurrentPath) or nameof(TabViewModel.IsBookmarked)
                  or nameof(TabViewModel.GitSummaryBadge) or nameof(TabViewModel.IsBranchView) or nameof(TabViewModel.IsTreeSizeActive))
         {
+            UpdateQuickCommandPrompt();
             Bindings.Update();
         }
     }

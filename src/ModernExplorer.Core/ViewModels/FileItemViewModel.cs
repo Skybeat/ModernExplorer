@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using ModernExplorer.Core.Features;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Localization;
 
@@ -6,7 +7,11 @@ namespace ModernExplorer.Core.ViewModels;
 
 public sealed partial class FileItemViewModel : ObservableObject
 {
-    public FileItemViewModel(FileEntry entry) => Entry = entry;
+    public FileItemViewModel(FileEntry entry)
+    {
+        _entry = entry;
+        RefreshTagState();
+    }
 
     public SettingsViewModel Settings => SettingsViewModel.Current;
 
@@ -32,12 +37,58 @@ public sealed partial class FileItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasGitStatusBadge))]
     private string _gitStatusBadge = "";
 
+    /// <summary>User-assigned color tag for this file or folder.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTag), nameof(TagBadgeText), nameof(TagColorHex), nameof(TagTooltipText))]
+    private FileTagColor _tagColor = FileTagColor.None;
+
+    /// <summary>User-assigned short note for this file or folder.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTag), nameof(TagBadgeText), nameof(TagTooltipText))]
+    private string _tagNote = "";
+
     /// <summary>Relative size ratio (0.0 to 1.0) when TreeSize space analysis is active.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SizeBarWidth), nameof(HasSizeBar), nameof(SizePercentText))]
     private double _sizeRatio;
 
     public bool HasGitStatusBadge => !string.IsNullOrEmpty(GitStatusBadge);
+    public bool HasTag => !Entry.IsParentLink && (TagColor != FileTagColor.None || !string.IsNullOrEmpty(TagNote));
+    public string TagColorHex => FileTagService.GetColorHex(TagColor);
+    public string TagBadgeText
+    {
+        get
+        {
+            if (Entry.IsParentLink) return "";
+            string dot = FileTagService.GetColorBadgeEmoji(TagColor);
+            if (!string.IsNullOrEmpty(TagNote))
+            {
+                string shortNote = TagNote.Length > 16 ? TagNote[..15] + "…" : TagNote;
+                return string.IsNullOrEmpty(dot) ? $"📝 {shortNote}" : $"{dot} {shortNote}";
+            }
+            return dot;
+        }
+    }
+
+    public string TagTooltipText =>
+        !HasTag ? "" :
+        string.IsNullOrEmpty(TagNote)
+            ? FileTagService.GetColorDisplayName(TagColor)
+            : $"{FileTagService.GetColorDisplayName(TagColor)}: {TagNote}";
+
+    public void RefreshTagState()
+    {
+        if (Entry.IsParentLink)
+        {
+            TagColor = FileTagColor.None;
+            TagNote = "";
+            return;
+        }
+        var tag = FileTagService.GetTag(Entry.FullPath);
+        TagColor = tag?.Color ?? FileTagColor.None;
+        TagNote = tag?.Note ?? "";
+    }
+
     public bool HasSizeBar => SizeRatio > 0.002 && !Entry.IsParentLink;
     public double SizeBarWidth => Math.Clamp(SizeRatio * 102.0, 0.0, 102.0);
     public string SizePercentText => HasSizeBar ? $"{SizeRatio * 100.0:0.#}%" : "";

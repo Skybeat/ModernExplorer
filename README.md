@@ -23,7 +23,7 @@ Every GitHub Release automatically builds and publishes both **100% self-contain
 ## Feature Overview
 
 ### 1. Dual-Pane & Multi-Tab File Management
-- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.7.0`).
+- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.8.0`).
 - **Dual-Pane & Single-Pane Mode (`F10` / `Tab`)**: Instant switching between left and right file panels with a customizable active-panel border color and thickness.
 - **Per-Pane Drive Bar**: Displays all mounted drives (`Fixed`, `Removable`, `Network`, `CD-ROM`, `RAM`) with live free-space and capacity bars plus tooltips.
 - **Full Multi-Tab Support (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`)**:
@@ -32,23 +32,32 @@ Every GitHub Release automatically builds and publishes both **100% self-contain
 - **8 Explorer View Modes**:
   - **Details** (sortable columns: Name, Size, Modified, Extension, plus inline Git & Size bars), **List**, **Tiles**, **Small Icons**, **Medium Icons**, **Large Icons**, **Extra Large Icons**, and **Content**.
 - **Breadcrumb & Editable Address Bar (`Ctrl+L` / `Alt+D`)**: Clickable path segments for instant parent navigation or direct path/URI entry.
-- **Live Instant Filter (`Ctrl+F`)**: Filter the current directory view in real time with wildcards, substring matching, or `ext:` queries.
+- **Live Instant Filter (`Ctrl+F`)**: Filter the current directory view in real time with wildcards, substring matching, `ext:` queries, or color tag / note filters (`tag:rot`, `tag:green`, `tag:*`, `note:invoice`).
 
 ### 2. Integrated Power Tools (Freely Resizable Windows)
 All feature dialogs open as large, freely resizable and maximizable child windows that remember their dimensions across sessions:
 
 | Feature | Shortcut / Button | Description |
 | :--- | :--- | :--- |
-| **Multi-Rename Tool (Batch Rename)** | `Ctrl+M` / `✏ Batch Rename` | Rename multiple files and folders at once using placeholders (`[N]` name, `[N1-5]` substring, `[E]` extension, `[C]` counter with custom start/step/digits, `[Y][M][D][h][m][s]` timestamps, `[P]` parent folder), Search & Replace, Regular Expressions, case transformations, live conflict detection, and one-click Undo. |
+| **Multi-Rename Tool (Batch Rename)** | `Ctrl+M` / `✏ Batch Rename` | Rename multiple files and folders at once using placeholders (`[N]` name, `[N1-5]` substring, `[E]` extension, `[C]` counter with custom start/step/digits, `[Y][M][D][h][m][s]` timestamps, `[P]` parent folder, plus image/EXIF placeholders `[Width]`, `[Height]`, `[Resolution]`, `[ExifDate]`, `[Camera]`), Search & Replace, Regular Expressions, case transformations, live conflict detection, and one-click Undo. |
+| **Visual Side-by-Side File Diff Viewer** | `Ctrl+Shift+U` / `⚖ Diff` | Compare two files line by line side-by-side with LCS alignment, color highlights (**Added**, **Removed**, **Modified**), hunk navigation (`⬆ Prev` / `⬇ Next`), interactive hunk merging (`→` Left to Right / `←` Right to Left), and direct saving. |
+| **Checksum Generator & Verifier** | `Ctrl+Shift+K` / `🔐 Hashes` | Calculate `SHA-256`, `SHA-512`, `MD5`, and `CRC32` for selected files, instantly compare against a pasted clipboard hash, export `.sha256`, `.sha512`, `.md5`, or `.sfv` manifests, and verify existing checksum manifest files. |
+| **File Splitter, Joiner & Secure Shredder** | `✂ Split/Shred` | Split large files into `.001`, `.002`… parts with an automatic `.sha256` manifest, rejoin `.001` parts seamlessly, or permanently shred sensitive files with **1-Pass**, **3-Pass DoD**, or **7-Pass** cryptographic overwriting. |
+| **Color File Tags / Labels & Notes** | `Ctrl+Shift+L` / `🏷 Tags` | Assign persistent color tags (**Red**, **Orange**, **Yellow**, **Green**, **Blue**, **Purple**) and text notes to any file or folder, displayed directly as badges in the file list and filterable via `tag:red`, `tag:rot`, `tag:*`, or `note:...`. |
+| **Workspace Profiles (Saved Layouts)** | `Ctrl+Shift+O` / `🗂 Workspaces` | Save and restore complete dual-pane tab layouts (including pinned/locked tabs, view modes, and split ratio) under custom profile names with a single click. |
+| **Smart Copy / Path & List Exporter** | `Ctrl+Shift+E` / `📋 Export` | Copy or export selected file lists as **Full Paths**, **File Names**, **Relative Paths**, **Forward-Slash Paths**, **Markdown `file://` Links**, **CSV Table**, **Markdown Table**, **JSON Array**, or **HTML Table**. |
+| **Virtual File Basket (Drop-Basket)** | `Ctrl+Shift+B` / `🧺 Basket` | Collect files and folders from arbitrary directories and drives into a virtual staging basket, then execute unified batch actions (**Copy Here**, **Move Here**, **Pack into Archive**, **Batch Rename**, or **Export List**). |
+| **EXIF / Media Metadata & Timestamp/Attribute Editor** | `Ctrl+Shift+A` / `🕒 Attr/EXIF` | Inspect binary PNG/JPEG/GIF/BMP/WEBP image dimensions and EXIF camera data (`Width`, `Height`, `DateTaken`, `CameraMake`, `CameraModel`, `ISO`), batch-edit timestamps (`Created`, `Modified`, `Accessed`, `+/- hours` shift, copy EXIF `DateTaken` to file timestamps, `Touch`), and batch-toggle file attributes (`ReadOnly`, `Hidden`, `Archive`, `System`). |
+| **Embedded Quick Command Bar (`>_`)** | `Ctrl+Shift+J` / `>_ Console` | Docked PowerShell/CMD/sh command bar at the bottom of the main window executing directly in the active folder with `cd` folder navigation, `Up`/`Down` command history, and a collapsible live output drawer. |
+| **Extended Git Panel** | `Ctrl+Shift+G` / `⎇ Git` | Clickable Git branch badge and toolbar panel showing local branches with one-click `git checkout`, modified/untracked working tree status with `git add` staging, direct **Visual Side-by-Side Diff against `HEAD`**, and recent commit history (`git log`). |
 | **Directory Compare & Synchronize** | `Ctrl+Shift+S` / `⇄ Sync` | Compare left and right directories recursively by **Size & Timestamp**, **Size Only**, or **SHA-256 Content**. Supports **Bidirectional Merge (newer wins)**, **Left → Right Mirror**, and **Right → Left Mirror** with optional orphan deletion and live progress feedback. |
 | **Recursive Deep Search** | `Alt+F7` / `🔍 Deep Search` | High-speed recursive file search by wildcard (`*.cs;*.json`), Regular Expression, file size, date range, attributes, and **full-text content search** inside files. Results can be opened directly as a virtual tab or jumped to in the active pane. |
 | **Duplicate File Finder** | `🧹 Duplicates` | 3-stage duplicate scanner (**File Size grouping → 4 KB Partial Hash → Full SHA-256 Hash**) with a **real-time ProgressBar, percentage indicator, and live file counter**. Calculates wasted disk space and offers one-click selection of all duplicates (preserving the original per group). |
-| **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with **interactive vertical & horizontal drag splitters** between the upper lists (Folder Hierarchy & File Extension Statistics) and the lower graphical Treemap, an **integrated `🌳 Explorer Tree ▾` dropdown** (browse drives & expandable folder trees directly), a **real-time scan ProgressBar**, **7 customizable category colors**, **Drill-Down zooming** (`Double-Click` / `⬆ Up` / `🏠 Root`), **Multi-Selection via `Ctrl+Click`**, and direct deletion via the **Right-Click Context Menu (`🗑 Delete [Del]`)**, the **`Delete` (`Entf`) key**, or the footer bar with instant in-place Treemap recalculation. |
+| **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with **interactive vertical & horizontal drag splitters**, an **integrated `🌳 Explorer Tree ▾` dropdown**, **toggleable `🔥 Top 100 Largest Files` view**, **live Color Mode switcher (`🎨 Categories` vs. `⏳ File Age Heatmap`)**, **Markdown/CSV Storage Report export (`📄 Report`)**, **7 customizable category colors**, **Drill-Down zooming**, **Multi-Selection via `Ctrl+Click`**, and direct deletion via the **Right-Click Context Menu (`🗑 Delete [Del]`)** or **`Delete` (`Entf`) key** with instant in-place Treemap recalculation. |
 | **Archive Browser & Packer** | `Alt+F5` (`📦 Pack`) / `Alt+F9` (Extract) | Browse inside archives (`.zip`, `.7z`, `.rar`, `.tar`, `.gz`, `.bz2`, `.xz`, `.tgz`, `.nupkg`, `.jar`) transparently like normal folders (`archive://`), extract individual or all entries, and pack selected files/folders into `.zip`, `.tar.gz`, or `.7z` archives. |
 | **Built-in FTP / FTPS / SFTP Client** | `Ctrl+Shift+C` / `🌐 FTP/SFTP` | Connect directly to remote servers via **SFTP (SSH)**, **FTPS (Explicit TLS)**, or **FTP** as virtual paths (`sftp://`, `ftps://`, `ftp://`). Includes a Connection Manager with **Windows DPAPI password encryption**, SSH private key authentication, and seamless upload/download/rename/delete/mkdir via `F5`/`F6`/`F7`/`F8`. |
 | **Branch View (Flat View)** | `Ctrl+B` / `🌿` | Flattens the current directory and all subdirectories into a single unified file list showing relative subpaths. |
 | **TreeSize Disk Space Analyzer** | `📊` | Recursively calculates folder sizes in the background and renders proportional visual allocation bars directly inside the `Size` column. |
-| **Git Repository Integration** | Automatic | Detects Git repositories automatically, displays the current branch badge (`⎇ main`) in the address bar, and shows per-file status badges (`M`, `A`, `?`, `D`, `R`, `!`) in the file list. |
 | **Docked Quick Preview Pane** | `Ctrl+Q` / `👁 Preview` | Toggleable third column displaying live previews for the currently selected file (images, Markdown/code/text, CSV/JSON/XML, media, and SHA-256/MD5/CRC32 file metadata) as you navigate with the arrow keys. |
 | **Favorites / Bookmarks Bar & Undo** | `Ctrl+D` (`☆`) / `Ctrl+Z` (`↶ Undo`) | Pin frequently used folders to the Favorites bar for one-click navigation and undo recent file operations (rename, batch rename, copy, move, new folder/file) via `Ctrl+Z`. |
 
@@ -97,6 +106,15 @@ All feature dialogs open as large, freely resizable and maximizable child window
 | `Tab` | Switch active pane (Left ↔ Right) |
 | `Space` / `Insert` | Mark / unmark file and advance selection |
 | `Ctrl+M` | Open Multi-Rename Tool (Batch Rename) |
+| `Ctrl+Shift+U` | Open Visual Side-by-Side File Diff Viewer |
+| `Ctrl+Shift+K` | Open Checksum Generator & Verifier (`SHA-256`, `SHA-512`, `MD5`, `CRC32`) |
+| `Ctrl+Shift+L` | Assign Color Tags / Labels & Notes (`tag:rot`, `note:...`) |
+| `Ctrl+Shift+O` | Open Workspace Profiles Manager |
+| `Ctrl+Shift+E` | Open Smart Copy / Path & Table Exporter |
+| `Ctrl+Shift+B` | Open Virtual File Basket (Drop-Basket) |
+| `Ctrl+Shift+A` | Open EXIF / Media Metadata & Timestamp / Attribute Editor |
+| `Ctrl+Shift+J` | Toggle / Focus Embedded Quick Command Bar (`>_`) |
+| `Ctrl+Shift+G` | Open Extended Git Panel (Branches, Status, Diff vs `HEAD`, Commit Log) |
 | `Ctrl+Shift+S` | Open Directory Compare & Synchronize |
 | `Ctrl+Shift+W` | Open Graphical Disk Space Analyzer & Squarified Treemap (WinDirStat) |
 | `Alt+F7` / `Ctrl+Shift+F` | Open Recursive Deep Search |
@@ -110,6 +128,4 @@ All feature dialogs open as large, freely resizable and maximizable child window
 
 ## Building & Publishing Releases
 
-Pushing a version tag (`v*`, e.g. `v1.7.0`) or running `scripts/publish-releases.ps1 -Version "1.7.0"` builds and publishes all self-contained portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.
-
-
+Pushing a version tag (`v*`, e.g. `v1.8.0`) or running `scripts/publish-releases.ps1 -Version "1.8.0"` builds and publishes all self-contained portable archives and native installers (`.exe`, `.deb`, `.sh`, `.dmg`, `.pkg`) and attaches them to the GitHub Release.

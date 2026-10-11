@@ -108,7 +108,8 @@ public static class BatchRenameService
                 parentName,
                 dt,
                 counter,
-                digits);
+                digits,
+                entry.FullPath);
 
             string expandedExt = entry.IsDirectory
                 ? ""
@@ -119,7 +120,8 @@ public static class BatchRenameService
                     parentName,
                     dt,
                     counter,
-                    digits);
+                    digits,
+                    entry.FullPath);
 
             string combined = entry.IsDirectory || string.IsNullOrEmpty(expandedExt)
                 ? expandedBase
@@ -265,7 +267,8 @@ public static class BatchRenameService
         string parentName,
         DateTime dt,
         int counter,
-        int defaultDigits)
+        int defaultDigits,
+        string fullPath = "")
     {
         string output = SubstringTokenRegex.Replace(pattern, m =>
         {
@@ -292,6 +295,22 @@ public static class BatchRenameService
                 : defaultDigits;
             return counter.ToString($"D{width}", CultureInfo.InvariantCulture);
         });
+
+        if (output.Contains("[Width]", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("[Height]", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("[Resolution]", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("[ExifDate]", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("[Camera]", StringComparison.OrdinalIgnoreCase))
+        {
+            var meta = ModernExplorer.Core.Features.MetadataAndAttributeService.InspectMediaMetadata(fullPath);
+            DateTime exifDt = meta.DateTaken ?? dt;
+            output = output
+                .Replace("[Width]", meta.Width > 0 ? meta.Width.ToString(CultureInfo.InvariantCulture) : "", StringComparison.OrdinalIgnoreCase)
+                .Replace("[Height]", meta.Height > 0 ? meta.Height.ToString(CultureInfo.InvariantCulture) : "", StringComparison.OrdinalIgnoreCase)
+                .Replace("[Resolution]", meta.ResolutionText, StringComparison.OrdinalIgnoreCase)
+                .Replace("[ExifDate]", exifDt.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace("[Camera]", (meta.CameraModel ?? meta.CameraMake ?? "").Replace(' ', '_'), StringComparison.OrdinalIgnoreCase);
+        }
 
         output = output
             .Replace("[N]", baseName, StringComparison.OrdinalIgnoreCase)

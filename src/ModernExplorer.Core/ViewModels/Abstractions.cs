@@ -56,6 +56,17 @@ public interface IShellUi
     Task<string?> ShowRemoteConnectionManagerDialogAsync() => Task.FromResult<string?>(null);
     Task<string?> ShowCreateArchiveDialogAsync(IReadOnlyList<string> sourcePaths, string defaultOutputDirectory) => Task.FromResult<string?>(null);
 
+    Task<bool> ShowFileDiffDialogAsync(string leftFilePath, string rightFilePath) => Task.FromResult(false);
+    Task ShowChecksumToolDialogAsync(IReadOnlyList<string> paths, string initialDirectory) => Task.CompletedTask;
+    Task<bool> ShowSplitJoinShredDialogAsync(IReadOnlyList<string> paths, string initialDirectory) => Task.FromResult(false);
+    Task<bool> ShowFileTagDialogAsync(IReadOnlyList<string> paths) => Task.FromResult(false);
+    Task ShowWorkspaceManagerDialogAsync(MainViewModel mainViewModel) => Task.CompletedTask;
+    Task ShowSmartExportDialogAsync(IReadOnlyList<FileEntry> entries, string baseDirectory) => Task.CompletedTask;
+    Task ShowFileBasketDialogAsync(MainViewModel mainViewModel) => Task.CompletedTask;
+    Task<bool> ShowAttributeAndExifDialogAsync(IReadOnlyList<string> paths) => Task.FromResult(false);
+    Task<bool> ShowGitPanelDialogAsync(string directoryPath) => Task.FromResult(false);
+    void ToggleQuickCommandBar() { }
+
     void SetClipboardText(string text);
     Task SetClipboardFilesAsync(IReadOnlyList<string> paths, bool cut);
     Task<(IReadOnlyList<string> Paths, bool Cut)?> GetClipboardFilesAsync();

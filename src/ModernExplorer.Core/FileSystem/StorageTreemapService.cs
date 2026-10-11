@@ -25,6 +25,15 @@ public enum StorageCategory
 }
 
 /// <summary>
+/// Coloring mode for the storage analyzer treemap (by file category or by file modification age).
+/// </summary>
+public enum TreemapColorMode
+{
+    Category = 0,
+    AgeHeatmap = 1,
+}
+
+/// <summary>
 /// Real-time progress report emitted while scanning a drive or directory tree.
 /// </summary>
 public sealed record StorageScanProgress(
@@ -185,19 +194,119 @@ public static class StorageTreemapService
     }
 
     /// <summary>
-    /// Updates <see cref="StorageTreemapNode.ColorHex"/> across an existing scanned tree when user color settings change.
+    /// Updates <see cref="StorageTreemapNode.ColorHex"/> across an existing scanned tree when user color settings or heatmap mode change.
     /// </summary>
-    public static void RefreshNodeColors(StorageTreemapNode? node)
+    public static void RefreshNodeColors(StorageTreemapNode? node, TreemapColorMode mode = TreemapColorMode.Category)
     {
         if (node is null) return;
         if (!node.IsDirectory)
         {
-            node.ColorHex = GetCategoryColorHex(node.Category);
+            node.ColorHex = mode == TreemapColorMode.AgeHeatmap
+                ? GetAgeHeatmapColorHex(node.LastWriteTime)
+                : GetCategoryColorHex(node.Category);
             return;
         }
 
         foreach (var child in node.Children)
-            RefreshNodeColors(child);
+            RefreshNodeColors(child, mode);
+    }
+
+    public static string GetAgeHeatmapColorHex(DateTime lastWriteTime)
+    {
+        var age = DateTime.Now - lastWriteTime;
+        if (age.TotalDays <= 7)
+            return "#EF4444"; // Brand new (< 7 days) - Hot Red
+        if (age.TotalDays <= 30)
+            return "#F97316"; // Recent (< 30 days) - Orange
+        if (age.TotalDays <= 180)
+            return "#EAB308"; // < 6 months - Amber/Yellow
+        if (age.TotalDays <= 365)
+            return "#10B981"; // < 1 year - Emerald
+        if (age.TotalDays <= 365 * 3)
+            return "#3B82F6"; // 1-3 years - Blue
+        return "#8B5CF6";     // > 3 years (Data relic) - Purple
+    }
+
+    /// <summary>
+    /// Returns the top <paramref name="maxCount"/> largest individual files across the entire scanned tree.
+    /// </summary>
+    public static IReadOnlyList<StorageTreemapNode> GetTopLargestFiles(StorageTreemapNode rootNode, int maxCount = 100)
+    {
+        var files = new List<StorageTreemapNode>();
+
+        void Collect(StorageTreemapNode n)
+        {
+            if (!n.IsDirectory)
+            {
+                files.Add(n);
+                return;
+            }
+            foreach (var child in n.Children)
+                Collect(child);
+        }
+
+        Collect(rootNode);
+        return files
+            .OrderByDescending(f => f.SizeBytes)
+            .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Max(1, maxCount))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Generates a comprehensive storage analysis report in Markdown or CSV format.
+    /// </summary>
+    public static string ExportStorageReport(StorageTreemapNode rootNode, bool markdownFormat = true)
+    {
+        var sb = new System.Text.StringBuilder();
+        var topFiles = GetTopLargestFiles(rootNode, 50);
+        var extStats = ComputeExtensionStats(rootNode, 30);
+
+        if (markdownFormat)
+        {
+            sb.AppendLine($"# ModernExplorer Storage Report — `{rootNode.FullPath}`");
+            sb.AppendLine($"- **Gesamtgröße:** {ModernExplorer.Core.ViewModels.Format.Size(rootNode.SizeBytes)} ({rootNode.SizeBytes:N0} Bytes)");
+            sb.AppendLine($"- **Dateien:** {rootNode.FileCount:N0} | **Ordner:** {rootNode.DirectoryCount:N0}");
+            sb.AppendLine($"- **Erstellt am:** {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine();
+            sb.AppendLine("## Top-Unterordner");
+            sb.AppendLine("| Name | Größe | Anteil | Dateien |");
+            sb.AppendLine("| :--- | ---: | ---: | ---: |");
+            foreach (var child in rootNode.Children.Take(25))
+            {
+                sb.AppendLine($"| `{child.Name}` | {ModernExplorer.Core.ViewModels.Format.Size(child.SizeBytes)} | {child.GetPercentageOf(rootNode.SizeBytes):0.0}% | {child.FileCount:N0} |");
+            }
+            sb.AppendLine();
+            sb.AppendLine("## Dateityp-Statistik");
+            sb.AppendLine("| Endung | Kategorie | Größe | Anteil | Anzahl |");
+            sb.AppendLine("| :--- | :--- | ---: | ---: | ---: |");
+            foreach (var ext in extStats)
+            {
+                sb.AppendLine($"| `{ext.Extension}` | {ext.CategoryLabel} | {ModernExplorer.Core.ViewModels.Format.Size(ext.TotalBytes)} | {ext.Percentage:0.0}% | {ext.FileCount:N0} |");
+            }
+            sb.AppendLine();
+            sb.AppendLine("## Top 50 Größte Dateien");
+            sb.AppendLine("| Datei | Größe | Geändert | Relativer Pfad |");
+            sb.AppendLine("| :--- | ---: | :--- | :--- |");
+            foreach (var f in topFiles)
+            {
+                sb.AppendLine($"| `{f.Name}` | {ModernExplorer.Core.ViewModels.Format.Size(f.SizeBytes)} | {f.LastWriteTime:yyyy-MM-dd} | `{f.RelativePath}` |");
+            }
+        }
+        else
+        {
+            sb.AppendLine("Category,Name,RelativePath,SizeBytes,SizeFormatted,Percentage,FileCount,Modified");
+            foreach (var child in rootNode.Children)
+            {
+                sb.AppendLine($"Subfolder,\"{child.Name.Replace("\"", "\"\"")}\",\"{child.RelativePath.Replace("\"", "\"\"")}\",{child.SizeBytes},{ModernExplorer.Core.ViewModels.Format.Size(child.SizeBytes)},{child.GetPercentageOf(rootNode.SizeBytes):0.00},{child.FileCount},{child.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+            }
+            foreach (var f in topFiles)
+            {
+                sb.AppendLine($"TopFile,\"{f.Name.Replace("\"", "\"\"")}\",\"{f.RelativePath.Replace("\"", "\"\"")}\",{f.SizeBytes},{ModernExplorer.Core.ViewModels.Format.Size(f.SizeBytes)},{f.GetPercentageOf(rootNode.SizeBytes):0.00},1,{f.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+            }
+        }
+
+        return sb.ToString();
     }
 
     public static async Task<StorageTreemapNode> ScanDirectoryTreeAsync(

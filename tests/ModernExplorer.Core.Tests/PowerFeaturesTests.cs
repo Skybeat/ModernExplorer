@@ -2,10 +2,12 @@ using System.IO;
 using System.Text;
 using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.Favorites;
+using ModernExplorer.Core.Features;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.Remote;
+using ModernExplorer.Core.Session;
 using ModernExplorer.Core.Settings;
 using ModernExplorer.Core.ViewModels;
 using Xunit;
@@ -492,6 +494,253 @@ public sealed class PowerFeaturesTests : IDisposable
             vm.ResetColorSettingToDefault(target);
             Assert.Equal(defaultHex, vm.GetColorSettingHex(target));
         }
+    }
+
+    [Fact]
+    public void FileDiffService_ComputeDiff_DetectsModifiedAddedAndRemovedLines_And_MergesHunks()
+    {
+        string leftText = "Line 1\nLine 2 Old\nLine 3\nLine 4 Removed";
+        string rightText = "Line 1\nLine 2 New\nLine 3\nLine 5 Added";
+
+        var result = FileDiffService.ComputeDiff(leftText, rightText);
+        Assert.Equal(2, result.UnchangedCount);
+        Assert.True(result.ModifiedCount >= 1);
+        Assert.True(result.Hunks.Count >= 1);
+
+        // Merge first hunk from Left to Right
+        var merged = FileDiffService.ApplyHunkLeftToRight(result, result.Hunks[0].HunkIndex);
+        Assert.Contains("Line 2 Old", merged.RightRawText);
+    }
+
+    [Fact]
+    public async Task ChecksumBatchService_ComputesHashes_MatchesTarget_And_VerifiesManifest()
+    {
+        string file1 = Path.Combine(_tempDir, "hash_test1.txt");
+        string file2 = Path.Combine(_tempDir, "hash_test2.txt");
+        await File.WriteAllTextAsync(file1, "Hello Modern Explorer Checksum");
+        await File.WriteAllTextAsync(file2, "Second file payload");
+
+        var entries = await ChecksumBatchService.ComputeChecksumsAsync([file1, file2]);
+        Assert.Equal(2, entries.Count);
+        Assert.NotEmpty(entries[0].Sha256);
+        Assert.NotEmpty(entries[0].Sha512);
+        Assert.NotEmpty(entries[0].Md5);
+        Assert.NotEmpty(entries[0].Crc32);
+
+        Assert.True(entries[0].MatchesExpectedHash(entries[0].Sha256));
+        Assert.True(entries[0].MatchesExpectedHash(entries[0].Crc32.ToLowerInvariant()));
+
+        string manifestPath = Path.Combine(_tempDir, "checksums.sha256");
+        await File.WriteAllTextAsync(manifestPath, ChecksumBatchService.GenerateManifestContent(entries, ChecksumAlgorithm.Sha256));
+
+        var verifyResults = await ChecksumBatchService.VerifyManifestFileAsync(manifestPath);
+        Assert.Equal(2, verifyResults.Count);
+        Assert.All(verifyResults, r => Assert.Equal(ChecksumVerifyStatus.VerifiedOk, r.Status));
+    }
+
+    [Fact]
+    public async Task FileSplitAndShredService_SplitsRejoinsAndSecurelyShredsFiles()
+    {
+        string sourceFile = Path.Combine(_tempDir, "large_payload.bin");
+        byte[] payload = new byte[25000];
+        Random.Shared.NextBytes(payload);
+        await File.WriteAllBytesAsync(sourceFile, payload);
+
+        string splitDir = Path.Combine(_tempDir, "split_out");
+        var splitResult = await FileSplitAndShredService.SplitFileAsync(sourceFile, splitDir, 10000);
+        Assert.Equal(3, splitResult.CreatedPartPaths.Count);
+        Assert.True(File.Exists(splitResult.ManifestPath));
+
+        string joinPath = Path.Combine(_tempDir, "rejoined_payload.bin");
+        await FileSplitAndShredService.JoinFilePartsAsync(splitResult.CreatedPartPaths[0], joinPath);
+        byte[] rejoinedBytes = await File.ReadAllBytesAsync(joinPath);
+        Assert.Equal(payload, rejoinedBytes);
+
+        // Secure shred
+        var shredRes = await FileSplitAndShredService.SecureShredAsync([joinPath], passes: 1);
+        Assert.Equal(1, shredRes.ShreddedFileCount);
+        Assert.False(File.Exists(joinPath));
+    }
+
+    [Fact]
+    public void FileTagService_SetsReadsRemovesTags_And_MatchesFilterQuery()
+    {
+        string customTagsFile = Path.Combine(_tempDir, "test-file-tags.json");
+        FileTagService.UseCustomStorePath(customTagsFile);
+        try
+        {
+            string sampleFile = Path.Combine(_tempDir, "tagged_report.pdf");
+
+            FileTagService.SetTag([sampleFile], FileTagColor.Red, "Urgent tax document");
+            var entry = FileTagService.GetTag(sampleFile);
+            Assert.NotNull(entry);
+            Assert.Equal(FileTagColor.Red, entry.Color);
+            Assert.Equal("Urgent tax document", entry.Note);
+            Assert.Equal("#EF4444", FileTagService.GetColorHex(entry.Color));
+
+            Assert.True(FileTagService.MatchesTagFilter(sampleFile, "tag:rot"));
+            Assert.True(FileTagService.MatchesTagFilter(sampleFile, "tag:red"));
+            Assert.True(FileTagService.MatchesTagFilter(sampleFile, "tag:*"));
+            Assert.True(FileTagService.MatchesTagFilter(sampleFile, "note:tax"));
+            Assert.False(FileTagService.MatchesTagFilter(sampleFile, "tag:blue"));
+
+            FileTagService.ClearTag([sampleFile]);
+            Assert.Null(FileTagService.GetTag(sampleFile));
+        }
+        finally
+        {
+            FileTagService.UseCustomStorePath(null);
+        }
+    }
+
+    [Fact]
+    public void WorkspaceProfileService_SavesLoadsAndDeletesDualPaneProfiles()
+    {
+        string customFile = Path.Combine(_tempDir, "test-workspaces.json");
+        WorkspaceProfileService.UseCustomStorePath(customFile);
+        try
+        {
+            var profile = WorkspaceProfileService.CaptureProfile(
+                name: "Web Dev Layout",
+                description: "Dual-Pane Test",
+                isDualMode: true,
+                splitRatio: 0.5,
+                activeSide: PanelSide.Left,
+                leftState: new PanelState { ActiveIndex = 0, Tabs = [new TabState { Path = _tempDir, Pinned = true }] },
+                rightState: new PanelState { ActiveIndex = 0, Tabs = [new TabState { Path = _tempDir }] });
+
+            var loaded = WorkspaceProfileService.GetProfiles();
+            Assert.Single(loaded);
+            Assert.Equal("Web Dev Layout", loaded[0].Name);
+            Assert.Single(loaded[0].LeftPanel.Tabs);
+
+            Assert.True(WorkspaceProfileService.DeleteProfile(profile.Id));
+            Assert.Empty(WorkspaceProfileService.GetProfiles());
+        }
+        finally
+        {
+            WorkspaceProfileService.UseCustomStorePath(null);
+        }
+    }
+
+    [Fact]
+    public void SmartExportService_FormatsPathsMarkdownCsvAndJson()
+    {
+        string sampleFile = Path.Combine(_tempDir, "export_demo.txt");
+        File.WriteAllText(sampleFile, "12345");
+        var entry = FileEntry.TryFromPath(sampleFile)!;
+        Assert.NotNull(entry);
+
+        string mdLinks = SmartExportService.FormatEntries([entry], SmartExportFormat.MarkdownFileLinks, _tempDir);
+        Assert.Contains("[export_demo.txt](file:///", mdLinks);
+
+        string csv = SmartExportService.FormatEntries([entry], SmartExportFormat.CsvTable, _tempDir);
+        Assert.Contains("export_demo.txt", csv);
+
+        string json = SmartExportService.FormatEntries([entry], SmartExportFormat.JsonArray, _tempDir);
+        Assert.Contains("export_demo.txt", json);
+    }
+
+    [Fact]
+    public void FileBasketService_AddsRemovesAndSummarizesVirtualCollection()
+    {
+        FileBasketService.Clear();
+        try
+        {
+            string fileA = Path.Combine(_tempDir, "basket_a.txt");
+            File.WriteAllText(fileA, "Basket item A");
+
+            int added = FileBasketService.AddPaths([fileA]);
+            Assert.Equal(1, added);
+            Assert.Equal(1, FileBasketService.Count);
+            Assert.True(FileBasketService.TotalFileBytes > 0);
+
+            // Adding duplicate does not increase count
+            Assert.Equal(0, FileBasketService.AddPaths([fileA]));
+            Assert.True(FileBasketService.RemoveByPath(fileA));
+            Assert.Equal(0, FileBasketService.Count);
+        }
+        finally
+        {
+            FileBasketService.Clear();
+        }
+    }
+
+    [Fact]
+    public void MetadataAndAttributeService_ReadsPngDimensions_ModifiesTimestamps_And_SupportsBatchRenamePlaceholders()
+    {
+        string pngPath = Path.Combine(_tempDir, "sample_image.png");
+        // Minimal valid 24-byte PNG header with IHDR width = 320, height = 240
+        byte[] pngBytes =
+        [
+            0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, (byte)'I', (byte)'H', (byte)'D', (byte)'R',
+            0x00, 0x00, 0x01, 0x40, // 320
+            0x00, 0x00, 0x00, 0xF0  // 240
+        ];
+        File.WriteAllBytes(pngPath, pngBytes);
+
+        var info = MetadataAndAttributeService.InspectMediaMetadata(pngPath);
+        Assert.Equal(320, info.Width);
+        Assert.Equal(240, info.Height);
+        Assert.Equal("320x240", info.ResolutionText);
+
+        // Test BatchRenameService with [Width], [Height], [Resolution]
+        var fileEntry = FileEntry.TryFromPath(pngPath)!;
+        var preview = BatchRenameService.GeneratePreview([fileEntry], new BatchRenameOptions
+        {
+            NamePattern = "wallpaper_[Resolution]_[Width]w",
+            ExtensionPattern = "[E]"
+        });
+        Assert.Single(preview);
+        Assert.Equal("wallpaper_320x240_320w.png", preview[0].NewName);
+
+        // Shift timestamps by +2 hours
+        DateTime beforeMod = File.GetLastWriteTime(pngPath);
+        MetadataAndAttributeService.ApplyBatchChanges([pngPath], new BatchAttributeTimestampOptions
+        {
+            ShiftTimestamps = true,
+            ShiftOffset = TimeSpan.FromHours(2)
+        });
+        DateTime afterMod = File.GetLastWriteTime(pngPath);
+        Assert.True((afterMod - beforeMod).TotalHours >= 1.9);
+    }
+
+    [Fact]
+    public async Task QuickCommandRunnerService_ExecutesInlineCommand_And_HandlesCdNavigation()
+    {
+        var runner = new QuickCommandRunnerService();
+        var subDir = Path.Combine(_tempDir, "cmd_sub");
+        Directory.CreateDirectory(subDir);
+
+        var cdResult = await runner.ExecuteAsync("cd cmd_sub", _tempDir);
+        Assert.Equal(0, cdResult.ExitCode);
+        Assert.Equal(Path.GetFullPath(subDir), cdResult.NavigateToDirectory);
+
+        var echoResult = await runner.ExecuteAsync("echo HelloModernConsole", _tempDir);
+        Assert.Contains("HelloModernConsole", echoResult.OutputText);
+    }
+
+    [Fact]
+    public async Task StorageTreemapService_SupportsAgeHeatmapColors_TopLargestFiles_And_StorageReportExport()
+    {
+        string bigFile = Path.Combine(_tempDir, "biggest_file.dat");
+        await File.WriteAllBytesAsync(bigFile, new byte[4096]);
+
+        var root = await StorageTreemapService.ScanDirectoryTreeAsync(_tempDir);
+
+        var topFiles = StorageTreemapService.GetTopLargestFiles(root, 10);
+        Assert.NotEmpty(topFiles);
+        Assert.Equal("biggest_file.dat", topFiles[0].Name);
+
+        string colorRecent = StorageTreemapService.GetAgeHeatmapColorHex(DateTime.Now.AddDays(-1));
+        string colorOld = StorageTreemapService.GetAgeHeatmapColorHex(DateTime.Now.AddYears(-5));
+        Assert.NotEqual(colorRecent, colorOld);
+
+        string mdReport = StorageTreemapService.ExportStorageReport(root, markdownFormat: true);
+        Assert.Contains("biggest_file.dat", mdReport);
+        string csvReport = StorageTreemapService.ExportStorageReport(root, markdownFormat: false);
+        Assert.Contains("biggest_file.dat", csvReport);
     }
 }
 

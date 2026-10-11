@@ -244,6 +244,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
 
         LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+        ModernExplorer.Core.Features.FileTagService.TagsChanged += OnTagsChanged;
+    }
+
+    private void OnTagsChanged(object? sender, EventArgs e)
+    {
+        _dispatcher.Post(() =>
+        {
+            foreach (var item in _allItems)
+                item.RefreshTagState();
+            foreach (var item in Items)
+                item.RefreshTagState();
+
+            if (!string.IsNullOrWhiteSpace(Filter) &&
+                (Filter.Trim().StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ||
+                 Filter.Trim().StartsWith("note:", StringComparison.OrdinalIgnoreCase)))
+            {
+                RebuildVisibleList(FocusedItem?.Name);
+            }
+        });
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
@@ -253,9 +272,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         UpdateStatusSummary();
         UpdateDriveSummary(CurrentPath);
         foreach (var item in _allItems)
+        {
             item.RefreshLocalization();
+            item.RefreshTagState();
+        }
         foreach (var item in Items)
+        {
             item.RefreshLocalization();
+            item.RefreshTagState();
+        }
     }
 
     partial void OnViewModeChanged(FileViewMode value)
@@ -880,7 +905,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var effectiveSort = Sort with { FoldersFirst = Settings.SortFoldersFirst };
         var comparer = new FileEntryComparer(effectiveSort);
         var filtered = _allItems
-            .Where(i => MatchesFilter(i.Name, Filter))
+            .Where(i => MatchesFilter(i, Filter))
             .OrderBy(i => i.Entry, comparer)
             .ToList();
 
@@ -922,10 +947,22 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         UpdateStatusSummary();
     }
 
-    private static bool MatchesFilter(string name, string filter)
+    private static bool MatchesFilter(FileItemViewModel item, string filter)
     {
         if (string.IsNullOrWhiteSpace(filter)) return true;
         var f = filter.Trim();
+        if (f.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ||
+            f.StartsWith("note:", StringComparison.OrdinalIgnoreCase))
+        {
+            return ModernExplorer.Core.Features.FileTagService.MatchesTagFilter(item.FullPath, f);
+        }
+        if (f.StartsWith("ext:", StringComparison.OrdinalIgnoreCase))
+        {
+            string extQuery = f["ext:".Length..].Trim().TrimStart('.');
+            if (string.IsNullOrEmpty(extQuery)) return true;
+            return string.Equals(item.Entry.Extension.TrimStart('.'), extQuery, StringComparison.OrdinalIgnoreCase);
+        }
+        string name = item.Name;
         if (f.Contains('*') || f.Contains('?'))
             return System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(f, name, ignoreCase: true);
         return name.Contains(f, StringComparison.OrdinalIgnoreCase);
@@ -1131,6 +1168,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
+        ModernExplorer.Core.Features.FileTagService.TagsChanged -= OnTagsChanged;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _watcherSub?.Dispose();

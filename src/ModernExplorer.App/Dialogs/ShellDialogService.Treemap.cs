@@ -206,6 +206,9 @@ public sealed partial class ShellDialogService
         // Right: 3. File Extension Statistics & Color Legend
         // ====================================================================
 
+        bool showTop100FilesMode = false;
+        TreemapColorMode activeColorMode = TreemapColorMode.Category;
+
         var hierarchyHeaderText = new TextBlock
         {
             Text = LocalizationService.T("Treemap.HierarchyHeader"),
@@ -214,6 +217,23 @@ public sealed partial class ShellDialogService
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
+
+        var top100ToggleBtn = new Button
+        {
+            Content = LocalizationService.T("Treemap.Tab.Top100Files"),
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(10, 3, 10, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var hierarchyHeaderGrid = new Grid { ColumnSpacing = 8 };
+        hierarchyHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        hierarchyHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(hierarchyHeaderText, 0);
+        Grid.SetColumn(top100ToggleBtn, 1);
+        hierarchyHeaderGrid.Children.Add(hierarchyHeaderText);
+        hierarchyHeaderGrid.Children.Add(top100ToggleBtn);
 
         var hierarchyList = new ListView
         {
@@ -225,7 +245,7 @@ public sealed partial class ShellDialogService
         var hierarchyPane = new Grid { RowSpacing = 6 };
         hierarchyPane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         hierarchyPane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        Grid.SetRow(hierarchyHeaderText, 0);
+        Grid.SetRow(hierarchyHeaderGrid, 0);
 
         var hierarchyBorder = new Border
         {
@@ -236,7 +256,7 @@ public sealed partial class ShellDialogService
             Child = hierarchyList,
         };
         Grid.SetRow(hierarchyBorder, 1);
-        hierarchyPane.Children.Add(hierarchyHeaderText);
+        hierarchyPane.Children.Add(hierarchyHeaderGrid);
         hierarchyPane.Children.Add(hierarchyBorder);
 
         var extHeaderText = new TextBlock
@@ -410,6 +430,35 @@ public sealed partial class ShellDialogService
         void RebuildCategoryLegendPills()
         {
             categoryLegendStack.Children.Clear();
+            if (activeColorMode == TreemapColorMode.AgeHeatmap)
+            {
+                (string Color, string Label)[] ageBands = IsDe()
+                    ? [("#EF4444", "<7T"), ("#F97316", "<30T"), ("#EAB308", "<6M"), ("#10B981", "<1J"), ("#3B82F6", "1-3J"), ("#8B5CF6", ">3J")]
+                    : [("#EF4444", "<7d"), ("#F97316", "<30d"), ("#EAB308", "<6m"), ("#10B981", "<1y"), ("#3B82F6", "1-3y"), ("#8B5CF6", ">3y")];
+
+                foreach (var (hex, label) in ageBands)
+                {
+                    var pill = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+                    pill.Children.Add(new Border
+                    {
+                        Width = 10,
+                        Height = 10,
+                        CornerRadius = new CornerRadius(2),
+                        Background = new SolidColorBrush(ParseColorHex(hex)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                    });
+                    pill.Children.Add(new TextBlock
+                    {
+                        Text = label,
+                        FontSize = 11,
+                        Opacity = 0.85,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    });
+                    categoryLegendStack.Children.Add(pill);
+                }
+                return;
+            }
+
             foreach (var cat in new[]
             {
                 StorageCategory.VideoAudio,
@@ -443,13 +492,39 @@ public sealed partial class ShellDialogService
 
         RebuildCategoryLegendPills();
 
+        var colorModeBtn = new Button
+        {
+            Content = LocalizationService.T("Treemap.ColorMode.Category"),
+            FontSize = 11.5,
+            Padding = new Thickness(10, 3, 10, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var exportReportBtn = new Button
+        {
+            Content = LocalizationService.T("Treemap.ExportReport"),
+            FontSize = 11.5,
+            Padding = new Thickness(10, 3, 10, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var treemapHeaderRightStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        treemapHeaderRightStack.Children.Add(categoryLegendStack);
+        treemapHeaderRightStack.Children.Add(colorModeBtn);
+        treemapHeaderRightStack.Children.Add(exportReportBtn);
+
         var treemapHeaderRow = new Grid { ColumnSpacing = 10 };
         treemapHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         treemapHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(treemapTitleText, 0);
-        Grid.SetColumn(categoryLegendStack, 1);
+        Grid.SetColumn(treemapHeaderRightStack, 1);
         treemapHeaderRow.Children.Add(treemapTitleText);
-        treemapHeaderRow.Children.Add(categoryLegendStack);
+        treemapHeaderRow.Children.Add(treemapHeaderRightStack);
 
         var treemapCanvas = new Canvas
         {
@@ -1175,11 +1250,22 @@ public sealed partial class ShellDialogService
                 currentRoot.FileCount,
                 currentRoot.FolderCount);
 
-            // 2. Top-left: Folder Hierarchy & Top Space Consumers
-            currentHierarchyNodes = currentRoot.Children
-                .OrderByDescending(c => c.Size)
-                .Take(250)
-                .ToList();
+            // 2. Top-left: Folder Hierarchy OR Top 100 Largest Files
+            if (showTop100FilesMode)
+            {
+                currentHierarchyNodes = StorageTreemapService.GetTopLargestFiles(currentRoot, 100).ToList();
+                hierarchyHeaderText.Text = LocalizationService.T("Treemap.Tab.Top100Files");
+                top100ToggleBtn.Content = LocalizationService.Format("Treemap.Tab.Subfolders", currentRoot.Children.Count);
+            }
+            else
+            {
+                currentHierarchyNodes = currentRoot.Children
+                    .OrderByDescending(c => c.Size)
+                    .Take(250)
+                    .ToList();
+                hierarchyHeaderText.Text = LocalizationService.T("Treemap.HierarchyHeader");
+                top100ToggleBtn.Content = LocalizationService.T("Treemap.Tab.Top100Files");
+            }
 
             var hierarchyItems = new List<Grid>(currentHierarchyNodes.Count);
             foreach (var child in currentHierarchyNodes)
@@ -1198,9 +1284,13 @@ public sealed partial class ShellDialogService
                 rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });
                 rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
 
+                string displayLabel = showTop100FilesMode && !string.IsNullOrEmpty(child.RelativePath) && child.RelativePath != child.Name
+                    ? $"🔥 {child.Name}  ({child.RelativePath})"
+                    : $"{(child.IsDirectory ? "📁" : "📄")} {child.Name}";
+
                 var nameTb = new TextBlock
                 {
-                    Text = $"{(child.IsDirectory ? "📁" : "📄")} {child.Name}",
+                    Text = displayLabel,
                     FontWeight = child.IsDirectory ? FontWeights.SemiBold : FontWeights.Normal,
                     FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -1451,6 +1541,70 @@ public sealed partial class ShellDialogService
         {
             if (scannedRoot is not null)
                 ZoomToNode(scannedRoot);
+        };
+
+        top100ToggleBtn.Click += (_, _) =>
+        {
+            showTop100FilesMode = !showTop100FilesMode;
+            PopulateUpperListsAndTreemap();
+        };
+
+        colorModeBtn.Click += (_, _) =>
+        {
+            activeColorMode = activeColorMode == TreemapColorMode.Category
+                ? TreemapColorMode.AgeHeatmap
+                : TreemapColorMode.Category;
+
+            colorModeBtn.Content = activeColorMode == TreemapColorMode.AgeHeatmap
+                ? LocalizationService.T("Treemap.ColorMode.AgeHeatmap")
+                : LocalizationService.T("Treemap.ColorMode.Category");
+
+            StorageTreemapService.RefreshNodeColors(scannedRoot, activeColorMode);
+            RebuildCategoryLegendPills();
+            PopulateUpperListsAndTreemap();
+        };
+
+        exportReportBtn.Click += (_, _) =>
+        {
+            var target = currentRoot ?? scannedRoot;
+            if (target is null) return;
+
+            try
+            {
+                string mdReport = StorageTreemapService.ExportStorageReport(target, markdownFormat: true);
+                string csvReport = StorageTreemapService.ExportStorageReport(target, markdownFormat: false);
+
+                var pkg = new DataPackage();
+                pkg.SetText(mdReport);
+                Clipboard.SetContent(pkg);
+
+                string outDir = Directory.Exists(target.FullPath)
+                    ? target.FullPath
+                    : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string mdPath = Path.Combine(outDir, $"StorageReport_{stamp}.md");
+                string csvPath = Path.Combine(outDir, $"StorageReport_{stamp}.csv");
+
+                try
+                {
+                    File.WriteAllText(mdPath, mdReport);
+                    File.WriteAllText(csvPath, csvReport);
+                }
+                catch
+                {
+                    outDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                    mdPath = Path.Combine(outDir, $"StorageReport_{stamp}.md");
+                    csvPath = Path.Combine(outDir, $"StorageReport_{stamp}.csv");
+                    File.WriteAllText(mdPath, mdReport);
+                    File.WriteAllText(csvPath, csvReport);
+                }
+
+                selectedInfoText.Text = LocalizationService.Format("Treemap.ReportCopiedStatus", mdPath);
+            }
+            catch (Exception ex)
+            {
+                selectedInfoText.Text = $"⚠ Export-Fehler: {ex.Message}";
+            }
         };
 
         treemapHostBorder.SizeChanged += (_, _) =>

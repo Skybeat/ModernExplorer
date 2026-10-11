@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.Commands;
 using ModernExplorer.Core.Favorites;
+using ModernExplorer.Core.Features;
 using ModernExplorer.Core.FileSystem;
 using ModernExplorer.Core.Input;
 using ModernExplorer.Core.Localization;
@@ -37,6 +38,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public PanelViewModel Right { get; }
     public FavoritesStore Favorites { get; }
     public UndoHistoryService UndoHistory { get; } = new();
+    public QuickCommandRunnerService CommandRunner { get; } = new();
     public ObservableCollection<OperationItemViewModel> Operations { get; } = [];
 
     public bool CanUndo => UndoHistory.CanUndo;
@@ -66,6 +68,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private bool _isQuickPreviewPanelOpen;
+
+    [ObservableProperty]
+    private bool _isQuickCommandBarOpen = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(F1Label), nameof(F2Label), nameof(F3Label), nameof(F4Label), nameof(F5Label), nameof(F6Label), nameof(F7Label), nameof(F8Label), nameof(F9Label), nameof(F10Label), nameof(F11Label), nameof(F12Label))]
@@ -549,6 +554,21 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             })
             .Register("tools.storageTreemap", "Grafischer Speicherplatz-Analysator / Treemap (WinDirStat) (Strg+Shift+W)", "Werkzeuge", async _ => await OpenStorageTreemapAsync())
             .Register("tools.remoteConnect", "FTP / FTPS / SFTP-Verbindungsmanager (Strg+Shift+C)", "Werkzeuge", async _ => await OpenRemoteConnectDialogAsync())
+            .Register("tools.fileDiff", "Visueller Side-by-Side Datei-Diff-Viewer (Dateien vergleichen)", "Werkzeuge", async _ => await OpenFileDiffAsync())
+            .Register("tools.checksums", "Prüfsummen-Generator & Verifizierer (SHA-256 / MD5 / SFV)", "Werkzeuge", async _ => await OpenChecksumToolAsync())
+            .Register("tools.splitShred", "Datei-Splitter, Joiner (.001) & Sicheres Löschen (Shredder)", "Werkzeuge", async _ => await OpenSplitJoinShredAsync())
+            .Register("tools.fileTags", "Farbige Datei-Tags / Labels & Notizen vergeben", "Werkzeuge", async _ => await OpenFileTagDialogAsync())
+            .Register("tools.workspaces", "Arbeitsbereiche / Ordner-Paar-Profile (Workspaces)", "Werkzeuge", async _ => await OpenWorkspaceManagerAsync())
+            .Register("tools.smartExport", "Smart Copy / Dateiliste & Pfade exportieren (CSV / Markdown / JSON)", "Werkzeuge", async _ => await OpenSmartExportAsync())
+            .Register("tools.fileBasket", "Sammelkorb / Drop-Basket öffnen (Strg+Shift+B)", "Werkzeuge", async _ => await OpenFileBasketAsync())
+            .Register("tools.addToBasket", "Auswahl zum Sammelkorb hinzufügen", "Werkzeuge", _ => AddSelectedToBasket())
+            .Register("tools.attributesExif", "Zeitstempel-, Attribut- & EXIF-Metadaten-Editor", "Werkzeuge", async _ => await OpenAttributeAndExifDialogAsync())
+            .Register("tools.gitPanel", "Erweitertes Git-Panel (Branches, Status, Diff & Commits)", "Werkzeuge", async _ => await OpenGitPanelAsync())
+            .Register("tools.quickCommandBar", "Eingebettete Terminal-Befehlszeile ein-/ausblenden", "Werkzeuge", _ =>
+            {
+                IsQuickCommandBarOpen = !IsQuickCommandBarOpen;
+                _ui.ToggleQuickCommandBar();
+            })
             .Register("archive.pack", "In Archiv packen (.zip / .tar.gz / .7z) (Alt+F5)", "Archiv", async _ => await PackSelectedToArchiveAsync())
             .Register("archive.extract", "Archiv entpacken (Alt+F9)", "Archiv", async _ => await ExtractSelectedArchiveAsync())
             .Register("remote.chmod", "Remote-Berechtigungen ändern (chmod)", "Remote", async _ => await ChangeRemotePermissionsAsync())
@@ -688,6 +708,182 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var uri = await _ui.ShowRemoteConnectionManagerDialogAsync();
         if (!string.IsNullOrWhiteSpace(uri) && ActivePanel.ActiveTab is { } tab)
             await tab.NavigateAsync(uri, addToHistory: true);
+    }
+
+    public async Task OpenFileDiffAsync(string? explicitLeftPath = null, string? explicitRightPath = null)
+    {
+        string leftFile = explicitLeftPath ?? "";
+        string rightFile = explicitRightPath ?? "";
+
+        if (string.IsNullOrEmpty(leftFile) || string.IsNullOrEmpty(rightFile))
+        {
+            var activeTab = ActivePanel.ActiveTab;
+            var oppTab = OppositePanel.ActiveTab;
+            var markedFiles = activeTab?.Items.Where(i => i.IsMarked && !i.IsDirectory && !i.IsParentLink).Select(i => i.FullPath).ToList() ?? [];
+
+            if (markedFiles.Count >= 2)
+            {
+                leftFile = markedFiles[0];
+                rightFile = markedFiles[1];
+            }
+            else
+            {
+                var leftCandidate = Left.ActiveTab?.FocusedItem is { IsDirectory: false, IsParentLink: false } lf ? lf.FullPath : "";
+                var rightCandidate = Right.ActiveTab?.FocusedItem is { IsDirectory: false, IsParentLink: false } rf ? rf.FullPath : "";
+
+                if (!string.IsNullOrEmpty(leftCandidate) && !string.IsNullOrEmpty(rightCandidate) &&
+                    !string.Equals(leftCandidate, rightCandidate, StringComparison.OrdinalIgnoreCase))
+                {
+                    leftFile = leftCandidate;
+                    rightFile = rightCandidate;
+                }
+                else if (activeTab?.FocusedItem is { IsDirectory: false, IsParentLink: false } focused)
+                {
+                    leftFile = focused.FullPath;
+                    if (oppTab is not null && !string.IsNullOrEmpty(oppTab.CurrentPath) && Directory.Exists(oppTab.CurrentPath))
+                    {
+                        string sameNameInOpp = Path.Combine(oppTab.CurrentPath, focused.Name);
+                        if (File.Exists(sameNameInOpp))
+                            rightFile = sameNameInOpp;
+                    }
+                    if (string.IsNullOrEmpty(rightFile))
+                    {
+                        var secondFile = activeTab.Items.FirstOrDefault(i => !i.IsDirectory && !i.IsParentLink && !string.Equals(i.FullPath, leftFile, StringComparison.OrdinalIgnoreCase));
+                        if (secondFile is not null)
+                            rightFile = secondFile.FullPath;
+                    }
+                }
+            }
+        }
+
+        if (await _ui.ShowFileDiffDialogAsync(leftFile, rightFile))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenChecksumToolAsync()
+    {
+        var tab = ActivePanel.ActiveTab;
+        var targets = tab?.GetTargetPaths() ?? [];
+        var dir = tab is { IsVirtualArchive: false, IsRemoteConnection: false } && Directory.Exists(tab.CurrentPath)
+            ? tab.CurrentPath
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        await _ui.ShowChecksumToolDialogAsync(targets, dir);
+        if (tab is not null) await tab.ReloadAsync();
+    }
+
+    public async Task OpenSplitJoinShredAsync()
+    {
+        var tab = ActivePanel.ActiveTab;
+        var targets = tab?.GetTargetPaths() ?? [];
+        var dir = tab is { IsVirtualArchive: false, IsRemoteConnection: false } && Directory.Exists(tab.CurrentPath)
+            ? tab.CurrentPath
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (await _ui.ShowSplitJoinShredDialogAsync(targets, dir))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenFileTagDialogAsync()
+    {
+        var tab = ActivePanel.ActiveTab;
+        var targets = tab?.GetTargetPaths() ?? [];
+        if (targets.Count == 0) return;
+        await _ui.ShowFileTagDialogAsync(targets);
+    }
+
+    public async Task OpenWorkspaceManagerAsync()
+    {
+        await _ui.ShowWorkspaceManagerDialogAsync(this);
+    }
+
+    public async Task OpenSmartExportAsync()
+    {
+        if (ActivePanel.ActiveTab is not { } tab) return;
+        var marked = tab.Items.Where(i => i.IsMarked && !i.IsParentLink).Select(i => i.Entry).ToList();
+        if (marked.Count == 0)
+            marked = tab.Items.Where(i => !i.IsParentLink).Select(i => i.Entry).ToList();
+        await _ui.ShowSmartExportDialogAsync(marked, tab.CurrentPath);
+    }
+
+    public int AddSelectedToBasket()
+    {
+        if (ActivePanel.ActiveTab is not { } tab) return 0;
+        var marked = tab.Items.Where(i => i.IsMarked && !i.IsParentLink).Select(i => i.Entry).ToList();
+        if (marked.Count == 0 && tab.FocusedItem is { IsParentLink: false } f)
+            marked.Add(f.Entry);
+        int added = FileBasketService.AddEntries(marked);
+        StatusNotification = LocalizationService.Format("Basket.AddedNotification", added, FileBasketService.Count);
+        return added;
+    }
+
+    public async Task OpenFileBasketAsync()
+    {
+        await _ui.ShowFileBasketDialogAsync(this);
+    }
+
+    public async Task CopyOrMoveBasketToActiveFolderAsync(OpKind kind)
+    {
+        var sources = FileBasketService.GetPaths();
+        if (sources.Count == 0 || ActivePanel.ActiveTab is not { IsVirtualArchive: false, IsRemoteConnection: false } destTab || !Directory.Exists(destTab.CurrentPath))
+            return;
+
+        _operationQueue.Enqueue(new FileOperation(kind, sources, destTab.CurrentPath, new OperationOptions()));
+        await Task.CompletedTask;
+    }
+
+    public async Task PackBasketToArchiveAsync()
+    {
+        var sources = FileBasketService.GetPaths();
+        if (sources.Count == 0) return;
+        string destDir = ActivePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } t && Directory.Exists(t.CurrentPath)
+            ? t.CurrentPath
+            : (Path.GetDirectoryName(sources[0]) ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
+        var created = await _ui.ShowCreateArchiveDialogAsync(sources, destDir);
+        if (!string.IsNullOrWhiteSpace(created))
+        {
+            StatusNotification = $"Archiv erstellt: {Path.GetFileName(created)}";
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task BatchRenameBasketAsync()
+    {
+        var items = FileBasketService.GetItems();
+        if (items.Count == 0) return;
+        if (await _ui.ShowBatchRenameDialogAsync(items))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenAttributeAndExifDialogAsync()
+    {
+        var tab = ActivePanel.ActiveTab;
+        var targets = tab?.GetTargetPaths() ?? [];
+        if (targets.Count == 0) return;
+        if (await _ui.ShowAttributeAndExifDialogAsync(targets))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
+    }
+
+    public async Task OpenGitPanelAsync()
+    {
+        var dir = ActivePanel.ActiveTab?.CurrentPath ?? Environment.CurrentDirectory;
+        if (await _ui.ShowGitPanelDialogAsync(dir))
+        {
+            if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
+            if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();
+        }
     }
 
     public async Task PackSelectedToArchiveAsync()
