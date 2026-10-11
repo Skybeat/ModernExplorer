@@ -202,13 +202,22 @@ $releaseAssets = Get-ChildItem -Path $DistDir -File | Where-Object { $_.Extensio
 foreach ($assetFile in $releaseAssets) {
     $assetName = $assetFile.Name
     $contentType = if ($assetFile.Extension -eq ".exe") { "application/vnd.microsoft.portable-executable" } else { "application/zip" }
-    $existing = $release.assets | Where-Object { $_.name -eq $assetName }
-    if ($existing) {
-        Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/assets/$($existing.id)" -Method Delete -Headers $headers | Out-Null
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            $currentRel = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)" -Method Get -Headers $headers
+            $existing = $currentRel.assets | Where-Object { $_.name -eq $assetName }
+            if ($existing) {
+                Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/assets/$($existing.id)" -Method Delete -Headers $headers | Out-Null
+            }
+            $uploadUrl = "https://uploads.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)/assets?name=$assetName"
+            $uploaded = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $headers -InFile $assetFile.FullName -ContentType $contentType
+            Write-Output "Uploaded: $($uploaded.name) -> $($uploaded.browser_download_url)"
+            break
+        } catch {
+            if ($attempt -eq 3) { throw }
+            Start-Sleep -Seconds 2
+        }
     }
-    $uploadUrl = "https://uploads.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)/assets?name=$assetName"
-    $uploaded = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $headers -InFile $assetFile.FullName -ContentType $contentType
-    Write-Output "Uploaded: $($uploaded.name) -> $($uploaded.browser_download_url)"
 }
 
 Remove-Item $DistDir -Recurse -Force -ErrorAction SilentlyContinue
