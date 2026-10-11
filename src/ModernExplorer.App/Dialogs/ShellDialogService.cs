@@ -1010,7 +1010,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         if (checkResult.LatestRelease is not { } release) return;
 
         var loc = LocalizationService.Instance;
-        var panel = new StackPanel { Spacing = 10, MinWidth = 460 };
+        var panel = new StackPanel { Spacing = 10, MinWidth = 540 };
 
         panel.Children.Add(new TextBlock
         {
@@ -1048,28 +1048,73 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         verGrid.Children.Add(newVal);
         panel.Children.Add(verGrid);
 
-        if (!string.IsNullOrWhiteSpace(release.Body))
-        {
-            panel.Children.Add(new TextBlock
-            {
-                Text = loc["Update.ReleaseNotes"],
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 12.5,
-                Margin = new Thickness(0, 4, 0, 0),
-            });
+        // Header row: Release Notes label on the left + direct clickable browser link on the right
+        var notesHeaderGrid = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+        notesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        notesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var notesBox = new TextBox
+        var notesTitle = new TextBlock
+        {
+            Text = $"📋 {loc["Update.ReleaseNotes"]}",
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(notesTitle, 0);
+        notesHeaderGrid.Children.Add(notesTitle);
+
+        var browserLinkBtn = new HyperlinkButton
+        {
+            Content = $"🌐 {loc["Update.OpenGitHub"]} ({release.TagName}) ↗",
+            Padding = new Thickness(6, 2, 6, 2),
+            FontSize = 12.5,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTipService.SetToolTip(browserLinkBtn, release.HtmlUrl);
+        browserLinkBtn.Click += (_, _) => GitHubUpdateService.OpenUrlInBrowser(release.HtmlUrl);
+        Grid.SetColumn(browserLinkBtn, 1);
+        notesHeaderGrid.Children.Add(browserLinkBtn);
+
+        panel.Children.Add(notesHeaderGrid);
+
+        string formattedNotes = GitHubUpdateService.FormatReleaseNotesForDisplay(release.Body);
+        if (!string.IsNullOrWhiteSpace(formattedNotes))
+        {
+            var notesTextBlock = new TextBlock
             {
-                Text = release.Body.Trim(),
-                IsReadOnly = true,
-                AcceptsReturn = true,
+                Text = formattedNotes,
                 TextWrapping = TextWrapping.Wrap,
-                MaxHeight = 220,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 12,
+                IsTextSelectionEnabled = true,
+                LineHeight = 20,
+                FontSize = 12.5,
+                Padding = new Thickness(2, 0, 6, 2),
             };
-            ScrollViewer.SetVerticalScrollBarVisibility(notesBox, ScrollBarVisibility.Auto);
-            panel.Children.Add(notesBox);
+
+            var notesScroll = new ScrollViewer
+            {
+                Content = notesTextBlock,
+                Height = 240,
+                MinHeight = 180,
+                MaxHeight = 280,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            };
+
+            var notesContainer = new Border
+            {
+                Child = notesScroll,
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 10, 8, 10),
+                BorderThickness = new Thickness(1),
+                Background = Application.Current.Resources.TryGetValue("ExplorerPanelBackgroundBrush", out var bg) && bg is Brush bgBrush
+                    ? bgBrush
+                    : new SolidColorBrush(Color.FromArgb(40, 128, 128, 128)),
+                BorderBrush = Application.Current.Resources.TryGetValue("DividerStrokeColorDefaultBrush", out var bd) && bd is Brush bdBrush
+                    ? bdBrush
+                    : new SolidColorBrush(Color.FromArgb(80, 128, 128, 128)),
+            };
+
+            panel.Children.Add(notesContainer);
         }
 
         var dlg = new ContentDialog
@@ -1083,6 +1128,8 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
             CloseButtonText = loc["Update.Later"],
             DefaultButton = ContentDialogButton.Primary,
         };
+        dlg.Resources["ContentDialogMaxWidth"] = 700.0;
+        dlg.Resources["ContentDialogMaxHeight"] = 680.0;
 
         var choice = await dlg.ShowAsync();
         if (choice == ContentDialogResult.Primary)

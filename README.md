@@ -23,7 +23,7 @@ Every GitHub Release automatically builds and publishes both **100% self-contain
 ## Feature Overview
 
 ### 1. Dual-Pane & Multi-Tab File Management
-- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.8.0`).
+- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer v1.8.1`).
 - **Dual-Pane & Single-Pane Mode (`F10` / `Tab`)**: Instant switching between left and right file panels with a customizable active-panel border color and thickness.
 - **Per-Pane Drive Bar**: Displays all mounted drives (`Fixed`, `Removable`, `Network`, `CD-ROM`, `RAM`) with live free-space and capacity bars plus tooltips.
 - **Full Multi-Tab Support (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`)**:

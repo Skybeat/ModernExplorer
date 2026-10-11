@@ -174,3 +174,4 @@ public static class GitIntegrationService
         }
     }
 }
+

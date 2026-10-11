@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.8.0)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.8.1)'
         required: true
-        default: 'v1.8.0'
+        default: 'v1.8.1'
 
 permissions:
   contents: write
@@ -190,6 +190,29 @@ jobs:
     needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract latest release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag_name || github.ref_name }}"
+          $changelogSection = ""
+          if (Test-Path "CHANGELOG.md") {
+            $rawChangelog = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
+            $match = [regex]::Match($rawChangelog, '(?ms)^## \[[^\r\n]+\r?\n(.+?)(?=\r?\n---\r?\n|\z)')
+            if ($match.Success) {
+              $changelogSection = $match.Groups[1].Value.Trim()
+              $changelogSection = [regex]::Replace($changelogSection, '\[([^\]]+)\]\(file:///[^)]+\)', '$1')
+            }
+          }
+          if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
+            $notes = "## What's New in Modern Explorer $tag`n`n$changelogSection"
+          } else {
+            $notes = "## What's New in Modern Explorer $tag`n`nMulti-OS release of Modern Explorer $tag."
+          }
+          Set-Content -Path "release-notes.md" -Value $notes -Encoding UTF8
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -201,14 +224,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
-          body: |
-            ## What's New in Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
-
-            ### Changelog
-            - **All Required Runtimes Bundled in Installers:** All installers and archives now bundle the complete .NET 9 Runtime, Windows App SDK Runtime, and Microsoft Visual C++ Runtime DLLs (`vcruntime140*.dll`, `msvcp140*.dll`, `concrt140.dll`, `vccorlib140.dll`), with WindowsAppSDK bootstrapper auto-prompts disabled (`WindowsAppSDKBootstrapAutoInitializeOptions_None=true`) and stale runtime config cleanup during upgrades so no runtime download is ever required.
-            - **Current Version Number in Title Bar:** Displays the active application version directly after the application name in the Title Bar (`ModernExplorer v1.6.0`).
-            - **Complete & Accurate UI Localization Everywhere:** Fixed German strings appearing when English (or another language) is selected across the Storage Analyzer (`Treemap`) window title and UI, all Child Windows (Quick-Viewer, Editor, Multi-Rename, Directory Sync, Deep Search, Duplicate Finder, FTP/SFTP Manager, Archive Dialog, Help, Command Palette), Settings cards (Treemap colors & Child Window font sizes), and context menus.
-            - **Resizable Split Panes in Storage Analyzer (Treemap):** Added interactive horizontal and vertical drag splitters in the Storage Analyzer (`Ctrl+Shift+W`) so the upper textual lists (Folder Hierarchy & Extension Statistics) and the lower graphical Squarified Treemap can be freely resized larger and smaller with live Treemap re-layout.
+          body_path: release-notes.md
           generate_release_notes: true
           files: |
             release-assets/*.zip
@@ -217,4 +233,3 @@ jobs:
             release-assets/*.sh
             release-assets/*.dmg
             release-assets/*.pkg
-

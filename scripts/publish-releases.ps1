@@ -84,7 +84,21 @@ $verMinor = if ($verParts.Length -gt 1) { $verParts[1] } else { "0" }
 $verPatch = if ($verParts.Length -gt 2) { $verParts[2] } else { "0" }
 
 if ([string]::IsNullOrWhiteSpace($ReleaseNotes)) {
-    $ReleaseNotes = "Multi-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
+    $changelogSection = ""
+    if (Test-Path "CHANGELOG.md") {
+        $rawChangelog = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
+        $match = [regex]::Match($rawChangelog, '(?ms)^## \[[^\r\n]+\r?\n(.+?)(?=\r?\n---\r?\n|\z)')
+        if ($match.Success) {
+            $changelogSection = $match.Groups[1].Value.Trim()
+            $changelogSection = [regex]::Replace($changelogSection, '\[([^\]]+)\]\(file:///[^)]+\)', '$1')
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
+        $ReleaseNotes = "## What's New in Modern Explorer $TagName`n`n$changelogSection`n`n---`nMulti-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
+    } else {
+        $ReleaseNotes = "## What's New in Modern Explorer $TagName`n`nMulti-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
+    }
 }
 
 # Sync project & installer version numbers according to SemVer

@@ -110,3 +110,4 @@ public static class FileBasketService
             BasketChanged?.Invoke(null, EventArgs.Empty);
     }
 }
+

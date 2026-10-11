@@ -97,6 +97,8 @@ public sealed partial class AboutWindow : Window
         if (VersionSectionTitleLabel is not null) VersionSectionTitleLabel.Text = ViewModel.VersionSectionTitle;
         if (InstalledVersionTitleLabel is not null) InstalledVersionTitleLabel.Text = ViewModel.InstalledVersionLabel;
         if (LatestVersionTitleLabel is not null) LatestVersionTitleLabel.Text = ViewModel.LatestVersionLabel;
+        if (ReleaseNotesHeaderLabel is not null) ReleaseNotesHeaderLabel.Text = $"📋 {ViewModel.ReleaseNotesHeaderLabel}";
+        if (OpenReleaseBrowserLink is not null) OpenReleaseBrowserLink.Content = $"🌐 {ViewModel.OpenReleaseInBrowserText} ↗";
         if (UpdateNowButton is not null) UpdateNowButton.Content = $"🚀 {ViewModel.UpdateNowButtonText}";
         if (CheckAgainButton is not null) CheckAgainButton.Content = ViewModel.CheckAgainButtonText;
         if (CloseAboutButton is not null) CloseAboutButton.Content = ViewModel.CloseButtonText;
@@ -117,6 +119,27 @@ public sealed partial class AboutWindow : Window
 
         if (UpdateStatusText is not null)
             UpdateStatusText.Text = ViewModel.StatusMessage;
+
+        if (ReleaseNotesSectionPanel is not null)
+        {
+            ReleaseNotesSectionPanel.Visibility = ViewModel.HasReleaseNotes
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (ReleaseNotesBodyText is not null)
+        {
+            ReleaseNotesBodyText.Text = ViewModel.ReleaseNotesText;
+        }
+
+        if (OpenReleaseBrowserLink is not null)
+        {
+            var tag = ViewModel.FoundRelease?.TagName;
+            OpenReleaseBrowserLink.Content = !string.IsNullOrWhiteSpace(tag)
+                ? $"🌐 {ViewModel.OpenReleaseInBrowserText} ({tag}) ↗"
+                : $"🌐 {ViewModel.OpenReleaseInBrowserText} ↗";
+            ToolTipService.SetToolTip(OpenReleaseBrowserLink, ViewModel.FoundRelease?.HtmlUrl ?? ViewModel.RepositoryUrl);
+        }
 
         if (UpdateNowButton is not null)
         {
@@ -141,12 +164,12 @@ public sealed partial class AboutWindow : Window
                 if (aw.Presenter is OverlappedPresenter presenter)
                 {
                     presenter.IsResizable = true;
-                    presenter.IsMaximizable = false;
+                    presenter.IsMaximizable = true;
                     presenter.IsMinimizable = false;
                 }
 
-                const int w = 580;
-                const int h = 500;
+                const int w = 640;
+                const int h = 620;
 
                 if (_owner.AppWindow is { } ownerAw)
                 {
@@ -168,6 +191,11 @@ public sealed partial class AboutWindow : Window
     private void OnOpenRepositoryClick(object sender, RoutedEventArgs e)
     {
         ViewModel.OpenRepositoryInBrowser();
+    }
+
+    private void OnOpenReleaseInBrowserClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.OpenFoundReleaseInBrowser();
     }
 
     private async void OnCheckAgainClick(object sender, RoutedEventArgs e)

@@ -32,10 +32,13 @@ public sealed partial class AboutViewModel : ObservableObject, IDisposable
     private bool _isUpdateAvailable;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUpdateButton), nameof(ReleaseNotesText), nameof(HasReleaseNotes))]
     private GitHubReleaseInfo? _foundRelease;
 
     public bool ShowUpdateButton => IsUpdateAvailable && FoundRelease is not null;
     public bool HasLatestVersionText => !string.IsNullOrWhiteSpace(LatestVersionText) && LatestVersionText != "—";
+    public string ReleaseNotesText => GitHubUpdateService.FormatReleaseNotesForDisplay(FoundRelease?.Body);
+    public bool HasReleaseNotes => !string.IsNullOrWhiteSpace(ReleaseNotesText);
 
     public string WindowTitle => LocalizationService.T("About.WindowTitle");
     public string Heading => LocalizationService.T("About.Heading");
@@ -46,6 +49,8 @@ public sealed partial class AboutViewModel : ObservableObject, IDisposable
     public string VersionSectionTitle => LocalizationService.T("About.VersionSectionTitle");
     public string InstalledVersionLabel => LocalizationService.T("About.InstalledVersion");
     public string LatestVersionLabel => LocalizationService.T("About.LatestVersion");
+    public string ReleaseNotesHeaderLabel => LocalizationService.T("Update.ReleaseNotes");
+    public string OpenReleaseInBrowserText => LocalizationService.T("Update.OpenGitHub");
     public string UpdateNowButtonText => LocalizationService.T("About.UpdateNowButton");
     public string CheckAgainButtonText => LocalizationService.T("About.CheckAgainButton");
     public string CloseButtonText => $"{LocalizationService.T("Settings.Close")} (Esc)";
@@ -71,6 +76,8 @@ public sealed partial class AboutViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(VersionSectionTitle));
         OnPropertyChanged(nameof(InstalledVersionLabel));
         OnPropertyChanged(nameof(LatestVersionLabel));
+        OnPropertyChanged(nameof(ReleaseNotesHeaderLabel));
+        OnPropertyChanged(nameof(OpenReleaseInBrowserText));
         OnPropertyChanged(nameof(UpdateNowButtonText));
         OnPropertyChanged(nameof(CheckAgainButtonText));
         OnPropertyChanged(nameof(CloseButtonText));
@@ -146,6 +153,9 @@ public sealed partial class AboutViewModel : ObservableObject, IDisposable
 
     public void OpenRepositoryInBrowser() =>
         GitHubUpdateService.OpenUrlInBrowser(RepositoryUrl);
+
+    public void OpenFoundReleaseInBrowser() =>
+        GitHubUpdateService.OpenUrlInBrowser(FoundRelease?.HtmlUrl ?? GitHubUpdateService.RepositoryReleasesWebUrl);
 
     public async Task<bool> InstallFoundUpdateAsync(CancellationToken ct = default)
     {

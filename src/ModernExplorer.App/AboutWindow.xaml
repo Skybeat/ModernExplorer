@@ -172,6 +172,51 @@
                                        TextWrapping="Wrap" />
                         </Border>
 
+                        <!-- Multi-line Scrollable Release Notes + Direct Browser Link -->
+                        <StackPanel x:Name="ReleaseNotesSectionPanel"
+                                    Visibility="Collapsed"
+                                    Spacing="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ReleaseNotesHeaderLabel"
+                                           Grid.Column="0"
+                                           Text="📋 Änderungen in diesem Release:"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <HyperlinkButton x:Name="OpenReleaseBrowserLink"
+                                                 Grid.Column="1"
+                                                 Content="🌐 Auf GitHub ansehen ↗"
+                                                 Click="OnOpenReleaseInBrowserClick"
+                                                 Padding="6,2"
+                                                 FontSize="12.5"
+                                                 VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border CornerRadius="6"
+                                    Padding="12,10,8,10"
+                                    Background="{ThemeResource ExplorerPanelBackgroundBrush}"
+                                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                    BorderThickness="1">
+                                <ScrollViewer Height="200"
+                                              MinHeight="150"
+                                              MaxHeight="260"
+                                              VerticalScrollBarVisibility="Visible"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <TextBlock x:Name="ReleaseNotesBodyText"
+                                               Text=""
+                                               FontSize="12.5"
+                                               LineHeight="20"
+                                               TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Padding="2,0,6,2" />
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Button x:Name="UpdateNowButton"
                                     Content="🚀 Jetzt aktualisieren"

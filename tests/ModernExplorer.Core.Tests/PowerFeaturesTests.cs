@@ -742,5 +742,28 @@ public sealed class PowerFeaturesTests : IDisposable
         string csvReport = StorageTreemapService.ExportStorageReport(root, markdownFormat: false);
         Assert.Contains("biggest_file.dat", csvReport);
     }
+
+    [Fact]
+    public void GitHubUpdateService_FormatsMultiLineReleaseNotesForDisplay()
+    {
+        string rawMarkdown = """
+            ## What's New in Modern Explorer v1.8.1
+            - **Feature 1**: Implemented [Side-by-Side Diff](file:///path/to/FileDiffService.cs)
+              - Sub-item A
+            ### Bugfixes
+            * Fixed single-line release notes container
+            """;
+
+        string formatted = ModernExplorer.Core.Update.GitHubUpdateService.FormatReleaseNotesForDisplay(rawMarkdown);
+        string[] lines = formatted.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.True(lines.Length >= 5);
+        Assert.Contains("━━ What's New in Modern Explorer v1.8.1 ━━", formatted);
+        Assert.Contains("• Feature 1: Implemented Side-by-Side Diff", formatted);
+        Assert.Contains("◦ Sub-item A", formatted);
+        Assert.Contains("▸ Bugfixes", formatted);
+        Assert.Contains("• Fixed single-line release notes container", formatted);
+        Assert.DoesNotContain("file:///", formatted);
+    }
 }
 

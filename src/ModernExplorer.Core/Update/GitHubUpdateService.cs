@@ -89,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 8, 0);
+        return new Version(1, 8, 1);
     }
 
     public static string GetCurrentVersionString()
@@ -247,6 +247,68 @@ public sealed class GitHubUpdateService
         }
 
         return new GitHubReleaseInfo(tagName, parsedVersion, name, body, htmlUrl, publishedAt, assets);
+    }
+
+    /// <summary>
+    /// Formats raw Markdown release notes from GitHub into clean, multi-line readable text
+    /// suitable for scrollable UI controls (normalizing line endings, converting headings/bullets,
+    /// and simplifying Markdown links).
+    /// </summary>
+    public static string FormatReleaseNotesForDisplay(string? rawBody)
+    {
+        if (string.IsNullOrWhiteSpace(rawBody))
+            return "";
+
+        var normalized = rawBody
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Trim();
+
+        // Replace Markdown links [label](url) with just label
+        normalized = System.Text.RegularExpressions.Regex.Replace(
+            normalized,
+            @"\[([^\]]+)\]\([^)]+\)",
+            "$1");
+
+        // Strip bold markers **...** for cleaner plain-text reading
+        normalized = normalized.Replace("**", "", StringComparison.Ordinal);
+
+        var lines = normalized.Split('\n');
+        var sb = new StringBuilder(normalized.Length + 64);
+
+        foreach (var rawLine in lines)
+        {
+            var trimmedEnd = rawLine.TrimEnd();
+            var trimmed = trimmedEnd.TrimStart();
+
+            if (trimmed.StartsWith("### ", StringComparison.Ordinal))
+            {
+                if (sb.Length > 0) sb.AppendLine();
+                sb.AppendLine($"▸ {trimmed[4..].Trim()}");
+            }
+            else if (trimmed.StartsWith("## ", StringComparison.Ordinal))
+            {
+                if (sb.Length > 0) sb.AppendLine();
+                sb.AppendLine($"━━ {trimmed[3..].Trim()} ━━");
+            }
+            else if (trimmed.StartsWith("# ", StringComparison.Ordinal))
+            {
+                if (sb.Length > 0) sb.AppendLine();
+                sb.AppendLine($"━━ {trimmed[2..].Trim()} ━━");
+            }
+            else if (trimmed.StartsWith("- ", StringComparison.Ordinal) || trimmed.StartsWith("* ", StringComparison.Ordinal))
+            {
+                int indent = trimmedEnd.Length - trimmed.Length;
+                string bullet = indent >= 2 ? "    ◦ " : "  • ";
+                sb.AppendLine($"{bullet}{trimmed[2..].Trim()}");
+            }
+            else
+            {
+                sb.AppendLine(trimmedEnd);
+            }
+        }
+
+        return sb.ToString().Trim();
     }
 
     /// <summary>
