@@ -201,3 +201,4 @@ public static class GitStatusService
         return GitRepoStatus.NotARepo;
     }
 }
+

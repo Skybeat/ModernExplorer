@@ -266,6 +266,12 @@
                                               OnContent="Sichtbar – Klassische Commander-Funktionsleiste"
                                               OffContent="Ausgeblendet" />
 
+                                <ToggleSwitch x:Name="ToggleShowToolTips"
+                                              Header="Tooltips mit Funktionsbeschreibungen bei Buttons anzeigen"
+                                              IsOn="{x:Bind Settings.ShowToolTips, Mode=TwoWay}"
+                                              OnContent="Aktiv – Zeigt eine kurze Erklärung des Features beim Überfahren mit der Maus"
+                                              OffContent="Deaktiviert – Keine Tooltips anzeigen" />
+
                                 <StackPanel Spacing="4">
                                     <Grid>
                                         <TextBlock x:Name="RowHeightLabel" Text="Zeilenhöhe in der Dateiliste (Kompakt ↔ Komfortabel)" FontSize="13" FontWeight="SemiBold" />

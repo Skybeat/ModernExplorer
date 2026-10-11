@@ -571,7 +571,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="fav:FavoriteItem">
                                 <Button Tag="{x:Bind Path}"
-                                        ToolTipService.ToolTip="{x:Bind ToolTipText}"
+                                        ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(ToolTipText, vm:SettingsViewModel.Current.ShowToolTips), Mode=OneWay}"
                                         Click="OnFavoriteItemClick"
                                         RightTapped="OnFavoriteItemRightTapped"
                                         Padding="8,2"
@@ -587,44 +587,44 @@
                 </ScrollViewer>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <Button Content="↶ Undo"
+                    <Button x:Name="UndoToolbarButton"
+                            Content="↶ Undo"
                             IsEnabled="{x:Bind ViewModel.CanUndo, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind ViewModel.UndoDescription, Mode=OneWay}"
                             Click="OnUndoClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="✏ Mehrfach-Umbenennen"
-                            ToolTipService.ToolTip="Mehrfach-Umbenennungstool (Strg+M)"
+                    <Button x:Name="BatchRenameToolbarButton"
+                            Content="✏ Mehrfach-Umbenennen"
                             Click="OnBatchRenameClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="🔍 Tiefensuche"
-                            ToolTipService.ToolTip="Rekursive Tiefensuche (Alt+F7 / Strg+Shift+F)"
+                    <Button x:Name="DeepSearchToolbarButton"
+                            Content="🔍 Tiefensuche"
                             Click="OnDeepSearchClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="⇄ Sync"
-                            ToolTipService.ToolTip="Verzeichnisse vergleichen &amp; synchronisieren (Strg+Shift+S)"
+                    <Button x:Name="DirectorySyncToolbarButton"
+                            Content="⇄ Sync"
                             Click="OnDirectorySyncClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="🧹 Duplikate"
-                            ToolTipService.ToolTip="Duplikat-Finder öffnen"
+                    <Button x:Name="DuplicateFinderToolbarButton"
+                            Content="🧹 Duplikate"
                             Click="OnDuplicateFinderClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="📦 Packen"
-                            ToolTipService.ToolTip="Auswahl in Archiv packen (.zip / .tar.gz / .7z) (Alt+F5)"
+                    <Button x:Name="PackArchiveToolbarButton"
+                            Content="📦 Packen"
                             Click="OnPackArchiveClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="🌐 FTP/SFTP"
-                            ToolTipService.ToolTip="FTP / FTPS / SFTP-Server verbinden"
+                    <Button x:Name="RemoteConnectToolbarButton"
+                            Content="🌐 FTP/SFTP"
                             Click="OnRemoteConnectClick"
                             Padding="7,2"
                             FontSize="11.5" />
-                    <Button Content="👁 Vorschau"
-                            ToolTipService.ToolTip="Integriertes Schnellvorschau-Panel ein-/ausblenden (Strg+Q)"
+                    <Button x:Name="QuickPreviewToolbarButton"
+                            Content="👁 Vorschau"
                             Click="OnToggleQuickPreviewClick"
                             Padding="7,2"
                             FontSize="11.5" />
@@ -681,7 +681,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:DriveItemViewModel">
                                         <Button Tag="{x:Bind RootPath}"
-                                                ToolTipService.ToolTip="{x:Bind ToolTip}"
+                                                ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(ToolTip, Settings.ShowToolTips), Mode=OneWay}"
                                                 Click="OnLeftDriveClick"
                                                 Padding="8,3"
                                                 CornerRadius="4"
@@ -749,8 +749,8 @@
                         </ListView>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <Button x:Name="LeftNewTabButton" Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnLeftNewTabClick" Padding="8,2" />
-                            <Button x:Name="LeftCloseTabButton" Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnLeftCloseTabClick" Padding="8,2" />
+                            <Button x:Name="LeftNewTabButton" Content="+" Click="OnLeftNewTabClick" Padding="8,2" />
+                            <Button x:Name="LeftCloseTabButton" Content="×" Click="OnLeftCloseTabClick" Padding="8,2" />
                         </StackPanel>
                     </Grid>
 
@@ -764,12 +764,12 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button x:Name="LeftBackButton" Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnLeftBackClick" Padding="8,3" />
-                            <Button x:Name="LeftForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnLeftForwardClick" Padding="8,3" />
-                            <Button x:Name="LeftUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnLeftUpClick" Padding="8,3" />
-                            <Button x:Name="LeftRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnLeftRefreshClick" Padding="8,3" />
-                            <Button Content="🌿" ToolTipService.ToolTip="Flache Ordneransicht / Branch View (Strg+B)" Click="OnLeftBranchViewClick" Padding="7,3" />
-                            <Button Content="📊" ToolTipService.ToolTip="Ordnergrößen berechnen / TreeSize-Balken anzeigen" Click="OnLeftTreeSizeClick" Padding="7,3" />
+                            <Button x:Name="LeftBackButton" Content="‹" Click="OnLeftBackClick" Padding="8,3" />
+                            <Button x:Name="LeftForwardButton" Content="›" Click="OnLeftForwardClick" Padding="8,3" />
+                            <Button x:Name="LeftUpButton" Content="↑" Click="OnLeftUpClick" Padding="8,3" />
+                            <Button x:Name="LeftRefreshButton" Content="↻" Click="OnLeftRefreshClick" Padding="8,3" />
+                            <Button x:Name="LeftBranchViewButton" Content="🌿" Click="OnLeftBranchViewClick" Padding="7,3" />
+                            <Button x:Name="LeftTreeSizeButton" Content="📊" Click="OnLeftTreeSizeClick" Padding="7,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="LeftAddressBox"
@@ -972,7 +972,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:DriveItemViewModel">
                                         <Button Tag="{x:Bind RootPath}"
-                                                ToolTipService.ToolTip="{x:Bind ToolTip}"
+                                                ToolTipService.ToolTip="{x:Bind local:ShellIconConverter.OptionalToolTip(ToolTip, Settings.ShowToolTips), Mode=OneWay}"
                                                 Click="OnRightDriveClick"
                                                 Padding="8,3"
                                                 CornerRadius="4"
@@ -1040,8 +1040,8 @@
                         </ListView>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <Button x:Name="RightNewTabButton" Content="+" ToolTipService.ToolTip="Neuer Tab (Strg+T)" Click="OnRightNewTabClick" Padding="8,2" />
-                            <Button x:Name="RightCloseTabButton" Content="×" ToolTipService.ToolTip="Aktiven Tab schließen (Strg+W)" Click="OnRightCloseTabClick" Padding="8,2" />
+                            <Button x:Name="RightNewTabButton" Content="+" Click="OnRightNewTabClick" Padding="8,2" />
+                            <Button x:Name="RightCloseTabButton" Content="×" Click="OnRightCloseTabClick" Padding="8,2" />
                         </StackPanel>
                     </Grid>
 
@@ -1055,12 +1055,12 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button x:Name="RightBackButton" Content="‹" ToolTipService.ToolTip="Zurück (Alt+←)" Click="OnRightBackClick" Padding="8,3" />
-                            <Button x:Name="RightForwardButton" Content="›" ToolTipService.ToolTip="Vorwärts (Alt+→)" Click="OnRightForwardClick" Padding="8,3" />
-                            <Button x:Name="RightUpButton" Content="↑" ToolTipService.ToolTip="Übergeordneter Ordner (Backspace)" Click="OnRightUpClick" Padding="8,3" />
-                            <Button x:Name="RightRefreshButton" Content="↻" ToolTipService.ToolTip="Aktualisieren (Strg+R)" Click="OnRightRefreshClick" Padding="8,3" />
-                            <Button Content="🌿" ToolTipService.ToolTip="Flache Ordneransicht / Branch View (Strg+B)" Click="OnRightBranchViewClick" Padding="7,3" />
-                            <Button Content="📊" ToolTipService.ToolTip="Ordnergrößen berechnen / TreeSize-Balken anzeigen" Click="OnRightTreeSizeClick" Padding="7,3" />
+                            <Button x:Name="RightBackButton" Content="‹" Click="OnRightBackClick" Padding="8,3" />
+                            <Button x:Name="RightForwardButton" Content="›" Click="OnRightForwardClick" Padding="8,3" />
+                            <Button x:Name="RightUpButton" Content="↑" Click="OnRightUpClick" Padding="8,3" />
+                            <Button x:Name="RightRefreshButton" Content="↻" Click="OnRightRefreshClick" Padding="8,3" />
+                            <Button x:Name="RightBranchViewButton" Content="🌿" Click="OnRightBranchViewClick" Padding="7,3" />
+                            <Button x:Name="RightTreeSizeButton" Content="📊" Click="OnRightTreeSizeClick" Padding="7,3" />
                         </StackPanel>
 
                         <AutoSuggestBox x:Name="RightAddressBox"
@@ -1080,7 +1080,6 @@
                         <Button x:Name="RightViewModeButton"
                                 Grid.Column="3"
                                 Content="{x:Bind ViewModel.Right.ActiveTab.ViewModeButtonLabel, Mode=OneWay}"
-                                ToolTipService.ToolTip="Anzeigeoptionen umschalten (Strg+Umschalt+1..8)"
                                 Click="OnRightViewModeButtonClick"
                                 Padding="8,3"
                                 FontSize="{x:Bind ViewModel.Settings.AddressBarFontSize, Mode=OneWay}" />
@@ -1244,9 +1243,9 @@
                                    FontSize="13"
                                    TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center" />
-                        <Button Grid.Column="1"
+                        <Button x:Name="QuickPreviewCloseButton"
+                                Grid.Column="1"
                                 Content="×"
-                                ToolTipService.ToolTip="Schnellvorschau schließen (Strg+Q)"
                                 Click="OnToggleQuickPreviewClick"
                                 Padding="7,2" />
                     </Grid>
@@ -1360,18 +1359,18 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" HorizontalAlignment="Stretch" Click="OnF1Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F1', ViewModel.F1Label), Mode=OneWay}" />
-                <Button Grid.Column="1" HorizontalAlignment="Stretch" Click="OnF2Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F2', ViewModel.F2Label), Mode=OneWay}" />
-                <Button Grid.Column="2" HorizontalAlignment="Stretch" Click="OnF3Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F3', ViewModel.F3Label), Mode=OneWay}" />
-                <Button Grid.Column="3" HorizontalAlignment="Stretch" Click="OnF4Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F4', ViewModel.F4Label), Mode=OneWay}" />
-                <Button Grid.Column="4" HorizontalAlignment="Stretch" Click="OnF5Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F5', ViewModel.F5Label), Mode=OneWay}" />
-                <Button Grid.Column="5" HorizontalAlignment="Stretch" Click="OnF6Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F6', ViewModel.F6Label), Mode=OneWay}" />
-                <Button Grid.Column="6" HorizontalAlignment="Stretch" Click="OnF7Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" FontWeight="SemiBold" Content="{x:Bind FormatFKey('F7', ViewModel.F7Label), Mode=OneWay}" />
-                <Button Grid.Column="7" HorizontalAlignment="Stretch" Click="OnF8Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F8', ViewModel.F8Label), Mode=OneWay}" />
-                <Button Grid.Column="8" HorizontalAlignment="Stretch" Click="OnF9Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F9', ViewModel.F9Label), Mode=OneWay}" />
-                <Button Grid.Column="9" HorizontalAlignment="Stretch" Click="OnF10Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F10', ViewModel.F10Label), Mode=OneWay}" />
-                <Button Grid.Column="10" HorizontalAlignment="Stretch" Click="OnF11Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F11', ViewModel.F11Label), Mode=OneWay}" />
-                <Button Grid.Column="11" HorizontalAlignment="Stretch" Click="OnF12Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F12', ViewModel.F12Label), Mode=OneWay}" />
+                <Button x:Name="FnF1Button" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnF1Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F1', ViewModel.F1Label), Mode=OneWay}" />
+                <Button x:Name="FnF2Button" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnF2Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F2', ViewModel.F2Label), Mode=OneWay}" />
+                <Button x:Name="FnF3Button" Grid.Column="2" HorizontalAlignment="Stretch" Click="OnF3Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F3', ViewModel.F3Label), Mode=OneWay}" />
+                <Button x:Name="FnF4Button" Grid.Column="3" HorizontalAlignment="Stretch" Click="OnF4Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F4', ViewModel.F4Label), Mode=OneWay}" />
+                <Button x:Name="FnF5Button" Grid.Column="4" HorizontalAlignment="Stretch" Click="OnF5Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F5', ViewModel.F5Label), Mode=OneWay}" />
+                <Button x:Name="FnF6Button" Grid.Column="5" HorizontalAlignment="Stretch" Click="OnF6Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F6', ViewModel.F6Label), Mode=OneWay}" />
+                <Button x:Name="FnF7Button" Grid.Column="6" HorizontalAlignment="Stretch" Click="OnF7Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" FontWeight="SemiBold" Content="{x:Bind FormatFKey('F7', ViewModel.F7Label), Mode=OneWay}" />
+                <Button x:Name="FnF8Button" Grid.Column="7" HorizontalAlignment="Stretch" Click="OnF8Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F8', ViewModel.F8Label), Mode=OneWay}" />
+                <Button x:Name="FnF9Button" Grid.Column="8" HorizontalAlignment="Stretch" Click="OnF9Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F9', ViewModel.F9Label), Mode=OneWay}" />
+                <Button x:Name="FnF10Button" Grid.Column="9" HorizontalAlignment="Stretch" Click="OnF10Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F10', ViewModel.F10Label), Mode=OneWay}" />
+                <Button x:Name="FnF11Button" Grid.Column="10" HorizontalAlignment="Stretch" Click="OnF11Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F11', ViewModel.F11Label), Mode=OneWay}" />
+                <Button x:Name="FnF12Button" Grid.Column="11" HorizontalAlignment="Stretch" Click="OnF12Click" Padding="4,3" FontSize="{x:Bind ViewModel.Settings.FunctionBarFontSize, Mode=OneWay}" Content="{x:Bind FormatFKey('F12', ViewModel.F12Label), Mode=OneWay}" />
             </Grid>
         </Border>
 

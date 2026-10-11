@@ -110,6 +110,11 @@ public sealed class AppSettings
     public bool ShowFunctionKeyBar { get; set; } = true;
 
     /// <summary>
+    /// Indicates whether descriptive feature and button tooltips are shown when hovering over UI buttons.
+    /// </summary>
+    public bool ShowToolTips { get; set; } = true;
+
+    /// <summary>
     /// Minimum row height of an entry in the file list in pixels (22–40 px, default: 26 px).
     /// </summary>
     public double FileListRowHeight { get; set; } = DefaultFileListRowHeight;
@@ -197,6 +202,7 @@ public sealed class AppSettings
         AutoCalculateFolderSizeOnMark = AutoCalculateFolderSizeOnMark,
         ShowDriveBar = ShowDriveBar,
         ShowFunctionKeyBar = ShowFunctionKeyBar,
+        ShowToolTips = ShowToolTips,
         FileListRowHeight = ClampRowHeight(FileListRowHeight, DefaultFileListRowHeight),
         EnableImageHoverPreview = EnableImageHoverPreview,
         ImageHoverPreviewSize = ClampPreviewSize(ImageHoverPreviewSize, DefaultImageHoverPreviewSize),

@@ -204,3 +204,4 @@ public sealed class FavoritesStore
         return string.IsNullOrWhiteSpace(name) ? path : name;
     }
 }
+

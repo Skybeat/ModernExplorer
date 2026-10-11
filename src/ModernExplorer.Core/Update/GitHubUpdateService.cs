@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -89,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 1, 0);
+        return new Version(1, 2, 0);
     }
 
     public static string GetCurrentVersionString()
@@ -487,8 +487,8 @@ public sealed class GitHubUpdateService
         sb.AppendLine("Add-Type -AssemblyName System.Drawing");
         sb.AppendLine("[System.Windows.Forms.Application]::EnableVisualStyles()");
         sb.AppendLine("$isDe = ([System.Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName -eq 'de')");
-        sb.AppendLine("$titleText = if ($isDe) { 'Modern Explorer – Update wird installiert' } else { 'Modern Explorer – Installing Update' }");
-        sb.AppendLine("$waitText  = if ($isDe) { 'Warte auf das Schließen von Modern Explorer...' } else { 'Waiting for Modern Explorer to close...' }");
+        sb.AppendLine("$titleText = if ($isDe) { 'Modern Explorer â€“ Update wird installiert' } else { 'Modern Explorer â€“ Installing Update' }");
+        sb.AppendLine("$waitText  = if ($isDe) { 'Warte auf das SchlieÃŸen von Modern Explorer...' } else { 'Waiting for Modern Explorer to close...' }");
         sb.AppendLine("$copyText  = if ($isDe) { 'Aktualisiere Programmdateien' } else { 'Updating application files' }");
         sb.AppendLine("$doneText  = if ($isDe) { 'Update abgeschlossen! Starte Modern Explorer neu...' } else { 'Update complete! Restarting Modern Explorer...' }");
         sb.AppendLine("$form = New-Object System.Windows.Forms.Form");

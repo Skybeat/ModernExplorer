@@ -363,3 +363,4 @@ public static class BatchRenameService
         return isDirectory ? transformedStem : transformedStem + transformedExt;
     }
 }
+

@@ -53,6 +53,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _showFunctionKeyBar = true;
 
     [ObservableProperty]
+    private bool _showToolTips = true;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FileListRowHeightText))]
     private double _fileListRowHeight = AppSettings.DefaultFileListRowHeight;
 
@@ -228,6 +231,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             AutoCalculateFolderSizeOnMark = norm.AutoCalculateFolderSizeOnMark;
             ShowDriveBar = norm.ShowDriveBar;
             ShowFunctionKeyBar = norm.ShowFunctionKeyBar;
+            ShowToolTips = norm.ShowToolTips;
             FileListRowHeight = norm.FileListRowHeight;
             EnableImageHoverPreview = norm.EnableImageHoverPreview;
             ImageHoverPreviewSize = norm.ImageHoverPreviewSize;
@@ -276,6 +280,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         AutoCalculateFolderSizeOnMark = AutoCalculateFolderSizeOnMark,
         ShowDriveBar = ShowDriveBar,
         ShowFunctionKeyBar = ShowFunctionKeyBar,
+        ShowToolTips = ShowToolTips,
         FileListRowHeight = AppSettings.ClampRowHeight(FileListRowHeight),
         EnableImageHoverPreview = EnableImageHoverPreview,
         ImageHoverPreviewSize = AppSettings.ClampPreviewSize(ImageHoverPreviewSize),
@@ -479,6 +484,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnAutoCalculateFolderSizeOnMarkChanged(bool value) => Persist();
     partial void OnShowDriveBarChanged(bool value) => Persist();
     partial void OnShowFunctionKeyBarChanged(bool value) => Persist();
+    partial void OnShowToolTipsChanged(bool value) => Persist();
     partial void OnFileListRowHeightChanged(double value) => Persist();
 
     partial void OnEnableImageHoverPreviewChanged(bool value) => Persist();

@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
@@ -17,8 +16,19 @@ public sealed partial class ShellDialogService
 {
     public async Task<bool> ShowBatchRenameDialogAsync(IReadOnlyList<FileEntry> entries)
     {
-        var nameMaskBox = new TextBox { Header = "Dateinamen-Maske ([N]=Name, [N1-5]=Teil, [C]=Zähler, [Y][M][D]=Datum, [P]=Ordner)", Text = "[N]" };
-        var extMaskBox = new TextBox { Header = "Erweiterungs-Maske ([E]=Original)", Text = "[E]", Width = 180 };
+        var tcs = new TaskCompletionSource<bool>();
+
+        var nameMaskBox = new TextBox
+        {
+            Header = "Dateinamen-Maske ([N]=Name, [N1-5]=Teil, [C]=Zähler, [Y][M][D]=Datum, [P]=Ordner)",
+            Text = "[N]",
+        };
+        var extMaskBox = new TextBox
+        {
+            Header = "Erweiterungs-Maske ([E]=Original)",
+            Text = "[E]",
+            Width = 200,
+        };
 
         var maskRow = new Grid { ColumnSpacing = 10 };
         maskRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -33,7 +43,7 @@ public sealed partial class ShellDialogService
         var regexCheck = new CheckBox { Content = "RegEx", VerticalAlignment = VerticalAlignment.Bottom };
         var caseCheck = new CheckBox { Content = "Groß/Klein beachten", VerticalAlignment = VerticalAlignment.Bottom };
 
-        var searchRow = new Grid { ColumnSpacing = 8 };
+        var searchRow = new Grid { ColumnSpacing = 10 };
         searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -60,25 +70,41 @@ public sealed partial class ShellDialogService
             },
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 260,
         };
 
-        var startNum = new NumberBox { Header = "Zähler Start", Value = 1, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 120 };
-        var stepNum = new NumberBox { Header = "Schrittweite", Value = 1, Minimum = 1, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 120 };
-        var digitsNum = new NumberBox { Header = "Stellen ([C])", Value = 3, Minimum = 1, Maximum = 10, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 120 };
+        var startNum = new NumberBox { Header = "Zähler Start", Value = 1, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
+        var stepNum = new NumberBox { Header = "Schrittweite", Value = 1, Minimum = 1, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
+        var digitsNum = new NumberBox { Header = "Stellen ([C])", Value = 3, Minimum = 1, Maximum = 10, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Width = 130 };
 
         var counterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        counterRow.Children.Add( caseCombo );
+        counterRow.Children.Add(caseCombo);
         counterRow.Children.Add(startNum);
         counterRow.Children.Add(stepNum);
         counterRow.Children.Add(digitsNum);
 
         var previewList = new ListView
         {
-            Height = 250,
             SelectionMode = ListViewSelectionMode.None,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
 
-        var statusText = new TextBlock { Opacity = 0.8, FontSize = 12 };
+        var listBorder = new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 128, 128, 145)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4),
+            Child = previewList,
+        };
+
+        var statusText = new TextBlock
+        {
+            Opacity = 0.85,
+            FontSize = 12.5,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
 
         IReadOnlyList<BatchRenamePreviewItem> currentPreview = [];
 
@@ -130,26 +156,68 @@ public sealed partial class ShellDialogService
 
         RefreshPreview();
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 680 };
-        panel.Children.Add(maskRow);
-        panel.Children.Add(searchRow);
-        panel.Children.Add(counterRow);
-        panel.Children.Add(new TextBlock { Text = "Live-Vorschau:", FontWeight = FontWeights.SemiBold, FontSize = 12.5 });
-        panel.Children.Add(previewList);
-        panel.Children.Add(statusText);
+        var topPanel = new StackPanel { Spacing = 10 };
+        topPanel.Children.Add(maskRow);
+        topPanel.Children.Add(searchRow);
+        topPanel.Children.Add(counterRow);
+        topPanel.Children.Add(new TextBlock { Text = "Live-Vorschau:", FontWeight = FontWeights.SemiBold, FontSize = 13 });
 
-        var dlg = new ContentDialog
+        var renameBtn = new Button
         {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "✏️ Mehrfach-Umbenennungstool (Strg+M)",
-            Content = panel,
-            PrimaryButtonText = "Jetzt umbenennen",
-            CloseButtonText = "Abbrechen",
-            DefaultButton = ContentDialogButton.Primary,
+            Content = "✓ Jetzt umbenennen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 7, 16, 7),
+        };
+        var cancelBtn = new Button
+        {
+            Content = "Abbrechen",
+            Padding = new Thickness(14, 7, 14, 7),
         };
 
-        if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+        var footerBar = new Grid { ColumnSpacing = 10 };
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(statusText, 0);
+        Grid.SetColumn(renameBtn, 1);
+        Grid.SetColumn(cancelBtn, 2);
+        footerBar.Children.Add(statusText);
+        footerBar.Children.Add(renameBtn);
+        footerBar.Children.Add(cancelBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 12,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(topPanel, 0);
+        Grid.SetRow(listBorder, 1);
+        Grid.SetRow(footerBar, 2);
+        bodyGrid.Children.Add(topPanel);
+        bodyGrid.Children.Add(listBorder);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "Mehrfach-Umbenennungstool (Strg+M)",
+            "✏️",
+            bodyGrid,
+            defaultWidth: 1060,
+            defaultHeight: 720);
+
+        bool renameConfirmed = false;
+        renameBtn.Click += (_, _) =>
+        {
+            renameConfirmed = true;
+            win.Close();
+        };
+        cancelBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(renameConfirmed);
+        win.Activate();
+
+        if (!await tcs.Task)
             return false;
 
         var res = await Task.Run(() => BatchRenameService.ExecuteBatchRename(currentPreview));
@@ -167,6 +235,8 @@ public sealed partial class ShellDialogService
 
     public async Task<bool> ShowDirectorySyncDialogAsync(string leftDir, string rightDir)
     {
+        var tcs = new TaskCompletionSource<bool>();
+
         var leftBox = new TextBox { Header = "Linkes Verzeichnis", Text = leftDir };
         var rightBox = new TextBox { Header = "Rechtes Verzeichnis", Text = rightDir };
 
@@ -188,7 +258,7 @@ public sealed partial class ShellDialogService
                 "SHA-256 Dateiinhalt (Bit-genau)"
             },
             SelectedIndex = 0,
-            Width = 250,
+            MinWidth = 260,
         };
 
         var dirCombo = new ComboBox
@@ -201,19 +271,55 @@ public sealed partial class ShellDialogService
                 "← Rechts nach Links spiegeln"
             },
             SelectedIndex = 0,
-            Width = 300,
+            MinWidth = 310,
         };
 
         var deleteOrphansCheck = new CheckBox { Content = "Verwaiste Dateien im Ziel löschen", VerticalAlignment = VerticalAlignment.Bottom };
-        var compareBtn = new Button { Content = "🔍 Jetzt vergleichen", VerticalAlignment = VerticalAlignment.Bottom };
+        var compareBtn = new Button
+        {
+            Content = "🔍 Jetzt vergleichen",
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Padding = new Thickness(14, 6, 14, 6),
+        };
 
-        var optsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var optsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         optsRow.Children.Add(modeCombo);
         optsRow.Children.Add(dirCombo);
+        optsRow.Children.Add(deleteOrphansCheck);
         optsRow.Children.Add(compareBtn);
 
-        var diffList = new ListView { Height = 260, SelectionMode = ListViewSelectionMode.None };
-        var summaryText = new TextBlock { Opacity = 0.85, FontSize = 12.5, Text = "Klicken Sie auf „Jetzt vergleichen“, um Unterschiede zu analysieren." };
+        var syncProgressBar = new ProgressBar
+        {
+            IsIndeterminate = true,
+            Visibility = Visibility.Collapsed,
+            Height = 6,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        var diffList = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.None,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+
+        var listBorder = new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 128, 128, 145)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4),
+            Child = diffList,
+        };
+
+        var summaryText = new TextBlock
+        {
+            Opacity = 0.85,
+            FontSize = 12.5,
+            Text = "Klicken Sie auf „Jetzt vergleichen“, um Unterschiede zu analysieren.",
+            VerticalAlignment = VerticalAlignment.Center,
+        };
 
         IReadOnlyList<SyncComparisonItem> currentDiffs = [];
 
@@ -227,57 +333,109 @@ public sealed partial class ShellDialogService
                 return;
             }
 
+            compareBtn.IsEnabled = false;
+            syncProgressBar.Visibility = Visibility.Visible;
             summaryText.Text = "Vergleiche Verzeichnisse…";
-            var mode = modeCombo.SelectedIndex switch
+            try
             {
-                1 => SyncCompareMode.SizeOnly,
-                2 => SyncCompareMode.Sha256Content,
-                _ => SyncCompareMode.SizeAndTimestamp,
-            };
-
-            currentDiffs = await DirectorySyncService.CompareDirectoriesAsync(l, r, mode, includeSubdirectories: true);
-            var nonIdentical = currentDiffs.Where(d => d.Status != SyncItemStatus.Equal).ToList();
-
-            diffList.ItemsSource = nonIdentical.Select(d =>
-            {
-                string badge = d.Status switch
+                var mode = modeCombo.SelectedIndex switch
                 {
-                    SyncItemStatus.LeftOnly => "[Nur Links →]",
-                    SyncItemStatus.RightOnly => "[← Nur Rechts]",
-                    SyncItemStatus.LeftNewer => "[Links neuer →]",
-                    SyncItemStatus.RightNewer => "[← Rechts neuer]",
-                    SyncItemStatus.DifferentContent => "[≠ Unterschiedlich]",
-                    _ => "[=]"
+                    1 => SyncCompareMode.SizeOnly,
+                    2 => SyncCompareMode.Sha256Content,
+                    _ => SyncCompareMode.SizeAndTimestamp,
                 };
-                return $"{badge,-18}  {d.RelativePath}   (L: {(d.LeftSize.HasValue ? Format.Size(d.LeftSize.Value) : "-")} | R: {(d.RightSize.HasValue ? Format.Size(d.RightSize.Value) : "-")})";
-            }).ToList();
 
-            summaryText.Text = $"Gesamt: {currentDiffs.Count} Dateien · {nonIdentical.Count} Unterschied(e) · {currentDiffs.Count - nonIdentical.Count} identisch";
+                currentDiffs = await DirectorySyncService.CompareDirectoriesAsync(l, r, mode, includeSubdirectories: true);
+                var nonIdentical = currentDiffs.Where(d => d.Status != SyncItemStatus.Equal).ToList();
+
+                diffList.ItemsSource = nonIdentical.Select(d =>
+                {
+                    string badge = d.Status switch
+                    {
+                        SyncItemStatus.LeftOnly => "[Nur Links →]",
+                        SyncItemStatus.RightOnly => "[← Nur Rechts]",
+                        SyncItemStatus.LeftNewer => "[Links neuer →]",
+                        SyncItemStatus.RightNewer => "[← Rechts neuer]",
+                        SyncItemStatus.DifferentContent => "[≠ Unterschiedlich]",
+                        _ => "[=]"
+                    };
+                    return $"{badge,-18}  {d.RelativePath}   (L: {(d.LeftSize.HasValue ? Format.Size(d.LeftSize.Value) : "-")} | R: {(d.RightSize.HasValue ? Format.Size(d.RightSize.Value) : "-")})";
+                }).ToList();
+
+                summaryText.Text = $"Gesamt: {currentDiffs.Count} Dateien · {nonIdentical.Count} Unterschied(e) · {currentDiffs.Count - nonIdentical.Count} identisch";
+            }
+            finally
+            {
+                syncProgressBar.Visibility = Visibility.Collapsed;
+                compareBtn.IsEnabled = true;
+            }
         }
 
         compareBtn.Click += async (_, _) => await RunCompareAsync();
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 720 };
-        panel.Children.Add(dirGrid);
-        panel.Children.Add(optsRow);
-        panel.Children.Add(deleteOrphansCheck);
-        panel.Children.Add(summaryText);
-        panel.Children.Add(diffList);
+        var topPanel = new StackPanel { Spacing = 10 };
+        topPanel.Children.Add(dirGrid);
+        topPanel.Children.Add(optsRow);
+        topPanel.Children.Add(syncProgressBar);
+
+        var syncNowBtn = new Button
+        {
+            Content = "⇄ Jetzt synchronisieren",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 7, 16, 7),
+        };
+        var closeBtn = new Button
+        {
+            Content = "Schließen",
+            Padding = new Thickness(14, 7, 14, 7),
+        };
+
+        var footerBar = new Grid { ColumnSpacing = 10 };
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(summaryText, 0);
+        Grid.SetColumn(syncNowBtn, 1);
+        Grid.SetColumn(closeBtn, 2);
+        footerBar.Children.Add(summaryText);
+        footerBar.Children.Add(syncNowBtn);
+        footerBar.Children.Add(closeBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 12,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(topPanel, 0);
+        Grid.SetRow(listBorder, 1);
+        Grid.SetRow(footerBar, 2);
+        bodyGrid.Children.Add(topPanel);
+        bodyGrid.Children.Add(listBorder);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)",
+            "⇄",
+            bodyGrid,
+            defaultWidth: 1080,
+            defaultHeight: 740);
+
+        bool syncConfirmed = false;
+        syncNowBtn.Click += (_, _) =>
+        {
+            syncConfirmed = true;
+            win.Close();
+        };
+        closeBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(syncConfirmed);
+        win.Activate();
 
         _ = RunCompareAsync();
 
-        var dlg = new ContentDialog
-        {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "⇄ Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)",
-            Content = panel,
-            PrimaryButtonText = "Synchronisieren",
-            CloseButtonText = "Schließen",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-
-        if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+        if (!await tcs.Task)
             return false;
 
         if (currentDiffs.Count == 0)
@@ -306,14 +464,29 @@ public sealed partial class ShellDialogService
 
     public async Task ShowDeepSearchDialogAsync(string initialDirectory)
     {
+        var tcs = new TaskCompletionSource<int>(); // 0 = close, 1 = open as tab, 2 = jump to hit
+
         var rootBox = new TextBox { Header = "Suchordner", Text = initialDirectory };
         var patternBox = new TextBox { Header = "Dateiname (Wildcard *.cs;*.txt oder RegEx)", PlaceholderText = "*.*" };
         var contentBox = new TextBox { Header = "Text in Datei (Volltextsuche)", PlaceholderText = "Optionaler Suchbegriff im Dateiinhalt…" };
 
+        var filterGrid = new Grid { ColumnSpacing = 10 };
+        filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(patternBox, 0);
+        Grid.SetColumn(contentBox, 1);
+        filterGrid.Children.Add(patternBox);
+        filterGrid.Children.Add(contentBox);
+
         var regexCheck = new CheckBox { Content = "RegEx für Dateiname" };
         var caseContentCheck = new CheckBox { Content = "Groß/Klein beim Inhalt beachten" };
         var hiddenCheck = new CheckBox { Content = "Versteckte einbeziehen" };
-        var searchBtn = new Button { Content = "🔍 Suche starten", FontWeight = FontWeights.SemiBold };
+        var searchBtn = new Button
+        {
+            Content = "🔍 Suche starten",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 6, 16, 6),
+        };
 
         var flagsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
         flagsRow.Children.Add(regexCheck);
@@ -321,8 +494,36 @@ public sealed partial class ShellDialogService
         flagsRow.Children.Add(hiddenCheck);
         flagsRow.Children.Add(searchBtn);
 
-        var statusText = new TextBlock { Opacity = 0.8, FontSize = 12, Text = "Bereit." };
-        var resultsList = new ListView { Height = 260, SelectionMode = ListViewSelectionMode.Single };
+        var searchProgressBar = new ProgressBar
+        {
+            IsIndeterminate = true,
+            Visibility = Visibility.Collapsed,
+            Height = 6,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        var statusText = new TextBlock
+        {
+            Opacity = 0.85,
+            FontSize = 12.5,
+            Text = "Bereit.",
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var resultsList = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Single,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+
+        var listBorder = new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 128, 128, 145)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4),
+            Child = resultsList,
+        };
 
         var foundEntries = new List<FileEntry>();
 
@@ -337,56 +538,120 @@ public sealed partial class ShellDialogService
                 return;
             }
 
+            searchBtn.IsEnabled = false;
+            searchProgressBar.Visibility = Visibility.Visible;
             statusText.Text = "Suche läuft…";
-            var opts = new DeepSearchQuery
+            try
             {
-                RootPath = dir,
-                NamePattern = string.IsNullOrWhiteSpace(patternBox.Text) ? "*" : patternBox.Text.Trim(),
-                UseRegex = regexCheck.IsChecked == true,
-                ContentText = string.IsNullOrWhiteSpace(contentBox.Text) ? "" : contentBox.Text,
-                ContentCaseSensitive = caseContentCheck.IsChecked == true,
-                IncludeHidden = hiddenCheck.IsChecked == true,
-                IncludeSubdirectories = true,
-                MaxResults = 2000,
-            };
+                var opts = new DeepSearchQuery
+                {
+                    RootPath = dir,
+                    NamePattern = string.IsNullOrWhiteSpace(patternBox.Text) ? "*" : patternBox.Text.Trim(),
+                    UseRegex = regexCheck.IsChecked == true,
+                    ContentText = string.IsNullOrWhiteSpace(contentBox.Text) ? "" : contentBox.Text,
+                    ContentCaseSensitive = caseContentCheck.IsChecked == true,
+                    IncludeHidden = hiddenCheck.IsChecked == true,
+                    IncludeSubdirectories = true,
+                    MaxResults = 2000,
+                };
 
-            var displayItems = new List<string>();
-            var matches = await DeepSearchService.SearchAsync(opts);
-            foreach (var entry in matches)
-            {
-                foundEntries.Add(entry);
-                displayItems.Add($"{entry.Name}   —   {entry.RelativeSubPath ?? entry.FullPath}   ({(entry.IsDirectory ? "<DIR>" : Format.Size(entry.Size))})");
+                var displayItems = new List<string>();
+                var matches = await DeepSearchService.SearchAsync(opts);
+                foreach (var entry in matches)
+                {
+                    foundEntries.Add(entry);
+                    displayItems.Add($"{entry.Name}   —   {entry.RelativeSubPath ?? entry.FullPath}   ({(entry.IsDirectory ? "<DIR>" : Format.Size(entry.Size))})");
+                }
+
+                resultsList.ItemsSource = displayItems;
+                if (displayItems.Count > 0) resultsList.SelectedIndex = 0;
+                statusText.Text = $"{foundEntries.Count} Treffer gefunden.";
             }
-
-            resultsList.ItemsSource = displayItems;
-            if (displayItems.Count > 0) resultsList.SelectedIndex = 0;
-            statusText.Text = $"{foundEntries.Count} Treffer gefunden.";
+            finally
+            {
+                searchProgressBar.Visibility = Visibility.Collapsed;
+                searchBtn.IsEnabled = true;
+            }
         }
 
         searchBtn.Click += async (_, _) => await ExecuteSearchAsync();
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 700 };
-        panel.Children.Add(rootBox);
-        panel.Children.Add(patternBox);
-        panel.Children.Add(contentBox);
-        panel.Children.Add(flagsRow);
-        panel.Children.Add(statusText);
-        panel.Children.Add(resultsList);
+        var topPanel = new StackPanel { Spacing = 10 };
+        topPanel.Children.Add(rootBox);
+        topPanel.Children.Add(filterGrid);
+        topPanel.Children.Add(flagsRow);
+        topPanel.Children.Add(searchProgressBar);
 
-        var dlg = new ContentDialog
+        var openTabBtn = new Button
         {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "🔍 Rekursive Tiefensuche (Alt+F7)",
-            Content = panel,
-            PrimaryButtonText = "Als Tab öffnen",
-            SecondaryButtonText = "Zum Treffer springen",
-            CloseButtonText = "Schließen",
-            DefaultButton = ContentDialogButton.Primary,
+            Content = "📂 Als Tab öffnen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 7, 16, 7),
+        };
+        var jumpBtn = new Button
+        {
+            Content = "🎯 Zum Treffer springen",
+            Padding = new Thickness(14, 7, 14, 7),
+        };
+        var closeBtn = new Button
+        {
+            Content = "Schließen",
+            Padding = new Thickness(14, 7, 14, 7),
         };
 
-        var result = await dlg.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        var footerBar = new Grid { ColumnSpacing = 10 };
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footerBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(statusText, 0);
+        Grid.SetColumn(openTabBtn, 1);
+        Grid.SetColumn(jumpBtn, 2);
+        Grid.SetColumn(closeBtn, 3);
+        footerBar.Children.Add(statusText);
+        footerBar.Children.Add(openTabBtn);
+        footerBar.Children.Add(jumpBtn);
+        footerBar.Children.Add(closeBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 12,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(topPanel, 0);
+        Grid.SetRow(listBorder, 1);
+        Grid.SetRow(footerBar, 2);
+        bodyGrid.Children.Add(topPanel);
+        bodyGrid.Children.Add(listBorder);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "Rekursive Tiefensuche (Alt+F7)",
+            "🔍",
+            bodyGrid,
+            defaultWidth: 1080,
+            defaultHeight: 740);
+
+        int actionChoice = 0;
+        openTabBtn.Click += (_, _) =>
+        {
+            actionChoice = 1;
+            win.Close();
+        };
+        jumpBtn.Click += (_, _) =>
+        {
+            actionChoice = 2;
+            win.Close();
+        };
+        closeBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(actionChoice);
+        win.Activate();
+
+        int result = await tcs.Task;
+        if (result == 1)
         {
             if (foundEntries.Count == 0)
                 await ExecuteSearchAsync();
@@ -397,7 +662,7 @@ public sealed partial class ShellDialogService
                 await tab.LoadSearchResultsAsync(label, foundEntries);
             }
         }
-        else if (result == ContentDialogResult.Secondary &&
+        else if (result == 2 &&
                  resultsList.SelectedIndex >= 0 &&
                  resultsList.SelectedIndex < foundEntries.Count &&
                  owner.ViewModel.ActivePanel.ActiveTab is { } activeTab)
@@ -411,19 +676,78 @@ public sealed partial class ShellDialogService
 
     public async Task<bool> ShowDuplicateFinderDialogAsync(string initialDirectory)
     {
+        var tcs = new TaskCompletionSource<bool>();
+
         var rootBox = new TextBox { Header = "Zu prüfendes Verzeichnis", Text = initialDirectory };
-        var scanBtn = new Button { Content = "🔍 Nach Duplikaten scannen", FontWeight = FontWeights.SemiBold };
-        var selectDupesBtn = new Button { Content = "☑ Alle Duplikate (außer Original je Gruppe) markieren", IsEnabled = false };
-        var statusText = new TextBlock { Opacity = 0.85, FontSize = 12.5, Text = "Klicken Sie auf „Nach Duplikaten scannen“." };
+        var scanBtn = new Button
+        {
+            Content = "🔍 Nach Duplikaten scannen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 6, 16, 6),
+        };
+        var selectDupesBtn = new Button
+        {
+            Content = "☑ Alle Duplikate (außer Original je Gruppe) markieren",
+            IsEnabled = false,
+            Padding = new Thickness(14, 6, 14, 6),
+        };
 
         var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         btnRow.Children.Add(scanBtn);
         btnRow.Children.Add(selectDupesBtn);
 
+        var dupeProgressBar = new ProgressBar
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0,
+            IsIndeterminate = false,
+            Height = 8,
+            Visibility = Visibility.Collapsed,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        var statusText = new TextBlock
+        {
+            Opacity = 0.9,
+            FontSize = 12.5,
+            Text = "Klicken Sie auf „Nach Duplikaten scannen“, um die mehrstufige Prüfung zu starten.",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var progressPercentText = new TextBlock
+        {
+            Opacity = 0.85,
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Text = "",
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var statusRow = new Grid { ColumnSpacing = 12 };
+        statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(statusText, 0);
+        Grid.SetColumn(progressPercentText, 1);
+        statusRow.Children.Add(statusText);
+        statusRow.Children.Add(progressPercentText);
+
         var dupeList = new ListView
         {
-            Height = 280,
             SelectionMode = ListViewSelectionMode.Multiple,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+
+        var listBorder = new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 128, 128, 145)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4),
+            Child = dupeList,
         };
 
         var flatCandidateFiles = new List<(FileEntry File, bool IsFirstInGroup)>();
@@ -437,37 +761,81 @@ public sealed partial class ShellDialogService
                 return;
             }
 
+            scanBtn.IsEnabled = false;
+            selectDupesBtn.IsEnabled = false;
             flatCandidateFiles.Clear();
             dupeList.ItemsSource = null;
-            statusText.Text = "Scanne nach identischen Dateien (Größe → Teil-Hash → SHA-256)…";
 
-            var progress = new Progress<string>(msg =>
+            dupeProgressBar.Visibility = Visibility.Visible;
+            dupeProgressBar.IsIndeterminate = true;
+            dupeProgressBar.Value = 0;
+            progressPercentText.Text = "Scanne…";
+            statusText.Text = "Stufe 1/3: Durchsuche Verzeichnisbaum…";
+
+            var detailedProgress = new Progress<DuplicateScanProgress>(info =>
             {
                 owner.DispatcherQueue.TryEnqueue(() =>
                 {
-                    statusText.Text = msg;
+                    statusText.Text = info.StageMessage;
+                    dupeProgressBar.IsIndeterminate = info.IsIndeterminate;
+                    if (!info.IsIndeterminate)
+                    {
+                        dupeProgressBar.Value = Math.Clamp(info.Percentage, 0, 100);
+                        progressPercentText.Text = info.TotalFiles > 0
+                            ? $"{info.Percentage:0}% ({info.ProcessedFiles}/{info.TotalFiles})"
+                            : $"{info.Percentage:0}%";
+                    }
+                    else
+                    {
+                        progressPercentText.Text = info.ProcessedFiles > 0
+                            ? $"{info.ProcessedFiles} Dateien erfasst…"
+                            : "Scanne…";
+                    }
                 });
             });
 
-            var scanRes = await DuplicateFinderService.FindDuplicatesAsync(dir, includeSubdirectories: true, minFileSizeBytes: 1, progress: progress);
-            var displayRows = new List<string>();
-            int groupNum = 1;
-            foreach (var g in scanRes.Groups)
+            try
             {
-                bool first = true;
-                foreach (var f in g.Files)
-                {
-                    flatCandidateFiles.Add((f, first));
-                    string tag = first ? "[Original behalten]" : "[Duplikat]";
-                    displayRows.Add($"Gruppe #{groupNum} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
-                    first = false;
-                }
-                groupNum++;
-            }
+                var scanRes = await DuplicateFinderService.FindDuplicatesAsync(
+                    dir,
+                    includeSubdirectories: true,
+                    minFileSizeBytes: 1,
+                    progress: null,
+                    detailedProgress: detailedProgress);
 
-            dupeList.ItemsSource = displayRows;
-            selectDupesBtn.IsEnabled = flatCandidateFiles.Count > 0;
-            statusText.Text = $"{scanRes.Groups.Count} Duplikat-Gruppe(n) gefunden · Einsparpotenzial: {Format.Size(scanRes.TotalWastedBytes)}";
+                var displayRows = new List<string>();
+                int groupNum = 1;
+                foreach (var g in scanRes.Groups)
+                {
+                    bool first = true;
+                    foreach (var f in g.Files)
+                    {
+                        flatCandidateFiles.Add((f, first));
+                        string tag = first ? "[Original behalten]" : "[Duplikat]";
+                        displayRows.Add($"Gruppe #{groupNum} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
+                        first = false;
+                    }
+                    groupNum++;
+                }
+
+                dupeList.ItemsSource = displayRows;
+                selectDupesBtn.IsEnabled = flatCandidateFiles.Count > 0;
+                dupeProgressBar.IsIndeterminate = false;
+                dupeProgressBar.Value = 100;
+                progressPercentText.Text = "100%";
+                statusText.Text = $"{scanRes.Groups.Count} Duplikat-Gruppe(n) gefunden · Einsparpotenzial: {Format.Size(scanRes.TotalWastedBytes)}";
+            }
+            catch (Exception ex)
+            {
+                dupeProgressBar.IsIndeterminate = false;
+                dupeProgressBar.Visibility = Visibility.Collapsed;
+                progressPercentText.Text = "";
+                statusText.Text = $"⚠ Fehler beim Duplikat-Scan: {ex.Message}";
+            }
+            finally
+            {
+                scanBtn.IsEnabled = true;
+            }
         };
 
         selectDupesBtn.Click += (_, _) =>
@@ -480,24 +848,66 @@ public sealed partial class ShellDialogService
             }
         };
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 700 };
-        panel.Children.Add(rootBox);
-        panel.Children.Add(btnRow);
-        panel.Children.Add(statusText);
-        panel.Children.Add(dupeList);
+        var topPanel = new StackPanel { Spacing = 10 };
+        topPanel.Children.Add(rootBox);
+        topPanel.Children.Add(btnRow);
+        topPanel.Children.Add(dupeProgressBar);
+        topPanel.Children.Add(statusRow);
 
-        var dlg = new ContentDialog
+        var deleteBtn = new Button
         {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "🧹 Duplikat-Finder (SHA-256)",
-            Content = panel,
-            PrimaryButtonText = "Markierte Duplikate löschen",
-            CloseButtonText = "Schließen",
-            DefaultButton = ContentDialogButton.Close,
+            Content = "🗑 Markierte Duplikate löschen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 7, 16, 7),
+        };
+        var closeBtn = new Button
+        {
+            Content = "Schließen",
+            Padding = new Thickness(14, 7, 14, 7),
         };
 
-        if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+        var footerBar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+        };
+        footerBar.Children.Add(deleteBtn);
+        footerBar.Children.Add(closeBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 12,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(topPanel, 0);
+        Grid.SetRow(listBorder, 1);
+        Grid.SetRow(footerBar, 2);
+        bodyGrid.Children.Add(topPanel);
+        bodyGrid.Children.Add(listBorder);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "Duplikat-Finder (SHA-256)",
+            "🧹",
+            bodyGrid,
+            defaultWidth: 1080,
+            defaultHeight: 740);
+
+        bool deleteConfirmed = false;
+        deleteBtn.Click += (_, _) =>
+        {
+            deleteConfirmed = true;
+            win.Close();
+        };
+        closeBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(deleteConfirmed);
+        win.Activate();
+
+        if (!await tcs.Task)
             return false;
 
         var selectedIndices = dupeList.SelectedRanges
@@ -526,6 +936,8 @@ public sealed partial class ShellDialogService
 
     public async Task<string?> ShowRemoteConnectionManagerDialogAsync()
     {
+        var tcs = new TaskCompletionSource<bool>();
+
         var store = RemoteProfileStore.Shared;
         var profileCombo = new ComboBox
         {
@@ -539,12 +951,12 @@ public sealed partial class ShellDialogService
             Header = "Protokoll",
             ItemsSource = new[] { "SFTP (SSH)", "FTPS (Explicit TLS)", "FTP (Standard)" },
             SelectedIndex = 0,
-            Width = 190,
+            Width = 210,
         };
         var hostBox = new TextBox { Header = "Host / IP-Adresse", PlaceholderText = "example.com" };
-        var portNum = new NumberBox { Header = "Port", Value = 22, Minimum = 1, Maximum = 65535, Width = 110 };
+        var portNum = new NumberBox { Header = "Port", Value = 22, Minimum = 1, Maximum = 65535, Width = 120 };
 
-        var hostRow = new Grid { ColumnSpacing = 8 };
+        var hostRow = new Grid { ColumnSpacing = 10 };
         hostRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         hostRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         hostRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -560,7 +972,7 @@ public sealed partial class ShellDialogService
         var keyPathBox = new TextBox { Header = "Optionaler SSH Private-Key Pfad (nur SFTP)", PlaceholderText = @"C:\Users\...\.ssh\id_ed25519" };
         var remoteDirBox = new TextBox { Header = "Startverzeichnis auf dem Server", Text = "/" };
 
-        var userRow = new Grid { ColumnSpacing = 8 };
+        var userRow = new Grid { ColumnSpacing = 10 };
         userRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         userRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         Grid.SetColumn(userBox, 0);
@@ -618,9 +1030,9 @@ public sealed partial class ShellDialogService
             }
         };
 
-        var saveBtn = new Button { Content = "💾 Profil speichern" };
-        var deleteBtn = new Button { Content = "🗑 Profil löschen" };
-        var btnBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var saveBtn = new Button { Content = "💾 Profil speichern", Padding = new Thickness(14, 6, 14, 6) };
+        var deleteBtn = new Button { Content = "🗑 Profil löschen", Padding = new Thickness(14, 6, 14, 6) };
+        var btnBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         btnBar.Children.Add(saveBtn);
         btnBar.Children.Add(deleteBtn);
 
@@ -665,27 +1077,72 @@ public sealed partial class ShellDialogService
 
         RefreshProfileCombo();
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 560 };
-        panel.Children.Add(profileCombo);
-        panel.Children.Add(nameBox);
-        panel.Children.Add(hostRow);
-        panel.Children.Add(userRow);
-        panel.Children.Add(keyPathBox);
-        panel.Children.Add(remoteDirBox);
-        panel.Children.Add(btnBar);
+        var formStack = new StackPanel { Spacing = 12 };
+        formStack.Children.Add(profileCombo);
+        formStack.Children.Add(nameBox);
+        formStack.Children.Add(hostRow);
+        formStack.Children.Add(userRow);
+        formStack.Children.Add(keyPathBox);
+        formStack.Children.Add(remoteDirBox);
+        formStack.Children.Add(btnBar);
 
-        var dlg = new ContentDialog
+        var scrollViewer = new ScrollViewer
         {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "🌐 FTP / FTPS / SFTP Verbindungsmanager",
-            Content = panel,
-            PrimaryButtonText = "Verbinden",
-            CloseButtonText = "Abbrechen",
-            DefaultButton = ContentDialogButton.Primary,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = formStack,
         };
 
-        if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+        var connectBtn = new Button
+        {
+            Content = "🌐 Verbinden",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(18, 7, 18, 7),
+        };
+        var cancelBtn = new Button
+        {
+            Content = "Abbrechen",
+            Padding = new Thickness(14, 7, 14, 7),
+        };
+
+        var footerBar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+        };
+        footerBar.Children.Add(connectBtn);
+        footerBar.Children.Add(cancelBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 14,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(scrollViewer, 0);
+        Grid.SetRow(footerBar, 1);
+        bodyGrid.Children.Add(scrollViewer);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "FTP / FTPS / SFTP Verbindungsmanager",
+            "🌐",
+            bodyGrid,
+            defaultWidth: 880,
+            defaultHeight: 650);
+
+        bool connectConfirmed = false;
+        connectBtn.Click += (_, _) =>
+        {
+            connectConfirmed = true;
+            win.Close();
+        };
+        cancelBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(connectConfirmed);
+        win.Activate();
+
+        if (!await tcs.Task)
             return null;
 
         if (string.IsNullOrWhiteSpace(hostBox.Text))
@@ -698,6 +1155,8 @@ public sealed partial class ShellDialogService
 
     public async Task<string?> ShowCreateArchiveDialogAsync(IReadOnlyList<string> sourcePaths, string defaultOutputDirectory)
     {
+        var tcs = new TaskCompletionSource<bool>();
+
         string baseStem = sourcePaths.Count == 1
             ? Path.GetFileNameWithoutExtension(sourcePaths[0].TrimEnd('\\', '/'))
             : "Archiv";
@@ -734,28 +1193,87 @@ public sealed partial class ShellDialogService
             destBox.Text = Path.Combine(dir, baseStem + ext);
         };
 
-        var panel = new StackPanel { Spacing = 10, MinWidth = 480 };
-        panel.Children.Add(new TextBlock
+        var sourceList = new ListView
         {
-            Text = $"{sourcePaths.Count} Element(e) ausgewählt.",
-            Opacity = 0.8,
-            FontSize = 12.5,
-        });
-        panel.Children.Add(formatCombo);
-        panel.Children.Add(destBox);
-
-        var dlg = new ContentDialog
-        {
-            XamlRoot = Root,
-            RequestedTheme = owner.RootElement.RequestedTheme,
-            Title = "📦 In Archiv packen (Alt+F5)",
-            Content = panel,
-            PrimaryButtonText = "Archiv erstellen",
-            CloseButtonText = "Abbrechen",
-            DefaultButton = ContentDialogButton.Primary,
+            ItemsSource = sourcePaths.ToList(),
+            SelectionMode = ListViewSelectionMode.None,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
 
-        if (await dlg.ShowAsync() != ContentDialogResult.Primary)
+        var listBorder = new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 128, 128, 145)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4),
+            Child = sourceList,
+        };
+
+        var topPanel = new StackPanel { Spacing = 12 };
+        topPanel.Children.Add(formatCombo);
+        topPanel.Children.Add(destBox);
+        topPanel.Children.Add(new TextBlock
+        {
+            Text = $"Ausgewählte Quellelemente ({sourcePaths.Count}):",
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12.5,
+        });
+
+        var createBtn = new Button
+        {
+            Content = "📦 Archiv erstellen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(18, 7, 18, 7),
+        };
+        var cancelBtn = new Button
+        {
+            Content = "Abbrechen",
+            Padding = new Thickness(14, 7, 14, 7),
+        };
+
+        var footerBar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10,
+        };
+        footerBar.Children.Add(createBtn);
+        footerBar.Children.Add(cancelBtn);
+
+        var bodyGrid = new Grid
+        {
+            Padding = new Thickness(18, 14, 18, 16),
+            RowSpacing = 12,
+        };
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        bodyGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(topPanel, 0);
+        Grid.SetRow(listBorder, 1);
+        Grid.SetRow(footerBar, 2);
+        bodyGrid.Children.Add(topPanel);
+        bodyGrid.Children.Add(listBorder);
+        bodyGrid.Children.Add(footerBar);
+
+        var win = CreateResizableChildWindow(
+            "In Archiv packen (Alt+F5)",
+            "📦",
+            bodyGrid,
+            defaultWidth: 880,
+            defaultHeight: 620);
+
+        bool createConfirmed = false;
+        createBtn.Click += (_, _) =>
+        {
+            createConfirmed = true;
+            win.Close();
+        };
+        cancelBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(createConfirmed);
+        win.Activate();
+
+        if (!await tcs.Task)
             return null;
 
         string targetArchive = destBox.Text.Trim();

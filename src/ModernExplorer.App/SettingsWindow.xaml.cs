@@ -161,6 +161,12 @@ public sealed partial class SettingsWindow : Window
             ToggleFunctionKeyBar.OnContent = loc["Settings.Toolbars.FnBar.On"];
             ToggleFunctionKeyBar.OffContent = loc["Settings.Toolbars.FnBar.Off"];
         }
+        if (ToggleShowToolTips is not null)
+        {
+            ToggleShowToolTips.Header = loc["Settings.Toolbars.ToolTips.Header"];
+            ToggleShowToolTips.OnContent = loc["Settings.Toolbars.ToolTips.On"];
+            ToggleShowToolTips.OffContent = loc["Settings.Toolbars.ToolTips.Off"];
+        }
         if (RowHeightLabel is not null) RowHeightLabel.Text = loc["Settings.Toolbars.RowHeight"];
 
         // Category 2: Colors & Highlighting

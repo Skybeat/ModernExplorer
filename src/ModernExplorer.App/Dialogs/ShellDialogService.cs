@@ -610,7 +610,7 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
         win.Activate();
     }
 
-    internal Window CreateResizableChildWindow(string title, string iconGlyph, UIElement bodyContent)
+    internal Window CreateResizableChildWindow(string title, string iconGlyph, UIElement bodyContent, int? defaultWidth = null, int? defaultHeight = null)
     {
         var settings = owner.ViewModel.Settings;
 
@@ -733,8 +733,8 @@ public sealed partial class ShellDialogService(MainWindow owner) : IShellUi, ICo
                     presenter.IsMinimizable = false;
                 }
 
-                int w = settings.ChildWindowWidth;
-                int h = settings.ChildWindowHeight;
+                int w = Math.Max(defaultWidth ?? 860, settings.ChildWindowWidth);
+                int h = Math.Max(defaultHeight ?? 640, settings.ChildWindowHeight);
 
                 if (owner.AppWindow is { } ownerAw)
                 {

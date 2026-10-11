@@ -105,6 +105,11 @@ public sealed partial class MainWindow : Window
             {
                 _hoveredImagePath = null;
             }
+            else if (e.PropertyName == nameof(SettingsViewModel.ShowToolTips))
+            {
+                ApplyLocalization();
+                Bindings.Update();
+            }
         };
 
         ViewModel.Left.PropertyChanged += (_, e) =>
@@ -141,6 +146,10 @@ public sealed partial class MainWindow : Window
                 Bindings.Update();
                 if (ViewModel.IsQuickPreviewPanelOpen)
                     _ = RefreshQuickPreviewPanelAsync();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.UndoDescription))
+            {
+                ApplyLocalization();
             }
             else if (e.PropertyName == nameof(MainViewModel.IsSettingsOpen))
             {
@@ -216,56 +225,127 @@ public sealed partial class MainWindow : Window
     public void ApplyLocalization()
     {
         var loc = LocalizationService.Instance;
+        bool showTips = ViewModel.Settings.ShowToolTips;
+        void SetTip(DependencyObject? el, string? tip)
+        {
+            if (el is not null)
+                ToolTipService.SetToolTip(el, showTips && !string.IsNullOrWhiteSpace(tip) ? tip : null);
+        }
+
         if (OperationsTitleButton is not null)
         {
             OperationsTitleButton.Content = loc["Toolbar.Operations"];
-            ToolTipService.SetToolTip(OperationsTitleButton, loc["Toolbar.Operations.Tip"]);
+            SetTip(OperationsTitleButton, loc["Toolbar.Operations.Tip"]);
         }
         if (DualToggleTitleButton is not null)
         {
             DualToggleTitleButton.Content = loc["Toolbar.DualToggle"];
-            ToolTipService.SetToolTip(DualToggleTitleButton, loc["Toolbar.DualToggle.Tip"]);
+            SetTip(DualToggleTitleButton, loc["Toolbar.DualToggle.Tip"]);
         }
         if (CommandPaletteTitleButton is not null)
         {
             CommandPaletteTitleButton.Content = loc["Toolbar.Palette"];
-            ToolTipService.SetToolTip(CommandPaletteTitleButton, loc["Toolbar.Palette.Tip"]);
+            SetTip(CommandPaletteTitleButton, loc["Toolbar.Palette.Tip"]);
         }
         if (SettingsTitleButton is not null)
         {
             SettingsTitleButton.Content = $"⚙ {loc["Toolbar.Settings"]}";
-            ToolTipService.SetToolTip(SettingsTitleButton, loc["Toolbar.Settings.Tip"]);
+            SetTip(SettingsTitleButton, loc["Toolbar.Settings.Tip"]);
         }
         if (HelpTitleButton is not null)
         {
             HelpTitleButton.Content = $"{loc["Fn.F1"]} (F1)";
-            ToolTipService.SetToolTip(HelpTitleButton, loc["Toolbar.Shortcuts.Tip"]);
+            SetTip(HelpTitleButton, loc["Toolbar.Shortcuts.Tip"]);
         }
         if (AboutTitleButton is not null)
         {
             AboutTitleButton.Content = loc["About.Button"];
-            ToolTipService.SetToolTip(AboutTitleButton, loc["Toolbar.About.Tip"]);
+            SetTip(AboutTitleButton, loc["Toolbar.About.Tip"]);
         }
 
-        if (LeftNewTabButton is not null) ToolTipService.SetToolTip(LeftNewTabButton, loc["Panel.NewTab.Tip"]);
-        if (LeftCloseTabButton is not null) ToolTipService.SetToolTip(LeftCloseTabButton, loc["Panel.CloseTab.Tip"]);
-        if (LeftBackButton is not null) ToolTipService.SetToolTip(LeftBackButton, loc["Panel.Back.Tip"]);
-        if (LeftForwardButton is not null) ToolTipService.SetToolTip(LeftForwardButton, loc["Panel.Forward.Tip"]);
-        if (LeftUpButton is not null) ToolTipService.SetToolTip(LeftUpButton, loc["Panel.Up.Tip"]);
-        if (LeftRefreshButton is not null) ToolTipService.SetToolTip(LeftRefreshButton, loc["Panel.Refresh.Tip"]);
-        if (LeftViewModeButton is not null) ToolTipService.SetToolTip(LeftViewModeButton, loc["Panel.View.Tip"]);
+        SetTip(ToggleFavoriteButton, loc["Feature.Favorite.Tip"]);
+
+        if (UndoToolbarButton is not null)
+        {
+            UndoToolbarButton.Content = loc["Feature.Undo.Label"];
+            string undoTip = loc["Feature.Undo.Tip"];
+            if (!string.IsNullOrWhiteSpace(ViewModel.UndoDescription))
+                undoTip = $"{undoTip} ({ViewModel.UndoDescription})";
+            SetTip(UndoToolbarButton, undoTip);
+        }
+        if (BatchRenameToolbarButton is not null)
+        {
+            BatchRenameToolbarButton.Content = loc["Feature.BatchRename.Label"];
+            SetTip(BatchRenameToolbarButton, loc["Feature.BatchRename.Tip"]);
+        }
+        if (DeepSearchToolbarButton is not null)
+        {
+            DeepSearchToolbarButton.Content = loc["Feature.DeepSearch.Label"];
+            SetTip(DeepSearchToolbarButton, loc["Feature.DeepSearch.Tip"]);
+        }
+        if (DirectorySyncToolbarButton is not null)
+        {
+            DirectorySyncToolbarButton.Content = loc["Feature.DirSync.Label"];
+            SetTip(DirectorySyncToolbarButton, loc["Feature.DirSync.Tip"]);
+        }
+        if (DuplicateFinderToolbarButton is not null)
+        {
+            DuplicateFinderToolbarButton.Content = loc["Feature.Duplicates.Label"];
+            SetTip(DuplicateFinderToolbarButton, loc["Feature.Duplicates.Tip"]);
+        }
+        if (PackArchiveToolbarButton is not null)
+        {
+            PackArchiveToolbarButton.Content = loc["Feature.PackArchive.Label"];
+            SetTip(PackArchiveToolbarButton, loc["Feature.PackArchive.Tip"]);
+        }
+        if (RemoteConnectToolbarButton is not null)
+        {
+            RemoteConnectToolbarButton.Content = loc["Feature.Remote.Label"];
+            SetTip(RemoteConnectToolbarButton, loc["Feature.Remote.Tip"]);
+        }
+        if (QuickPreviewToolbarButton is not null)
+        {
+            QuickPreviewToolbarButton.Content = loc["Feature.QuickPreview.Label"];
+            SetTip(QuickPreviewToolbarButton, loc["Feature.QuickPreview.Tip"]);
+        }
+        SetTip(QuickPreviewCloseButton, loc["Feature.QuickPreview.Close.Tip"]);
+
+        SetTip(LeftNewTabButton, loc["Panel.NewTab.Tip"]);
+        SetTip(LeftCloseTabButton, loc["Panel.CloseTab.Tip"]);
+        SetTip(LeftBackButton, loc["Panel.Back.Tip"]);
+        SetTip(LeftForwardButton, loc["Panel.Forward.Tip"]);
+        SetTip(LeftUpButton, loc["Panel.Up.Tip"]);
+        SetTip(LeftRefreshButton, loc["Panel.Refresh.Tip"]);
+        SetTip(LeftBranchViewButton, loc["Feature.BranchView.Tip"]);
+        SetTip(LeftTreeSizeButton, loc["Feature.TreeSize.Tip"]);
+        SetTip(LeftViewModeButton, loc["Panel.View.Tip"]);
         if (LeftAddressBox is not null) LeftAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
         if (LeftFilterBox is not null) LeftFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
 
-        if (RightNewTabButton is not null) ToolTipService.SetToolTip(RightNewTabButton, loc["Panel.NewTab.Tip"]);
-        if (RightCloseTabButton is not null) ToolTipService.SetToolTip(RightCloseTabButton, loc["Panel.CloseTab.Tip"]);
-        if (RightBackButton is not null) ToolTipService.SetToolTip(RightBackButton, loc["Panel.Back.Tip"]);
-        if (RightForwardButton is not null) ToolTipService.SetToolTip(RightForwardButton, loc["Panel.Forward.Tip"]);
-        if (RightUpButton is not null) ToolTipService.SetToolTip(RightUpButton, loc["Panel.Up.Tip"]);
-        if (RightRefreshButton is not null) ToolTipService.SetToolTip(RightRefreshButton, loc["Panel.Refresh.Tip"]);
-        if (RightViewModeButton is not null) ToolTipService.SetToolTip(RightViewModeButton, loc["Panel.View.Tip"]);
+        SetTip(RightNewTabButton, loc["Panel.NewTab.Tip"]);
+        SetTip(RightCloseTabButton, loc["Panel.CloseTab.Tip"]);
+        SetTip(RightBackButton, loc["Panel.Back.Tip"]);
+        SetTip(RightForwardButton, loc["Panel.Forward.Tip"]);
+        SetTip(RightUpButton, loc["Panel.Up.Tip"]);
+        SetTip(RightRefreshButton, loc["Panel.Refresh.Tip"]);
+        SetTip(RightBranchViewButton, loc["Feature.BranchView.Tip"]);
+        SetTip(RightTreeSizeButton, loc["Feature.TreeSize.Tip"]);
+        SetTip(RightViewModeButton, loc["Panel.View.Tip"]);
         if (RightAddressBox is not null) RightAddressBox.PlaceholderText = loc["Panel.AddressPlaceholder"];
         if (RightFilterBox is not null) RightFilterBox.PlaceholderText = loc["Panel.FilterPlaceholder"];
+
+        SetTip(FnF1Button, loc["Fn.F1.Tip"]);
+        SetTip(FnF2Button, loc["Fn.F2.Tip"]);
+        SetTip(FnF3Button, loc["Fn.F3.Tip"]);
+        SetTip(FnF4Button, loc["Fn.F4.Tip"]);
+        SetTip(FnF5Button, loc["Fn.F5.Tip"]);
+        SetTip(FnF6Button, loc["Fn.F6.Tip"]);
+        SetTip(FnF7Button, loc["Fn.F7.Tip"]);
+        SetTip(FnF8Button, loc["Fn.F8.Tip"]);
+        SetTip(FnF9Button, loc["Fn.F9.Tip"]);
+        SetTip(FnF10Button, loc["Fn.F10.Tip"]);
+        SetTip(FnF11Button, loc["Fn.F11.Tip"]);
+        SetTip(FnF12Button, loc["Fn.F12.Tip"]);
 
         if (LeftColNameText is not null) LeftColNameText.Text = loc["Col.Name"];
         if (LeftColSizeText is not null) LeftColSizeText.Text = loc["Col.Size"];

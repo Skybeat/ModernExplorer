@@ -3,8 +3,11 @@ using System.Text;
 using ModernExplorer.Core.Archive;
 using ModernExplorer.Core.Favorites;
 using ModernExplorer.Core.FileSystem;
+using ModernExplorer.Core.Localization;
 using ModernExplorer.Core.Operations;
 using ModernExplorer.Core.Remote;
+using ModernExplorer.Core.Settings;
+using ModernExplorer.Core.ViewModels;
 using Xunit;
 
 namespace ModernExplorer.Core.Tests;
@@ -157,6 +160,68 @@ public sealed class PowerFeaturesTests : IDisposable
     }
 
     [Fact]
+    public async Task DuplicateFinder_Reports_Detailed_Progress_Stages_Up_To_100_Percent()
+    {
+        string d1 = Path.Combine(_tempDir, "ProgA");
+        string d2 = Path.Combine(_tempDir, "ProgB");
+        Directory.CreateDirectory(d1);
+        Directory.CreateDirectory(d2);
+
+        byte[] payload = Encoding.UTF8.GetBytes("Progress reporting duplicate content 0123456789");
+        File.WriteAllBytes(Path.Combine(d1, "f1.bin"), payload);
+        File.WriteAllBytes(Path.Combine(d2, "f2.bin"), payload);
+
+        var reports = new List<DuplicateScanProgress>();
+        var syncProgress = new SynchronousProgress<DuplicateScanProgress>(p => reports.Add(p));
+
+        var scan = await DuplicateFinderService.FindDuplicatesAsync(
+            _tempDir,
+            includeSubdirectories: true,
+            minFileSizeBytes: 1,
+            progress: null,
+            detailedProgress: syncProgress);
+
+        Assert.Single(scan.Groups);
+        Assert.NotEmpty(reports);
+        Assert.Contains(reports, r => r.IsIndeterminate);
+        Assert.Contains(reports, r => !r.IsIndeterminate && r.Percentage > 0 && r.Percentage < 100);
+        Assert.Equal(100, reports.Last().Percentage);
+        Assert.False(reports.Last().IsIndeterminate);
+    }
+
+    [Fact]
+    public void FeatureToolTips_Are_Localized_And_ShowToolTips_Setting_Persists()
+    {
+        var settings = new AppSettings { ShowToolTips = false }.CloneNormalized();
+        Assert.False(settings.ShowToolTips);
+
+        var vm = new SettingsViewModel();
+        vm.ApplyFromModel(settings);
+        Assert.False(vm.ShowToolTips);
+        vm.ShowToolTips = true;
+        Assert.True(vm.ToModel().ShowToolTips);
+
+        var loc = LocalizationService.Instance;
+        loc.SetLanguage("de");
+        string deBatchTip = loc["Feature.BatchRename.Tip"];
+        string deDupeTip = loc["Feature.Duplicates.Tip"];
+        Assert.Contains("Strg+M", deBatchTip);
+        Assert.Contains("SHA-256", deDupeTip);
+
+        loc.SetLanguage("en");
+        string enBatchTip = loc["Feature.BatchRename.Tip"];
+        string enDupeTip = loc["Feature.Duplicates.Tip"];
+        Assert.Contains("Ctrl+M", enBatchTip);
+        Assert.NotEqual(deBatchTip, enBatchTip);
+        Assert.NotEqual(deDupeTip, enDupeTip);
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
+    [Fact]
     public void FavoritesStore_Add_Toggle_Remove_Persists()
     {
         string favFile = Path.Combine(_tempDir, "favorites.json");
@@ -228,3 +293,4 @@ public sealed class PowerFeaturesTests : IDisposable
         Assert.Equal("sftp://deploy@sftp.example.com:2222/var", parent);
     }
 }
+
