@@ -687,13 +687,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         var sources = srcTab.GetTargetPaths();
         if (sources.Count == 0) return;
 
-        string defaultDestDir = IsDualMode && OppositePanel.ActiveTab is { IsVirtualArchive: false, IsRemoteConnection: false } opp && Directory.Exists(opp.CurrentPath)
-            ? opp.CurrentPath
-            : srcTab.CurrentPath;
+        string firstSourceDir = Path.GetDirectoryName(sources[0].TrimEnd('\\', '/')) ?? "";
+        string defaultDestDir = Directory.Exists(srcTab.CurrentPath)
+            ? srcTab.CurrentPath
+            : (Directory.Exists(firstSourceDir) ? firstSourceDir : srcTab.CurrentPath);
 
         var createdArchive = await _ui.ShowCreateArchiveDialogAsync(sources, defaultDestDir);
         if (!string.IsNullOrWhiteSpace(createdArchive))
         {
+            UndoHistory.RecordCreate(createdArchive, isDirectory: false);
             StatusNotification = $"Archiv erstellt: {Path.GetFileName(createdArchive)}";
             if (Left.ActiveTab is not null) await Left.ActiveTab.ReloadAsync();
             if (Right.ActiveTab is not null) await Right.ActiveTab.ReloadAsync();

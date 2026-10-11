@@ -190,6 +190,34 @@ public sealed class PowerFeaturesTests : IDisposable
     }
 
     [Fact]
+    public async Task DuplicateFinder_DeleteDuplicateFiles_Deletes_Marked_And_ReadOnly_Files()
+    {
+        string d1 = Path.Combine(_tempDir, "DelA");
+        string d2 = Path.Combine(_tempDir, "DelB");
+        Directory.CreateDirectory(d1);
+        Directory.CreateDirectory(d2);
+
+        string origPath = Path.Combine(d1, "orig.txt");
+        string dupPath = Path.Combine(d2, "dup.txt");
+        byte[] content = Encoding.UTF8.GetBytes("Identical duplicate content for deletion test");
+
+        File.WriteAllBytes(origPath, content);
+        File.WriteAllBytes(dupPath, content);
+        File.SetAttributes(dupPath, File.GetAttributes(dupPath) | FileAttributes.ReadOnly);
+
+        var scan = await DuplicateFinderService.FindDuplicatesAsync(_tempDir);
+        Assert.Single(scan.Groups);
+        Assert.Equal(2, scan.Groups[0].Files.Count);
+
+        var delRes = DuplicateFinderService.DeleteDuplicateFiles([dupPath]);
+        Assert.Equal(1, delRes.DeletedCount);
+        Assert.Equal(content.Length, delRes.FreedBytes);
+        Assert.Empty(delRes.Errors);
+        Assert.False(File.Exists(dupPath));
+        Assert.True(File.Exists(origPath));
+    }
+
+    [Fact]
     public void FeatureToolTips_Are_Localized_And_ShowToolTips_Setting_Persists()
     {
         var settings = new AppSettings { ShowToolTips = false }.CloneNormalized();

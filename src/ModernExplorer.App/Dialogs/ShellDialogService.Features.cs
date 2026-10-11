@@ -424,8 +424,17 @@ public sealed partial class ShellDialogService
             defaultHeight: 740);
 
         bool syncConfirmed = false;
+        int capturedDirIndex = 0;
+        string capturedLeftDir = leftDir;
+        string capturedRightDir = rightDir;
+        bool capturedDeleteOrphans = false;
+
         syncNowBtn.Click += (_, _) =>
         {
+            capturedDirIndex = dirCombo.SelectedIndex;
+            capturedLeftDir = leftBox.Text.Trim();
+            capturedRightDir = rightBox.Text.Trim();
+            capturedDeleteOrphans = deleteOrphansCheck.IsChecked == true;
             syncConfirmed = true;
             win.Close();
         };
@@ -438,10 +447,10 @@ public sealed partial class ShellDialogService
         if (!await tcs.Task)
             return false;
 
-        if (currentDiffs.Count == 0)
-            await RunCompareAsync();
+        if (currentDiffs.Count == 0 && Directory.Exists(capturedLeftDir) && Directory.Exists(capturedRightDir))
+            currentDiffs = await DirectorySyncService.CompareDirectoriesAsync(capturedLeftDir, capturedRightDir, SyncCompareMode.SizeAndTimestamp, includeSubdirectories: true);
 
-        var direction = dirCombo.SelectedIndex switch
+        var direction = capturedDirIndex switch
         {
             1 => SyncDirectionMode.LeftToRightMirror,
             2 => SyncDirectionMode.RightToLeftMirror,
@@ -449,11 +458,11 @@ public sealed partial class ShellDialogService
         };
 
         var syncRes = await DirectorySyncService.SynchronizeAsync(
-            leftBox.Text.Trim(),
-            rightBox.Text.Trim(),
+            capturedLeftDir,
+            capturedRightDir,
             currentDiffs,
             direction,
-            deleteOrphans: deleteOrphansCheck.IsChecked == true);
+            deleteOrphans: capturedDeleteOrphans);
 
         owner.ViewModel.StatusNotification = $"Synchronisiert: {syncRes.CopiedLeftToRight} L→R, {syncRes.CopiedRightToLeft} R→L, {syncRes.DeletedOrphans} gelöscht";
         if (syncRes.Errors.Count > 0)
@@ -636,13 +645,20 @@ public sealed partial class ShellDialogService
             defaultHeight: 740);
 
         int actionChoice = 0;
-        openTabBtn.Click += (_, _) =>
+        int capturedSelectedIndex = -1;
+        string capturedPatternText = "";
+
+        openTabBtn.Click += async (_, _) =>
         {
+            if (foundEntries.Count == 0)
+                await ExecuteSearchAsync();
+            capturedPatternText = patternBox.Text.Trim();
             actionChoice = 1;
             win.Close();
         };
         jumpBtn.Click += (_, _) =>
         {
+            capturedSelectedIndex = resultsList.SelectedIndex;
             actionChoice = 2;
             win.Close();
         };
@@ -653,21 +669,18 @@ public sealed partial class ShellDialogService
         int result = await tcs.Task;
         if (result == 1)
         {
-            if (foundEntries.Count == 0)
-                await ExecuteSearchAsync();
-
             if (foundEntries.Count > 0 && owner.ViewModel.ActivePanel.ActiveTab is { } tab)
             {
-                string label = string.IsNullOrWhiteSpace(patternBox.Text) ? "Suchergebnisse" : patternBox.Text.Trim();
+                string label = string.IsNullOrWhiteSpace(capturedPatternText) ? "Suchergebnisse" : capturedPatternText;
                 await tab.LoadSearchResultsAsync(label, foundEntries);
             }
         }
         else if (result == 2 &&
-                 resultsList.SelectedIndex >= 0 &&
-                 resultsList.SelectedIndex < foundEntries.Count &&
+                 capturedSelectedIndex >= 0 &&
+                 capturedSelectedIndex < foundEntries.Count &&
                  owner.ViewModel.ActivePanel.ActiveTab is { } activeTab)
         {
-            var chosen = foundEntries[resultsList.SelectedIndex];
+            var chosen = foundEntries[capturedSelectedIndex];
             var dir = chosen.IsDirectory ? chosen.FullPath : Path.GetDirectoryName(chosen.FullPath);
             if (!string.IsNullOrEmpty(dir))
                 await activeTab.NavigateAsync(dir, selectName: chosen.Name);
@@ -750,7 +763,113 @@ public sealed partial class ShellDialogService
             Child = dupeList,
         };
 
+        var deleteBtn = new Button
+        {
+            Content = "🗑 Markierte Duplikate löschen",
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(16, 7, 16, 7),
+        };
+        var closeBtn = new Button
+        {
+            Content = "Schließen",
+            Padding = new Thickness(14, 7, 14, 7),
+        };
+
+        var currentGroups = new List<DuplicateGroup>();
         var flatCandidateFiles = new List<(FileEntry File, bool IsFirstInGroup)>();
+        var displayRows = new List<string>();
+        var trackedSelectedIndices = new HashSet<int>();
+        bool suppressSelectionSync = false;
+        bool anyDeletedInSession = false;
+
+        HashSet<int> GetCurrentlySelectedIndices()
+        {
+            var set = new HashSet<int>(trackedSelectedIndices);
+            foreach (var r in dupeList.SelectedRanges)
+            {
+                for (int i = r.FirstIndex; i < r.FirstIndex + (int)r.Length; i++)
+                {
+                    if (i >= 0 && i < flatCandidateFiles.Count)
+                        set.Add(i);
+                }
+            }
+            foreach (var itemObj in dupeList.SelectedItems)
+            {
+                if (itemObj is string rowText)
+                {
+                    int idx = displayRows.IndexOf(rowText);
+                    if (idx >= 0 && idx < flatCandidateFiles.Count)
+                        set.Add(idx);
+                }
+            }
+            return set;
+        }
+
+        void UpdateDeleteButtonLabel()
+        {
+            int count = GetCurrentlySelectedIndices().Count;
+            deleteBtn.Content = count > 0
+                ? $"🗑 Markierte Duplikate löschen ({count})"
+                : "🗑 Markierte Duplikate löschen";
+        }
+
+        void RebuildCandidateListFromGroups()
+        {
+            suppressSelectionSync = true;
+            try
+            {
+                flatCandidateFiles.Clear();
+                displayRows = [];
+                trackedSelectedIndices.Clear();
+
+                int groupNum = 1;
+                foreach (var g in currentGroups)
+                {
+                    bool first = true;
+                    foreach (var f in g.Files)
+                    {
+                        flatCandidateFiles.Add((f, first));
+                        string tag = first ? "[Original behalten]" : "[Duplikat]";
+                        displayRows.Add($"Gruppe #{groupNum} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
+                        first = false;
+                    }
+                    groupNum++;
+                }
+
+                dupeList.ItemsSource = displayRows;
+                selectDupesBtn.IsEnabled = flatCandidateFiles.Any(c => !c.IsFirstInGroup);
+            }
+            finally
+            {
+                suppressSelectionSync = false;
+                UpdateDeleteButtonLabel();
+            }
+        }
+
+        dupeList.SelectionChanged += (_, e) =>
+        {
+            if (suppressSelectionSync)
+                return;
+
+            foreach (var added in e.AddedItems)
+            {
+                if (added is string s)
+                {
+                    int idx = displayRows.IndexOf(s);
+                    if (idx >= 0) trackedSelectedIndices.Add(idx);
+                }
+            }
+            foreach (var removed in e.RemovedItems)
+            {
+                if (removed is string s)
+                {
+                    int idx = displayRows.IndexOf(s);
+                    if (idx >= 0) trackedSelectedIndices.Remove(idx);
+                }
+            }
+
+            UpdateDeleteButtonLabel();
+        };
 
         scanBtn.Click += async (_, _) =>
         {
@@ -763,8 +882,13 @@ public sealed partial class ShellDialogService
 
             scanBtn.IsEnabled = false;
             selectDupesBtn.IsEnabled = false;
+            deleteBtn.IsEnabled = false;
+            currentGroups.Clear();
             flatCandidateFiles.Clear();
+            displayRows = [];
+            trackedSelectedIndices.Clear();
             dupeList.ItemsSource = null;
+            UpdateDeleteButtonLabel();
 
             dupeProgressBar.Visibility = Visibility.Visible;
             dupeProgressBar.IsIndeterminate = true;
@@ -803,23 +927,9 @@ public sealed partial class ShellDialogService
                     progress: null,
                     detailedProgress: detailedProgress);
 
-                var displayRows = new List<string>();
-                int groupNum = 1;
-                foreach (var g in scanRes.Groups)
-                {
-                    bool first = true;
-                    foreach (var f in g.Files)
-                    {
-                        flatCandidateFiles.Add((f, first));
-                        string tag = first ? "[Original behalten]" : "[Duplikat]";
-                        displayRows.Add($"Gruppe #{groupNum} ({Format.Size(g.FileSizeBytes)}) {tag}  {f.RelativeSubPath ?? f.FullPath}");
-                        first = false;
-                    }
-                    groupNum++;
-                }
+                currentGroups = scanRes.Groups.ToList();
+                RebuildCandidateListFromGroups();
 
-                dupeList.ItemsSource = displayRows;
-                selectDupesBtn.IsEnabled = flatCandidateFiles.Count > 0;
                 dupeProgressBar.IsIndeterminate = false;
                 dupeProgressBar.Value = 100;
                 progressPercentText.Text = "100%";
@@ -835,17 +945,37 @@ public sealed partial class ShellDialogService
             finally
             {
                 scanBtn.IsEnabled = true;
+                deleteBtn.IsEnabled = true;
             }
         };
 
         selectDupesBtn.Click += (_, _) =>
         {
-            dupeList.SelectedItems.Clear();
-            for (int i = 0; i < flatCandidateFiles.Count; i++)
+            suppressSelectionSync = true;
+            try
             {
-                if (!flatCandidateFiles[i].IsFirstInGroup)
-                    dupeList.SelectRange(new Microsoft.UI.Xaml.Data.ItemIndexRange(i, 1));
+                trackedSelectedIndices.Clear();
+                dupeList.SelectedItems.Clear();
+                for (int i = 0; i < flatCandidateFiles.Count; i++)
+                {
+                    if (!flatCandidateFiles[i].IsFirstInGroup)
+                    {
+                        trackedSelectedIndices.Add(i);
+                        try { dupeList.SelectRange(new Microsoft.UI.Xaml.Data.ItemIndexRange(i, 1)); } catch { }
+                        if (i < displayRows.Count && !dupeList.SelectedItems.Contains(displayRows[i]))
+                        {
+                            try { dupeList.SelectedItems.Add(displayRows[i]); } catch { }
+                        }
+                    }
+                }
             }
+            finally
+            {
+                suppressSelectionSync = false;
+                UpdateDeleteButtonLabel();
+            }
+
+            statusText.Text = $"{trackedSelectedIndices.Count} Duplikat(e) zur Löschung markiert. Klicken Sie auf „Markierte Duplikate löschen“.";
         };
 
         var topPanel = new StackPanel { Spacing = 10 };
@@ -853,18 +983,6 @@ public sealed partial class ShellDialogService
         topPanel.Children.Add(btnRow);
         topPanel.Children.Add(dupeProgressBar);
         topPanel.Children.Add(statusRow);
-
-        var deleteBtn = new Button
-        {
-            Content = "🗑 Markierte Duplikate löschen",
-            FontWeight = FontWeights.SemiBold,
-            Padding = new Thickness(16, 7, 16, 7),
-        };
-        var closeBtn = new Button
-        {
-            Content = "Schließen",
-            Padding = new Thickness(14, 7, 14, 7),
-        };
 
         var footerBar = new StackPanel
         {
@@ -897,41 +1015,82 @@ public sealed partial class ShellDialogService
             defaultWidth: 1080,
             defaultHeight: 740);
 
-        bool deleteConfirmed = false;
-        deleteBtn.Click += (_, _) =>
+        deleteBtn.Click += async (_, _) =>
         {
-            deleteConfirmed = true;
-            win.Close();
-        };
-        closeBtn.Click += (_, _) => win.Close();
-        win.Closed += (_, _) => tcs.TrySetResult(deleteConfirmed);
-        win.Activate();
+            var selectedIndices = GetCurrentlySelectedIndices()
+                .Where(i => i >= 0 && i < flatCandidateFiles.Count)
+                .OrderBy(i => i)
+                .ToList();
 
-        if (!await tcs.Task)
-            return false;
+            if (selectedIndices.Count == 0)
+            {
+                statusText.Text = "⚠ Keine Dateien markiert. Bitte markieren Sie zuerst die zu löschenden Duplikate.";
+                return;
+            }
 
-        var selectedIndices = dupeList.SelectedRanges
-            .SelectMany(r => Enumerable.Range(r.FirstIndex, (int)r.Length))
-            .Distinct()
-            .Where(i => i >= 0 && i < flatCandidateFiles.Count)
-            .ToList();
+            var pathsToDelete = selectedIndices
+                .Select(i => flatCandidateFiles[i].File.FullPath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-        if (selectedIndices.Count == 0)
-            return false;
+            deleteBtn.IsEnabled = false;
+            scanBtn.IsEnabled = false;
+            selectDupesBtn.IsEnabled = false;
+            statusText.Text = $"Lösche {pathsToDelete.Count} markierte Datei(en)…";
 
-        int deleted = 0;
-        foreach (int idx in selectedIndices)
-        {
             try
             {
-                File.Delete(flatCandidateFiles[idx].File.FullPath);
-                deleted++;
-            }
-            catch { }
-        }
+                var delResult = await Task.Run(() => DuplicateFinderService.DeleteDuplicateFiles(pathsToDelete));
 
-        owner.ViewModel.StatusNotification = $"{deleted} Duplikat(e) gelöscht";
-        return deleted > 0;
+                if (delResult.DeletedCount > 0)
+                {
+                    anyDeletedInSession = true;
+                    var deletedSet = new HashSet<string>(delResult.DeletedPaths, StringComparer.OrdinalIgnoreCase);
+
+                    // Update groups by removing deleted files and dropping groups that now have < 2 files
+                    var updatedGroups = new List<DuplicateGroup>();
+                    foreach (var g in currentGroups)
+                    {
+                        var remainingFiles = g.Files.Where(f => !deletedSet.Contains(f.FullPath) && File.Exists(f.FullPath)).ToList();
+                        if (remainingFiles.Count > 1)
+                            updatedGroups.Add(new DuplicateGroup(g.Sha256Hash, g.FileSizeBytes, remainingFiles));
+                    }
+
+                    currentGroups = updatedGroups;
+                    RebuildCandidateListFromGroups();
+
+                    string summary = $"{delResult.DeletedCount} Duplikat(e) gelöscht ({Format.Size(delResult.FreedBytes)} freigegeben)";
+                    owner.ViewModel.StatusNotification = summary;
+                    statusText.Text = $"✓ {summary} · {currentGroups.Count} Duplikat-Gruppe(n) verbleibend";
+
+                    if (owner.ViewModel.Left.ActiveTab is { } lt)
+                        await lt.ReloadAsync();
+                    if (owner.ViewModel.Right.ActiveTab is { } rt)
+                        await rt.ReloadAsync();
+                }
+                else
+                {
+                    statusText.Text = "⚠ Es konnten keine Dateien gelöscht werden.";
+                }
+
+                if (delResult.Errors.Count > 0)
+                {
+                    ShowMessage("Hinweise beim Löschen von Duplikaten", string.Join(Environment.NewLine, delResult.Errors.Take(10)));
+                }
+            }
+            finally
+            {
+                scanBtn.IsEnabled = true;
+                deleteBtn.IsEnabled = true;
+                selectDupesBtn.IsEnabled = flatCandidateFiles.Any(c => !c.IsFirstInGroup);
+            }
+        };
+
+        closeBtn.Click += (_, _) => win.Close();
+        win.Closed += (_, _) => tcs.TrySetResult(anyDeletedInSession);
+        win.Activate();
+
+        return await tcs.Task;
     }
 
     public async Task<string?> ShowRemoteConnectionManagerDialogAsync()
@@ -1133,33 +1292,37 @@ public sealed partial class ShellDialogService
             defaultHeight: 650);
 
         bool connectConfirmed = false;
+        RemoteConnectionProfile? capturedProfile = null;
         connectBtn.Click += (_, _) =>
         {
-            connectConfirmed = true;
+            if (!string.IsNullOrWhiteSpace(hostBox.Text))
+            {
+                capturedProfile = BuildCurrentProfile();
+                connectConfirmed = true;
+            }
             win.Close();
         };
         cancelBtn.Click += (_, _) => win.Close();
         win.Closed += (_, _) => tcs.TrySetResult(connectConfirmed);
         win.Activate();
 
-        if (!await tcs.Task)
+        if (!await tcs.Task || capturedProfile is null)
             return null;
 
-        if (string.IsNullOrWhiteSpace(hostBox.Text))
-            return null;
-
-        var profile = BuildCurrentProfile();
-        store.AddOrUpdate(profile);
-        return profile.BuildRootUri();
+        store.AddOrUpdate(capturedProfile);
+        return capturedProfile.BuildRootUri();
     }
 
     public async Task<string?> ShowCreateArchiveDialogAsync(IReadOnlyList<string> sourcePaths, string defaultOutputDirectory)
     {
         var tcs = new TaskCompletionSource<bool>();
 
+        string singleTrimmed = sourcePaths.Count == 1 ? sourcePaths[0].TrimEnd('\\', '/') : "";
         string baseStem = sourcePaths.Count == 1
-            ? Path.GetFileNameWithoutExtension(sourcePaths[0].TrimEnd('\\', '/'))
+            ? (Directory.Exists(singleTrimmed) ? Path.GetFileName(singleTrimmed) : Path.GetFileNameWithoutExtension(singleTrimmed))
             : "Archiv";
+        if (string.IsNullOrWhiteSpace(baseStem))
+            baseStem = "Archiv";
 
         var formatCombo = new ComboBox
         {
@@ -1264,8 +1427,13 @@ public sealed partial class ShellDialogService
             defaultHeight: 620);
 
         bool createConfirmed = false;
+        string capturedTargetArchive = "";
+        int capturedFormatIndex = 0;
+
         createBtn.Click += (_, _) =>
         {
+            capturedTargetArchive = destBox.Text.Trim();
+            capturedFormatIndex = formatCombo.SelectedIndex;
             createConfirmed = true;
             win.Close();
         };
@@ -1276,11 +1444,10 @@ public sealed partial class ShellDialogService
         if (!await tcs.Task)
             return null;
 
-        string targetArchive = destBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(targetArchive))
+        if (string.IsNullOrWhiteSpace(capturedTargetArchive))
             return null;
 
-        var format = formatCombo.SelectedIndex switch
+        var format = capturedFormatIndex switch
         {
             1 => ArchiveFormat.TarGz,
             2 => ArchiveFormat.SevenZip,
@@ -1289,9 +1456,9 @@ public sealed partial class ShellDialogService
 
         try
         {
-            owner.ViewModel.StatusNotification = $"Erstelle {Path.GetFileName(targetArchive)}…";
-            await ArchiveService.CreateArchiveAsync(sourcePaths, targetArchive, format);
-            return targetArchive;
+            owner.ViewModel.StatusNotification = $"Erstelle {Path.GetFileName(capturedTargetArchive)}…";
+            await ArchiveService.CreateArchiveAsync(sourcePaths, capturedTargetArchive, format);
+            return capturedTargetArchive;
         }
         catch (Exception ex)
         {

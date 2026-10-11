@@ -33,10 +33,52 @@ public sealed record DuplicateScanProgress(
     bool IsIndeterminate = false);
 
 /// <summary>
+/// Result of deleting selected duplicate files.
+/// </summary>
+public sealed record DuplicateDeleteResult(
+    int DeletedCount,
+    long FreedBytes,
+    IReadOnlyList<string> DeletedPaths,
+    IReadOnlyList<string> Errors);
+
+/// <summary>
 /// High-speed multi-stage duplicate file finder (Size -> 16 KB Partial Hash -> Full SHA-256 Hash).
 /// </summary>
 public static class DuplicateFinderService
 {
+    public static DuplicateDeleteResult DeleteDuplicateFiles(IEnumerable<string> filePaths)
+    {
+        var deletedPaths = new List<string>();
+        var errors = new List<string>();
+        long freedBytes = 0;
+
+        foreach (var rawPath in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (!File.Exists(rawPath))
+                    continue;
+
+                var fi = new FileInfo(rawPath);
+                long size = fi.Length;
+                if ((fi.Attributes & FileAttributes.ReadOnly) != 0)
+                {
+                    fi.Attributes &= ~FileAttributes.ReadOnly;
+                }
+
+                File.Delete(rawPath);
+                deletedPaths.Add(rawPath);
+                freedBytes += size;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{Path.GetFileName(rawPath)}: {ex.Message}");
+            }
+        }
+
+        return new DuplicateDeleteResult(deletedPaths.Count, freedBytes, deletedPaths, errors);
+    }
+
     public static async Task<DuplicateScanResult> FindDuplicatesAsync(
         string rootPath,
         bool includeSubdirectories = true,

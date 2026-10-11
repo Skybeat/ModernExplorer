@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -89,7 +89,7 @@ public sealed class GitHubUpdateService
         if (v is not null && (v.Major > 0 || v.Minor > 0))
             return new Version(v.Major, Math.Max(0, v.Minor), Math.Max(0, v.Build));
 
-        return new Version(1, 2, 0);
+        return new Version(1, 3, 0);
     }
 
     public static string GetCurrentVersionString()
