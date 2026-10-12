@@ -127,6 +127,7 @@ impl BackendState {
             "archive" => self.rpc_archive(params),
             "remote" => self.rpc_remote(params),
             "check_updates" => self.rpc_check_updates(params),
+            "install_update" => self.rpc_install_update(params),
             "open_url" => {
                 if let Some(u) = params.get("url").and_then(|v| v.as_str()) {
                     GitHubUpdateService::open_release_in_browser(Some(u));
@@ -1857,26 +1858,63 @@ impl BackendState {
     }
 
     fn rpc_check_updates(&self, _params: &Value) -> Value {
-        match GitHubUpdateService::check_for_update() {
-            Ok(Some(rel)) => {
+        match GitHubUpdateService::check_for_update_full() {
+            Ok((is_newer, rel)) => {
                 let notes = GitHubUpdateService::format_release_notes_for_display(&rel.body);
+                let (asset_name, asset_size) = GitHubUpdateService::select_best_rust_asset(&rel)
+                    .map(|a| (a.name.clone(), a.size))
+                    .unwrap_or_default();
+                let name = if rel.name.is_empty() {
+                    rel.tag_name.clone()
+                } else {
+                    rel.name
+                };
+                let html_url = if rel.html_url.is_empty() {
+                    GitHubUpdateService::RELEASES_URL.to_string()
+                } else {
+                    rel.html_url
+                };
                 json!({
-                    "update_available": true,
+                    "update_available": is_newer,
+                    "current_version": GitHubUpdateService::CURRENT_VERSION,
                     "tag_name": rel.tag_name,
-                    "name": rel.name,
-                    "html_url": rel.html_url,
+                    "name": name,
+                    "html_url": html_url,
                     "release_notes": notes,
+                    "asset_name": asset_name,
+                    "asset_size": asset_size,
                 })
             }
-            Ok(None) => json!({
-                "update_available": false,
-                "current_version": GitHubUpdateService::CURRENT_VERSION,
-                "html_url": GitHubUpdateService::RELEASES_URL,
-            }),
             Err(e) => json!({
                 "update_available": false,
+                "current_version": GitHubUpdateService::CURRENT_VERSION,
                 "error": e,
                 "html_url": GitHubUpdateService::RELEASES_URL,
+            }),
+        }
+    }
+
+    fn rpc_install_update(&self, _params: &Value) -> Value {
+        let rel = match GitHubUpdateService::fetch_latest_release() {
+            Ok(r) => r,
+            Err(e) => return json!({ "ok": false, "error": e }),
+        };
+        match GitHubUpdateService::download_and_install_update(&rel) {
+            Ok(path) => {
+                SettingsStore::save(&self.settings);
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(350));
+                    std::process::exit(0);
+                });
+                json!({
+                    "ok": true,
+                    "tag_name": rel.tag_name,
+                    "downloaded_path": path,
+                })
+            }
+            Err(e) => json!({
+                "ok": false,
+                "error": e,
             }),
         }
     }

@@ -23,10 +23,6 @@ rand = "0.8"
 filetime = "0.2"
 open = "5.3"
 
-[target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
-ureq = { version = "2.10", default-features = false, features = ["json", "native-tls"] }
-
-[target.'cfg(not(any(target_os = "windows", target_os = "macos")))'.dependencies]
 ureq = { version = "2.10", default-features = false, features = ["json", "tls"] }
 
 [dev-dependencies]

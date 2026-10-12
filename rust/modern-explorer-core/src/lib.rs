@@ -135,6 +135,29 @@ mod tests {
         assert!(formatted.contains("◦ Sub item"));
         assert!(formatted.contains("▸ Bugfixes"));
         assert!(!formatted.contains("file:///"));
+        assert!(GitHubUpdateService::is_newer_version("v1.9.3", "1.9.2"));
+        assert!(!GitHubUpdateService::is_newer_version("v1.9.2", "1.9.2"));
+
+        let dummy_rel = GitHubReleaseInfo {
+            tag_name: "v1.9.3".to_string(),
+            name: "Modern Explorer Studio v1.9.3 (Rust Edition)".to_string(),
+            body: String::new(),
+            html_url: GitHubUpdateService::RELEASES_URL.to_string(),
+            published_at: String::new(),
+            assets: vec![
+                GitHubAssetInfo {
+                    name: "ModernExplorer-Rust-windows-x64-Portable.exe".to_string(),
+                    browser_download_url: "https://example.com/portable.exe".to_string(),
+                    size: 5000,
+                },
+                GitHubAssetInfo {
+                    name: "ModernExplorer-Rust-Setup-win-x64.exe".to_string(),
+                    browser_download_url: "https://example.com/setup.exe".to_string(),
+                    size: 4000,
+                },
+            ],
+        };
+        assert!(GitHubUpdateService::select_best_rust_asset(&dummy_rel).is_some());
     }
 
     #[test]
