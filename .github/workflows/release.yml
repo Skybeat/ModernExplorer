@@ -385,24 +385,25 @@ jobs:
           if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
             $notes = "## What's New in Modern Explorer $tag`n`n$changelogSection"
           } else {
-            $notes = @"
-## What's New in Modern Explorer $tag (.NET & Rust Studio Editions)
-
-### 🦀 ModernExplorer Studio (Rust Edition) Updates in $tag
-- **Resizable, Draggable & Maximizable Child Windows with Session Persistence:** All child windows and tool dialogs feature 8-way resize handles, draggable headers, and maximize/restore controls (`🗖`/`🗗`), saving their exact bounds per dialog across sessions (`dialog_sizes` in `settings.json`).
-- **Full 14-Language Live Localization (`I18N`):** Instant live switching across all 14 supported languages without restart across menus, toolbars, column headers, inspector dock, settings, context menus, and all 20 power tools.
-- **Full .NET-Parity Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout (`🌳`), upper split view (`Folder Hierarchy` / `🔥 Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).
-- **Minimizable & Resizable Right Inspector Dock (`Ctrl+Q`) & Multi-Line Drive Bar:** The right Inspector Dock can be minimized to a slim 28px vertical bar or resized (`210px–640px`), and the Drive Bar supports automatic multi-line wrapping (`multiline_drive_bar`).
-- **Exact Main Window Restore from Maximize, Native App Icon & `Alt+F7` Deep Search Fix:**
-  - Restoring from Maximize (`🗖` -> `🗗`) after manually stretching the main window to the full monitor work area restores the exact manual top position (`y = 0`) and height without losing a titlebar height at the top.
-  - Embedded official `AppIcon.ico` / `AppIcon.png` into the native Windows executable (`rc.exe`), native window & taskbar icons (`WindowBuilder`), and Studio UI.
-  - Fixed `Alt+F7` shortcut so it opens Recursive Deep Search instead of triggering the `F7` create dialog.
-
-### 📦 Available Multi-OS Packages (Rust & .NET Editions)
-- **Windows (`x64` & `ARM64`):** Portable `.exe`, Portable `.zip`, and Inno Setup 6 Installer (`Setup-win-x64.exe`, `Setup-win-arm64.exe`)
-- **macOS (`Intel x64` & `Apple Silicon arm64`):** Portable `.app` (`.zip` / `.tar.gz`), `.dmg` Disk Image, and `.pkg` Installer
-- **Linux (`x64` & `ARM64`):** Portable `.tar.gz`, `.zip`, `.AppImage`, Debian/Ubuntu `.deb`, Fedora/RHEL/openSUSE `.rpm`, Arch Linux `.pkg.tar.zst`, and universal `.sh` Installer
-"@
+            $lines = @(
+              "## What's New in Modern Explorer $tag (.NET & Rust Studio Editions)",
+              "",
+              "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+              "- **Resizable, Draggable & Maximizable Child Windows with Session Persistence:** All child windows and tool dialogs feature 8-way resize handles, draggable headers, and maximize/restore controls, saving their exact bounds per dialog across sessions (`dialog_sizes` in `settings.json`).",
+              "- **Full 14-Language Live Localization (`I18N`):** Instant live switching across all 14 supported languages without restart across menus, toolbars, column headers, inspector dock, settings, context menus, and all 20 power tools.",
+              "- **Full .NET-Parity Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout, upper split view (`Folder Hierarchy` / `Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).",
+              "- **Minimizable & Resizable Right Inspector Dock (`Ctrl+Q`) & Multi-Line Drive Bar:** The right Inspector Dock can be minimized to a slim 28px vertical bar or resized (`210px-640px`), and the Drive Bar supports automatic multi-line wrapping (`multiline_drive_bar`).",
+              "- **Exact Main Window Restore from Maximize, Native App Icon & `Alt+F7` Deep Search Fix:**",
+              "  - Restoring from Maximize after manually stretching the main window to the full monitor work area restores the exact manual top position (`y = 0`) and height without losing a titlebar height at the top.",
+              "  - Embedded official `AppIcon.ico` / `AppIcon.png` into the native Windows executable (`rc.exe`), native window & taskbar icons (`WindowBuilder`), and Studio UI.",
+              "  - Fixed `Alt+F7` shortcut so it opens Recursive Deep Search instead of triggering the `F7` create dialog.",
+              "",
+              "### Available Multi-OS Packages (Rust & .NET Editions)",
+              "- **Windows (`x64` & `ARM64`):** Portable `.exe`, Portable `.zip`, and Inno Setup 6 Installer (`Setup-win-x64.exe`, `Setup-win-arm64.exe`)",
+              "- **macOS (`Intel x64` & `Apple Silicon arm64`):** Portable `.app` (`.zip` / `.tar.gz`), `.dmg` Disk Image, and `.pkg` Installer",
+              "- **Linux (`x64` & `ARM64`):** Portable `.tar.gz`, `.zip`, `.AppImage`, Debian/Ubuntu `.deb`, Fedora/RHEL/openSUSE `.rpm`, Arch Linux `.pkg.tar.zst`, and universal `.sh` Installer"
+            )
+            $notes = $lines -join "`n"
           }
           Set-Content -Path "release-notes.md" -Value $notes -Encoding UTF8
 
