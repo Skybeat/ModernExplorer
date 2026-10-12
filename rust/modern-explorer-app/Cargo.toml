@@ -1,0 +1,20 @@
+[package]
+name = "modern-explorer-app"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ModernExplorer-Rust"
+path = "src/main.rs"
+
+[dependencies]
+modern-explorer-core = { path = "../modern-explorer-core" }
+tao = "0.30"
+wry = "0.47"
+tiny_http = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+open = "5.3"

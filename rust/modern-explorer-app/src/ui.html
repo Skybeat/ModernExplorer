@@ -1,0 +1,3696 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.8.1 (Rust Edition)</title>
+<style>
+  :root, [data-theme="dark"] {
+    --bg-app: #0f1115;
+    --bg-panel: #151821;
+    --bg-elev: #1c202c;
+    --bg-sunken: #0b0d11;
+    --bg-hover: #232838;
+    --bg-active: #2b3246;
+    --border: #252a3a;
+    --border-strong: #343b52;
+    --fg: #e6e9f2;
+    --fg-dim: #9aa3b8;
+    --fg-muted: #656e85;
+    --accent: #6ea8fe;
+    --accent-soft: rgba(110, 168, 254, 0.14);
+    --accent-border: rgba(110, 168, 254, 0.45);
+    --ok: #4fd18b;
+    --warn: #f5b942;
+    --danger: #f47067;
+    --info: #5cc8ff;
+    --shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  [data-theme="light"] {
+    --bg-app: #f5f6f8;
+    --bg-panel: #ffffff;
+    --bg-elev: #eef0f5;
+    --bg-sunken: #eceef3;
+    --bg-hover: #e6e9f0;
+    --bg-active: #dadfe9;
+    --border: #dfe3ec;
+    --border-strong: #c6ccd9;
+    --fg: #1b1f2a;
+    --fg-dim: #555d70;
+    --fg-muted: #8891a5;
+    --accent: #2563eb;
+    --accent-soft: rgba(37, 99, 235, 0.12);
+    --accent-border: rgba(37, 99, 235, 0.45);
+    --ok: #15803d;
+    --warn: #b45309;
+    --danger: #dc2626;
+    --info: #0284c7;
+    --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  }
+  [data-theme="github"] {
+    --bg-app: #f6f8fa;
+    --bg-panel: #ffffff;
+    --bg-elev: #f6f8fa;
+    --bg-sunken: #eaeef2;
+    --bg-hover: #eaeef2;
+    --bg-active: #dde3ea;
+    --border: #d0d7de;
+    --border-strong: #afb8c1;
+    --fg: #1f2328;
+    --fg-dim: #57606a;
+    --fg-muted: #6e7781;
+    --accent: #0969da;
+    --accent-soft: rgba(9, 105, 218, 0.1);
+    --accent-border: rgba(9, 105, 218, 0.4);
+    --ok: #1a7f37;
+    --warn: #9a6700;
+    --danger: #cf222e;
+    --info: #0969da;
+    --shadow: 0 8px 24px rgba(140,149,159,0.2);
+  }
+  [data-theme="github-dark"] {
+    --bg-app: #0d1117;
+    --bg-panel: #161b22;
+    --bg-elev: #21262d;
+    --bg-sunken: #010409;
+    --bg-hover: #21262d;
+    --bg-active: #30363d;
+    --border: #30363d;
+    --border-strong: #484f58;
+    --fg: #e6edf3;
+    --fg-dim: #8b949e;
+    --fg-muted: #6e7681;
+    --accent: #2f81f7;
+    --accent-soft: rgba(47, 129, 247, 0.15);
+    --accent-border: rgba(47, 129, 247, 0.45);
+    --ok: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --info: #58a6ff;
+    --shadow: 0 12px 32px rgba(1,4,9,0.65);
+  }
+
+  :root {
+    --font-ui: "Segoe UI Variable Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    --font-mono: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    --radius: 6px;
+    --radius-lg: 10px;
+
+    /* Dynamic Settings Variables */
+    --active-pane-border: #0078D4;
+    --active-pane-border-w: 2px;
+    --sel-border-color: #60CDFF;
+    --sel-border-w: 1.5px;
+    --marked-color: #FFB900;
+    --row-height: 26px;
+
+    --fs-filelist: 13px;
+    --fs-details: 12px;
+    --fs-tabs: 12px;
+    --fs-drives: 12px;
+    --fs-address: 12.5px;
+    --fs-breadcrumbs: 11.5px;
+    --fs-status: 11.5px;
+    --fs-fnbar: 11.5px;
+    --fs-child: 13px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bg-app); color: var(--fg);
+    font-family: var(--font-ui); font-size: 13px;
+    user-select: none; -webkit-font-smoothing: antialiased;
+  }
+  input, textarea, select, button { font-family: inherit; color: inherit; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
+
+  /* ============ APP SHELL (Nuharji/markdown-studio Layout) ============ */
+  .app {
+    display: grid;
+    grid-template-rows: 34px 40px auto 1fr auto auto auto 24px;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ============ MENU BAR (.menubar) ============ */
+  .menubar {
+    display: flex; align-items: center; gap: 2px;
+    padding: 0 10px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border); font-size: 12.5px;
+    position: relative; z-index: 200;
+  }
+  .app-logo {
+    display: flex; align-items: center; gap: 7px;
+    font-weight: 700; padding: 0 10px 0 2px; color: var(--fg);
+    letter-spacing: -0.01em; cursor: pointer;
+  }
+  .app-logo .logo-mark {
+    width: 20px; height: 20px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10.5px; font-weight: 800; font-family: var(--font-mono);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .menu-item {
+    position: relative; padding: 4px 9px; border-radius: 4px;
+    cursor: pointer; color: var(--fg-dim);
+  }
+  .menu-item:hover, .menu-item.open { background: var(--bg-hover); color: var(--fg); }
+  .dropdown {
+    display: none; position: absolute; top: 100%; left: 0;
+    min-width: 245px; background: var(--bg-elev);
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 4px; z-index: 1000;
+  }
+  .menu-item.open > .dropdown { display: block; }
+  .dd-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; border-radius: 4px; color: var(--fg);
+    font-size: 12.5px; cursor: pointer; gap: 16px; white-space: nowrap;
+  }
+  .dd-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .dd-item .dd-left { display: flex; align-items: center; gap: 8px; }
+  .dd-item .check { width: 14px; display: inline-block; color: var(--accent); font-weight: 700; }
+  .dd-item kbd {
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted);
+    background: var(--bg-sunken); padding: 1px 5px; border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+  .dd-sep { height: 1px; background: var(--border); margin: 4px 2px; }
+  .menubar-spacer { flex: 1; }
+  .doc-title {
+    color: var(--fg-dim); font-size: 12px; display: flex; align-items: center; gap: 8px;
+    position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;
+  }
+  .doc-title .badge {
+    font-size: 10.5px; padding: 1px 7px; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border);
+  }
+  .menubar-right { display: flex; align-items: center; gap: 4px; }
+
+  /* ============ OPTIONS BAR (.optbar) ============ */
+  .optbar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 10px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border); overflow-x: auto;
+  }
+  .optbar::-webkit-scrollbar { height: 0; }
+  .opt-group {
+    display: flex; align-items: center; gap: 2px;
+    padding-right: 6px; margin-right: 4px;
+    border-right: 1px solid var(--border);
+  }
+  .opt-group:last-child { border-right: none; }
+  .ibtn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    height: 28px; min-width: 28px; padding: 0 8px;
+    border: 1px solid transparent; border-radius: 5px;
+    background: transparent; color: var(--fg-dim);
+    cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.1s;
+  }
+  .ibtn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
+  .ibtn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
+  .ibtn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .seg {
+    display: inline-flex; background: var(--bg-sunken);
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px; gap: 1px;
+  }
+  .seg button {
+    border: none; background: transparent; color: var(--fg-dim);
+    padding: 3px 9px; font-size: 11.5px; border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  .seg button:hover { color: var(--fg); }
+  .seg button.active { background: var(--bg-elev); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.2); font-weight: 600; }
+
+  /* ============ FAVORITES BAR ============ */
+  .favbar {
+    display: flex; align-items: center; gap: 4px; padding: 3px 10px;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+    overflow-x: auto; font-size: 11.5px; min-height: 28px;
+  }
+  .fav-label { color: var(--fg-muted); font-weight: 600; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .fav-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 4px; background: var(--bg-elev);
+    border: 1px solid var(--border); color: var(--fg-dim); cursor: pointer;
+    white-space: nowrap; font-size: 11.5px;
+  }
+  .fav-chip:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-strong); }
+
+  /* ============ MAIN BODY (Left .tools Rail + Dual-Pane .workspace + Right .dock) ============ */
+  .main {
+    display: grid;
+    grid-template-columns: 38px 1fr auto;
+    min-height: 0; overflow: hidden;
+  }
+  .tools {
+    background: var(--bg-panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 4px; gap: 2px; overflow-y: auto;
+  }
+  .tools::-webkit-scrollbar { width: 0; }
+  .tools .ibtn { width: 28px; height: 28px; padding: 0; }
+  .tools .sep { width: 20px; height: 1px; background: var(--border); margin: 4px 0; flex-shrink: 0; }
+
+  /* ============ DUAL-PANE WORKSPACE ============ */
+  .workspace {
+    display: flex; min-width: 0; min-height: 0; height: 100%;
+    background: var(--bg-app); overflow: hidden; padding: 4px; gap: 0;
+  }
+  .pane {
+    display: flex; flex-direction: column; min-width: 260px; min-height: 0;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; flex: 1;
+    transition: border-color 0.12s;
+  }
+  .pane.active-pane {
+    border-color: var(--active-pane-border);
+    border-width: var(--active-pane-border-w);
+    box-shadow: 0 0 0 1px rgba(110, 168, 254, 0.12);
+  }
+  .splitter {
+    width: 6px; cursor: col-resize; background: transparent;
+    position: relative; flex-shrink: 0;
+  }
+  .splitter:hover::after, .splitter.dragging::after {
+    content: ""; position: absolute; inset: 4px 2px;
+    background: var(--accent); border-radius: 2px;
+  }
+
+  /* Drive Bar inside Pane */
+  .drive-bar {
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+    background: var(--bg-sunken); border-bottom: 1px solid var(--border);
+    overflow-x: auto; font-size: var(--fs-drives);
+  }
+  .drive-chip {
+    display: inline-flex; flex-direction: column; gap: 2px;
+    padding: 2px 8px; border-radius: 4px; background: var(--bg-panel);
+    border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
+    color: var(--fg-dim); transition: all 0.1s;
+  }
+  .drive-chip:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-strong); }
+  .drive-chip.active { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
+  .drive-prog { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .drive-prog > span { display: block; height: 100%; background: var(--accent); }
+
+  /* Studio Tab Strip inside Pane (.tabs) */
+  .tabs {
+    display: flex; align-items: center; background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border); overflow-x: auto; min-height: 31px;
+    padding: 0 4px; gap: 2px; font-size: var(--fs-tabs);
+  }
+  .tabs::-webkit-scrollbar { height: 3px; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-right: 1px solid var(--border);
+    color: var(--fg-dim); cursor: pointer; white-space: nowrap;
+    max-width: 210px; position: relative; border-radius: 4px 4px 0 0;
+  }
+  .tab:hover { background: var(--bg-hover); color: var(--fg); }
+  .tab.active {
+    background: var(--bg-panel); color: var(--fg); font-weight: 600;
+    border-top: 2px solid var(--accent); padding-top: 3px;
+  }
+  .tab .name { overflow: hidden; text-overflow: ellipsis; }
+  .tab .close {
+    width: 16px; height: 16px; border-radius: 3px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--fg-muted); font-size: 13px;
+  }
+  .tab .close:hover { background: var(--bg-active); color: var(--fg); }
+  .tab-add { padding: 4px 8px; color: var(--fg-dim); cursor: pointer; border-radius: 4px; font-weight: 700; }
+  .tab-add:hover { background: var(--bg-hover); color: var(--fg); }
+
+  /* Pane Navigation Bar */
+  .pane-nav {
+    display: flex; align-items: center; gap: 4px; padding: 5px 8px;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  }
+  .addr-wrap {
+    position: relative; flex: 1; display: flex; align-items: center;
+  }
+  .addr-input {
+    width: 100%; height: 27px; padding: 0 28px 0 9px;
+    background: var(--bg-sunken); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--fg); font-family: var(--font-mono);
+    font-size: var(--fs-address); outline: none;
+  }
+  .addr-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .addr-star {
+    position: absolute; right: 5px; background: transparent; border: none;
+    cursor: pointer; color: var(--fg-muted); font-size: 14px; padding: 0 3px;
+  }
+  .addr-star.fav { color: var(--warn); }
+  .addr-ac {
+    display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+    background: var(--bg-elev); border: 1px solid var(--border-strong);
+    border-radius: 6px; box-shadow: var(--shadow); z-index: 400; max-height: 220px; overflow-y: auto;
+  }
+  .addr-ac.open { display: block; }
+  .addr-ac-item {
+    padding: 5px 10px; font-family: var(--font-mono); font-size: 12px;
+    cursor: pointer; color: var(--fg);
+  }
+  .addr-ac-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .filter-input {
+    width: 145px; height: 27px; padding: 0 8px;
+    background: var(--bg-sunken); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--fg); font-size: var(--fs-address); outline: none;
+  }
+  .filter-input:focus { border-color: var(--accent); width: 185px; }
+  .view-select {
+    height: 27px; padding: 0 6px; background: var(--bg-sunken);
+    border: 1px solid var(--border); border-radius: 5px; color: var(--fg-dim);
+    font-size: 11.5px; outline: none; cursor: pointer;
+  }
+
+  /* Breadcrumbs Bar */
+  .crumb-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 3px 8px; background: var(--bg-elev); border-bottom: 1px solid var(--border);
+    font-size: var(--fs-breadcrumbs); gap: 6px; overflow-x: auto; min-height: 25px;
+  }
+  .crumbs { display: flex; align-items: center; gap: 2px; overflow-x: auto; white-space: nowrap; }
+  .crumb {
+    padding: 1px 6px; border-radius: 4px; color: var(--fg-dim); cursor: pointer;
+  }
+  .crumb:hover { background: var(--bg-hover); color: var(--fg); }
+  .crumb-sep { color: var(--fg-muted); font-size: 10px; }
+  .git-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 8px; border-radius: 99px; font-family: var(--font-mono); font-size: 11px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border);
+    cursor: pointer; white-space: nowrap;
+  }
+  .git-pill:hover { filter: brightness(1.15); }
+
+  /* File Table Header */
+  .col-head {
+    display: grid; grid-template-columns: 26px 1fr 115px 128px 100px;
+    align-items: center; padding: 0 8px; height: 26px;
+    background: var(--bg-sunken); border-bottom: 1px solid var(--border);
+    font-size: var(--fs-details); font-weight: 600; color: var(--fg-dim);
+  }
+  .col-cell { cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+  .col-cell:hover { color: var(--fg); }
+
+  /* File List Container & 8 View Modes */
+  .file-list {
+    flex: 1; overflow-y: auto; overflow-x: hidden; outline: none;
+    padding: 2px; position: relative; font-size: var(--fs-filelist);
+  }
+  .file-row {
+    display: grid; grid-template-columns: 26px 1fr 115px 128px 100px;
+    align-items: center; padding: 0 8px; height: var(--row-height);
+    border-radius: 4px; border: 1px solid transparent; cursor: default;
+    color: var(--fg);
+  }
+  .file-row:hover { background: var(--bg-hover); }
+  .file-row.selected {
+    background: var(--accent-soft);
+    border-color: var(--sel-border-color);
+    border-width: var(--sel-border-w);
+  }
+  .file-row.marked .f-name { color: var(--marked-color); font-weight: 600; }
+  .file-row.is-hidden { opacity: 0.62; }
+  .f-check {
+    width: 15px; height: 15px; border-radius: 3px; border: 1px solid var(--border-strong);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--marked-color); cursor: pointer; background: var(--bg-sunken);
+  }
+  .file-row.marked .f-check { border-color: var(--marked-color); background: rgba(255,185,0,0.16); }
+  .f-name-wrap { display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; }
+  .f-ico { font-size: 14px; flex-shrink: 0; width: 18px; text-align: center; }
+  .f-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .f-tag-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .f-tag-badge {
+    font-size: 10px; padding: 0 6px; border-radius: 8px;
+    background: var(--bg-elev); border: 1px solid var(--border-strong);
+    color: var(--fg-dim); white-space: nowrap;
+  }
+  .f-size-cell {
+    position: relative; text-align: right; font-family: var(--font-mono);
+    font-size: var(--fs-details); color: var(--fg-dim); padding-right: 8px;
+  }
+  .f-size-bar {
+    position: absolute; right: 4px; top: 3px; bottom: 3px;
+    background: var(--accent-soft); border-radius: 2px; pointer-events: none; z-index: 0;
+  }
+  .f-size-txt { position: relative; z-index: 1; }
+  .f-mod, .f-type {
+    font-size: var(--fs-details); color: var(--fg-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
+  }
+
+  /* Grid / Icon / Tile / Content View Modes */
+  .file-list.mode-List {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    grid-auto-rows: 26px; gap: 2px; align-content: start;
+  }
+  .file-list.mode-Tiles {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-auto-rows: 54px; gap: 6px; padding: 6px; align-content: start;
+  }
+  .file-list.mode-SmallIcons {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-auto-rows: 34px; gap: 4px; padding: 6px; align-content: start;
+  }
+  .file-list.mode-MediumIcons {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-auto-rows: 92px; gap: 6px; padding: 8px; align-content: start;
+  }
+  .file-list.mode-LargeIcons {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    grid-auto-rows: 118px; gap: 8px; padding: 8px; align-content: start;
+  }
+  .file-list.mode-ExtraLargeIcons {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    grid-auto-rows: 150px; gap: 10px; padding: 10px; align-content: start;
+  }
+  .file-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-elev); cursor: pointer; text-align: center; gap: 4px; overflow: hidden;
+  }
+  .file-card:hover { background: var(--bg-hover); }
+  .file-card.selected { background: var(--accent-soft); border-color: var(--sel-border-color); }
+  .file-card .thumb-img { max-width: 100%; max-height: 70%; object-fit: contain; border-radius: 4px; }
+  .file-card .card-name { font-size: 11.5px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-card .card-sub { font-size: 10px; color: var(--fg-muted); }
+
+  /* Pane Footer */
+  .pane-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 3px 10px; background: var(--bg-sunken); border-top: 1px solid var(--border);
+    font-size: var(--fs-status); color: var(--fg-dim);
+  }
+
+  /* ============ RIGHT DOCK (.dock from Nuharji/markdown-studio) ============ */
+  .dock {
+    width: 310px; background: var(--bg-panel); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .dock.collapsed { display: none; }
+  .dock-tabs {
+    display: flex; border-bottom: 1px solid var(--border); background: var(--bg-sunken);
+  }
+  .dock-tab {
+    flex: 1; text-align: center; padding: 7px 4px; font-size: 11.5px;
+    color: var(--fg-dim); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .dock-tab:hover { color: var(--fg); }
+  .dock-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-panel); font-weight: 600; }
+  .dock-body { flex: 1; overflow-y: auto; padding: 10px; font-size: 12px; }
+
+  /* ============ BOTTOM QUICK CONSOLE (>_), FN BAR & STATUS BAR ============ */
+  .qconsole {
+    background: var(--bg-panel); border-top: 1px solid var(--border);
+    padding: 5px 10px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .qconsole.hidden { display: none; }
+  .qc-row { display: flex; align-items: center; gap: 6px; }
+  .qc-prompt { font-family: var(--font-mono); font-size: 11.5px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+  .qc-input {
+    flex: 1; height: 26px; padding: 0 8px; background: var(--bg-sunken);
+    border: 1px solid var(--border); border-radius: 4px; color: var(--fg);
+    font-family: var(--font-mono); font-size: 12px; outline: none;
+  }
+  .qc-output {
+    max-height: 135px; overflow-y: auto; background: var(--bg-sunken);
+    border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px;
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-dim);
+    white-space: pre-wrap; margin: 0;
+  }
+
+  .fnbar {
+    display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px;
+    padding: 3px 8px; background: var(--bg-panel); border-top: 1px solid var(--border);
+    font-size: var(--fs-fnbar);
+  }
+  .fnbar.hidden { display: none; }
+  .fn-btn {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 3px 4px; border-radius: 4px; background: var(--bg-elev);
+    border: 1px solid var(--border); color: var(--fg-dim); cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fn-btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--accent-border); }
+  .fn-btn kbd { color: var(--accent); font-family: var(--font-mono); font-weight: 700; font-size: 10.5px; }
+
+  .status {
+    display: flex; align-items: center; padding: 0 10px; gap: 14px;
+    background: var(--bg-panel); border-top: 1px solid var(--border);
+    font-size: var(--fs-status); color: var(--fg-dim);
+  }
+  .status .st-item { display: inline-flex; align-items: center; gap: 5px; }
+  .status .st-spacer { flex: 1; }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .zoom-ctl { display: inline-flex; align-items: center; gap: 2px; }
+  .zoom-ctl button {
+    background: transparent; border: none; color: var(--fg-dim);
+    cursor: pointer; padding: 0 5px; border-radius: 3px; font-size: 11px;
+  }
+  .zoom-ctl button:hover { background: var(--bg-hover); color: var(--fg); }
+
+  /* ============ FLOATING IMAGE HOVER PREVIEW CARD ============ */
+  .img-hover-card {
+    display: none; position: fixed; z-index: 2500; pointer-events: none;
+    background: var(--bg-elev); border: 1px solid var(--accent-border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 8px;
+    flex-direction: column; align-items: center; gap: 6px;
+  }
+  .img-hover-card.visible { display: flex; }
+  .img-hover-card img { object-fit: contain; border-radius: 6px; background: var(--bg-sunken); }
+  .img-hover-meta { font-size: 11px; color: var(--fg-dim); font-family: var(--font-mono); }
+
+  /* ============ CONTEXT MENU ============ */
+  .ctx-menu {
+    display: none; position: fixed; z-index: 3000; min-width: 240px;
+    background: var(--bg-elev); border: 1px solid var(--border-strong);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px;
+  }
+  .ctx-menu.open { display: block; }
+
+  /* ============ MODALS & STUDIO PREFERENCES (.modal, .prefs, .theme-grid) ============ */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.58);
+    align-items: center; justify-content: center; z-index: 2000;
+    backdrop-filter: blur(2px);
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--bg-panel); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow);
+    width: 920px; max-width: 94vw; max-height: 88vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    font-size: var(--fs-child);
+  }
+  .modal.xl { width: 1140px; }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 16px; border-bottom: 1px solid var(--border);
+    font-weight: 600; font-size: 13.5px; background: var(--bg-elev);
+  }
+  .modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .modal-foot {
+    padding: 10px 16px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px; background: var(--bg-sunken);
+  }
+  .btn {
+    padding: 6px 13px; border-radius: var(--radius);
+    border: 1px solid var(--border-strong); background: var(--bg-elev);
+    color: var(--fg); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:hover { background: var(--bg-hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+  .input, .select, .textarea {
+    padding: 6px 9px; background: var(--bg-sunken); border: 1px solid var(--border-strong);
+    border-radius: 5px; color: var(--fg); font-size: 12.5px; outline: none;
+  }
+  .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); }
+
+  /* Nuharji/markdown-studio .prefs 2-column Settings Dialog */
+  .prefs {
+    display: grid; grid-template-columns: 215px 1fr; height: 590px; max-height: 76vh;
+  }
+  .prefs-nav {
+    background: var(--bg-sunken); border-right: 1px solid var(--border);
+    padding: 10px 8px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto;
+  }
+  .prefs-nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: var(--radius);
+    color: var(--fg-dim); font-size: 12.5px; cursor: pointer;
+  }
+  .prefs-nav-item:hover { background: var(--bg-hover); color: var(--fg); }
+  .prefs-nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .prefs-pane { display: none; padding: 16px 20px; overflow-y: auto; }
+  .prefs-pane.active { display: block; }
+  .prefs-section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--fg-muted); margin: 16px 0 8px 0;
+  }
+  .prefs-section-title:first-child { margin-top: 0; }
+  .prefs-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .prefs-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border); gap: 14px;
+  }
+  .prefs-row:last-child { border-bottom: none; }
+  .prefs-row .pr-label { font-size: 12.5px; color: var(--fg); font-weight: 500; }
+  .prefs-row .pr-sub { font-size: 11.5px; color: var(--fg-muted); margin-top: 2px; }
+  .prefs-row .pr-ctl { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* Studio Toggle Switch (.switch) */
+  .switch {
+    position: relative; width: 36px; height: 20px;
+    background: var(--bg-sunken); border: 1px solid var(--border-strong);
+    border-radius: 20px; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--fg-dim); transition: all 0.15s;
+  }
+  .switch.on { background: var(--accent); border-color: var(--accent); }
+  .switch.on::after { left: 18px; background: #fff; }
+
+  /* Studio Theme Preview Cards (.theme-grid) */
+  .theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+  .theme-card {
+    border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 8px; cursor: pointer; background: var(--bg-sunken);
+  }
+  .theme-card:hover { border-color: var(--border-strong); }
+  .theme-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .theme-card .tc-mock {
+    height: 44px; border-radius: 4px; margin-bottom: 6px;
+    display: flex; overflow: hidden; border: 1px solid rgba(128,128,128,0.25);
+  }
+  .theme-card .tc-mock > div { flex: 1; }
+  .theme-card .tc-name { font-size: 11.5px; font-weight: 600; text-align: center; }
+
+  /* Swatch buttons for Colors tab */
+  .swatch-btn {
+    width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25);
+    cursor: pointer; padding: 0; flex-shrink: 0;
+  }
+  .swatch-btn:hover { transform: scale(1.12); }
+
+  /* Toast Notification */
+  .toast {
+    position: fixed; bottom: 36px; right: 16px;
+    background: var(--bg-elev); color: var(--fg);
+    border: 1px solid var(--border-strong); border-left: 3px solid var(--accent);
+    border-radius: var(--radius); padding: 8px 14px; font-size: 12.5px;
+    box-shadow: var(--shadow); opacity: 0; transform: translateY(8px);
+    transition: all 0.18s; pointer-events: none; z-index: 4000;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  table.data-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-tbl th, table.data-tbl td {
+    padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  table.data-tbl th { background: var(--bg-sunken); color: var(--fg-dim); position: sticky; top: 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 1. STUDIO MENU BAR (.menubar) -->
+  <div class="menubar" id="menubar">
+    <div class="app-logo" onclick="openAboutModal()" title="Über ModernExplorer Studio">
+      <span class="logo-mark">ME</span>
+      <span>ModernExplorer Studio</span>
+    </div>
+    <div id="menuItems" style="display:flex;align-items:center;gap:2px;"></div>
+    <div class="menubar-spacer"></div>
+    <div class="doc-title">
+      <span id="headerActivePath">Lade Arbeitsbereich…</span>
+      <span class="badge" id="headerModeBadge">Dual-Pane</span>
+    </div>
+    <div class="menubar-right">
+      <button class="ibtn" onclick="openCommandPalette()" title="Befehlspalette (F10 / Strg+Shift+P)">⌘ Palette</button>
+      <button class="ibtn" onclick="openSettingsModal('Appearance')" title="Einstellungen (Strg+,)">⚙ Einstellungen</button>
+      <button class="ibtn" onclick="openAboutModal(true)" title="Auf Updates prüfen">🔄 Updates</button>
+      <button class="ibtn" onclick="openAboutModal(false)" title="Über ModernExplorer & Release Notes">ℹ Über</button>
+    </div>
+  </div>
+
+  <!-- 2. STUDIO OPTIONS BAR (.optbar) -->
+  <div class="optbar">
+    <div class="opt-group">
+      <button class="ibtn" id="btnUndo" onclick="doUndo()" title="Letzte Datei-Aktion rückgängig machen (Strg+Z)">↶ Rückgängig</button>
+      <button class="ibtn" onclick="openCreateModal(false)" title="Neue Datei aus Vorlage erstellen (F7)">+ Datei</button>
+      <button class="ibtn" onclick="openCreateModal(true)" title="Neuen Ordner erstellen (Umschalt+F7)">+ Ordner</button>
+    </div>
+    <div class="opt-group">
+      <button class="ibtn" onclick="copyOrMoveActive(false)" title="Markierte Elemente in das andere Panel kopieren (F5)">➔ Kopieren</button>
+      <button class="ibtn" onclick="copyOrMoveActive(true)" title="Markierte Elemente in das andere Panel verschieben (F6)">➔ Verschieben</button>
+      <button class="ibtn" onclick="deleteSelected()" title="Markierte Elemente löschen (F8 / Entf)">🗑 Löschen</button>
+    </div>
+    <div class="opt-group">
+      <button class="ibtn" onclick="openBatchRenameModal()" title="Mehrfach-Umbenennungstool (Strg+M)">🏷 Multi-Rename</button>
+      <button class="ibtn" onclick="openDiffModal()" title="Visueller Side-by-Side Datei-Diff-Viewer (Strg+Umschalt+U)">⚖ Diff</button>
+      <button class="ibtn" onclick="openSyncModal()" title="Verzeichnisse vergleichen & synchronisieren (Strg+Umschalt+S)">⇄ Sync</button>
+      <button class="ibtn" onclick="openDeepSearchModal()" title="Rekursive Tiefensuche (Alt+F7)">🔍 Tiefensuche</button>
+      <button class="ibtn" onclick="openDuplicatesModal()" title="3-Phasen Duplikat-Finder (Strg+Umschalt+D)">🧹 Duplikate</button>
+      <button class="ibtn" onclick="openTreemapModal()" title="Speicherplatz-Analysator & Squarified Treemap (Strg+Umschalt+W)">📊 Treemap</button>
+    </div>
+    <div class="opt-group">
+      <button class="ibtn" onclick="openChecksumsModal()" title="Prüfsummen-Generator & Manifest-Verifizierer (Strg+Umschalt+K)">🔐 Hashes</button>
+      <button class="ibtn" onclick="openSplitShredModal()" title="Datei-Splitter, Joiner (.001) & Sicherer Datei-Shredder (Strg+Umschalt+X)">✂ Split/Shred</button>
+      <button class="ibtn" onclick="openTagModal()" title="Farbige Datei-Tags & Notizen (Strg+Umschalt+L)">🎨 Tags</button>
+      <button class="ibtn" onclick="openAttrExifModal()" title="Attribute, Zeitstempel & EXIF/Medien-Metadaten (Strg+Umschalt+A)">🛠 Attr/EXIF</button>
+      <button class="ibtn" onclick="openSmartExportModal()" title="Smart Copy & Tabellen-Exporter (Strg+Umschalt+E)">📋 Export</button>
+      <button class="ibtn" onclick="openArchiveModal()" title="Archiv packen / durchsuchen / entpacken (Alt+F5)">📦 Archiv</button>
+      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP Verbindungsmanager (Strg+Umschalt+C)">🌐 FTP/SFTP</button>
+      <button class="ibtn" onclick="openGitModal()" title="Erweitertes Git-Panel (Strg+Umschalt+G)">⎇ Git</button>
+      <button class="ibtn" onclick="openWorkspacesModal()" title="Arbeitsbereiche / Workspace-Profile (Strg+Umschalt+O)">🗂 Workspaces</button>
+    </div>
+    <div style="flex:1"></div>
+    <div class="seg">
+      <button id="segDual" class="active" onclick="setDualPaneMode(true)" title="Zwei-Fenster-Ansicht (F12)">Dual-Pane</button>
+      <button id="segSingle" onclick="setDualPaneMode(false)" title="Einzel-Fenster-Ansicht (F12)">Single</button>
+      <button id="segDock" class="active" onclick="toggleDock()" title="Rechtes Inspector-Dock ein-/ausblenden (Strg+Q)">👁 Inspector</button>
+      <button id="segConsole" onclick="toggleQuickConsole()" title="Eingebettete Schnell-Konsole ein-/ausblenden (Strg+Umschalt+J)">&gt;_ Konsole</button>
+    </div>
+  </div>
+
+  <!-- 3. FAVORITES STRIP (.favbar) -->
+  <div class="favbar" id="favBar">
+    <span class="fav-label">★ Favoriten:</span>
+    <div id="favList" style="display:flex;align-items:center;gap:4px;"></div>
+    <button class="ibtn" style="height:22px;font-size:11px;" onclick="toggleCurrentFavorite()" title="Aktuellen Ordner zu Favoriten hinzufügen/entfernen (Strg+D)">+ Aktuellen Ordner anheften</button>
+  </div>
+
+  <!-- 4. STUDIO MAIN AREA (Left .tools Rail + Dual-Pane .workspace + Right .dock) -->
+  <div class="main">
+    <!-- Left Vertical Icon Rail (.tools) -->
+    <div class="tools">
+      <button class="ibtn" onclick="openViewerModal(false)" title="Quick Viewer / Schnellansicht (F3)"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="ibtn" onclick="openViewerModal(true)" title="Interner Text- & Code-Editor (F4)"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+      <div class="sep"></div>
+      <button class="ibtn" onclick="openBatchRenameModal()" title="Mehrfach-Umbenennungstool (Strg+M)"><svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></button>
+      <button class="ibtn" onclick="openDiffModal()" title="Side-by-Side Datei-Diff (Strg+Shift+U)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg></button>
+      <button class="ibtn" onclick="openSyncModal()" title="Ordner synchronisieren (Strg+Shift+S)"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>
+      <button class="ibtn" onclick="openDeepSearchModal()" title="Tiefensuche (Alt+F7)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <button class="ibtn" onclick="openDuplicatesModal()" title="Duplikat-Finder (Strg+Shift+D)"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button class="ibtn" onclick="openTreemapModal()" title="Speicherplatz-Analysator & Treemap (Strg+Shift+W)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></button>
+      <div class="sep"></div>
+      <button class="ibtn" onclick="openChecksumsModal()" title="Prüfsummen SHA-256/MD5/CRC32 (Strg+Shift+K)"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></button>
+      <button class="ibtn" onclick="openSplitShredModal()" title="Datei-Splitter & Shredder (Strg+Shift+X)"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/></svg></button>
+      <button class="ibtn" onclick="openTagModal()" title="Farb-Tags & Notizen (Strg+Shift+L)"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
+      <button class="ibtn" onclick="openAttrExifModal()" title="Attribute, Zeitstempel & EXIF (Strg+Shift+A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+      <button class="ibtn" onclick="openArchiveModal()" title="Archiv-Manager .zip/.tar.gz (Alt+F5)"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>
+      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP Client (Strg+Shift+C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
+      <button class="ibtn" onclick="openGitModal()" title="Erweitertes Git-Panel (Strg+Shift+G)"><svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg></button>
+      <div style="flex:1"></div>
+      <button class="ibtn" onclick="openExternalTerminal()" title="Externes PowerShell-Terminal hier öffnen (F9)"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></button>
+      <button class="ibtn" onclick="openSettingsModal('Appearance')" title="Einstellungen (Strg+,)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+
+    <!-- Dual-Pane Center Workspace (.workspace) -->
+    <div class="workspace" id="workspace">
+      <!-- LEFT PANE -->
+      <div class="pane active-pane" id="pane-left" onclick="setActiveSide('left')">
+        <div class="drive-bar" id="drives-left"></div>
+        <div class="tabs" id="tabs-left"></div>
+        <div class="pane-nav">
+          <button class="ibtn" onclick="navHistory('left', -1)" title="Zurück (Alt+Links)">‹</button>
+          <button class="ibtn" onclick="navHistory('left', 1)" title="Vorwärts (Alt+Rechts)">›</button>
+          <button class="ibtn" onclick="navUp('left')" title="Übergeordneter Ordner (Backspace)">↑</button>
+          <button class="ibtn" onclick="loadPane('left')" title="Aktualisieren (F5)">↻</button>
+          <button class="ibtn" id="branch-left" onclick="toggleBranchView('left')" title="Branch-View / Flache Unterordner-Ansicht (Strg+B)">🌿</button>
+          <button class="ibtn" id="treesize-left" onclick="toggleTreeSizes('left')" title="Ordnergrößen berechnen">📊</button>
+          <div class="addr-wrap">
+            <input class="addr-input" id="addr-left" placeholder="Pfad eingeben oder > für Befehlspalette…"
+               oninput="onAddressInput('left', this.value)"
+              onkeydown="onAddressKey('left', event)">
+            <button class="addr-star" id="star-left" onclick="togglePaneFavorite('left')" title="Ordner als Favorit merken">☆</button>
+            <div class="addr-ac" id="ac-left"></div>
+          </div>
+          <input class="filter-input" id="filter-left" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('left')">
+          <select class="view-select" id="viewmode-left" onchange="changePaneViewMode('left', this.value)" title="Ansichtsmodus wählen">
+            <option value="Details">☰ Details</option>
+            <option value="List">≡ Liste</option>
+            <option value="Tiles">⊞ Kacheln</option>
+            <option value="SmallIcons">▪ Kleine Symbole</option>
+            <option value="MediumIcons">◼ Mittlere Symbole</option>
+            <option value="LargeIcons">⬛ Große Symbole</option>
+            <option value="ExtraLargeIcons">🖼 Extra große Symbole</option>
+            <option value="Content">▤ Inhalt</option>
+          </select>
+        </div>
+        <div class="crumb-bar">
+          <div class="crumbs" id="crumbs-left"></div>
+          <div id="gitbadge-left"></div>
+        </div>
+        <div class="col-head" id="colhead-left">
+          <div><span class="f-check" onclick="toggleMarkAll('left')" title="Alle markieren / demarkieren">✓</span></div>
+          <div class="col-cell" onclick="toggleSort('left','Name')">Name <span id="sort-left-Name">▲</span></div>
+          <div class="col-cell" style="justify-content:flex-end" onclick="toggleSort('left','Size')">Größe <span id="sort-left-Size"></span></div>
+          <div class="col-cell" onclick="toggleSort('left','Modified')">Geändert <span id="sort-left-Modified"></span></div>
+          <div class="col-cell" onclick="toggleSort('left','Extension')">Typ <span id="sort-left-Extension"></span></div>
+        </div>
+        <div class="file-list" id="list-left" tabindex="0"></div>
+        <div class="pane-foot">
+          <span id="foot-left-count">0 Elemente</span>
+          <span id="foot-left-marked"></span>
+          <span id="foot-left-size">0 B</span>
+        </div>
+      </div>
+
+      <!-- SPLITTER -->
+      <div class="splitter" id="paneSplitter"></div>
+
+      <!-- RIGHT PANE -->
+      <div class="pane" id="pane-right" onclick="setActiveSide('right')">
+        <div class="drive-bar" id="drives-right"></div>
+        <div class="tabs" id="tabs-right"></div>
+        <div class="pane-nav">
+          <button class="ibtn" onclick="navHistory('right', -1)" title="Zurück (Alt+Links)">‹</button>
+          <button class="ibtn" onclick="navHistory('right', 1)" title="Vorwärts (Alt+Rechts)">›</button>
+          <button class="ibtn" onclick="navUp('right')" title="Übergeordneter Ordner (Backspace)">↑</button>
+          <button class="ibtn" onclick="loadPane('right')" title="Aktualisieren">↻</button>
+          <button class="ibtn" id="branch-right" onclick="toggleBranchView('right')" title="Branch-View / Flache Unterordner-Ansicht (Strg+B)">🌿</button>
+          <button class="ibtn" id="treesize-right" onclick="toggleTreeSizes('right')" title="Ordnergrößen berechnen">📊</button>
+          <div class="addr-wrap">
+            <input class="addr-input" id="addr-right" placeholder="Pfad eingeben oder > für Befehlspalette…"
+              oninput="onAddressInput('right', this.value)"
+              onkeydown="onAddressKey('right', event)">
+            <button class="addr-star" id="star-right" onclick="togglePaneFavorite('right')" title="Ordner als Favorit merken">☆</button>
+            <div class="addr-ac" id="ac-right"></div>
+          </div>
+          <input class="filter-input" id="filter-right" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('right')">
+          <select class="view-select" id="viewmode-right" onchange="changePaneViewMode('right', this.value)" title="Ansichtsmodus wählen">
+            <option value="Details">☰ Details</option>
+            <option value="List">≡ Liste</option>
+            <option value="Tiles">⊞ Kacheln</option>
+            <option value="SmallIcons">▪ Kleine Symbole</option>
+            <option value="MediumIcons">◼ Mittlere Symbole</option>
+            <option value="LargeIcons">⬛ Große Symbole</option>
+            <option value="ExtraLargeIcons">🖼 Extra große Symbole</option>
+            <option value="Content">▤ Inhalt</option>
+          </select>
+        </div>
+        <div class="crumb-bar">
+          <div class="crumbs" id="crumbs-right"></div>
+          <div id="gitbadge-right"></div>
+        </div>
+        <div class="col-head" id="colhead-right">
+          <div><span class="f-check" onclick="toggleMarkAll('right')" title="Alle markieren / demarkieren">✓</span></div>
+          <div class="col-cell" onclick="toggleSort('right','Name')">Name <span id="sort-right-Name">▲</span></div>
+          <div class="col-cell" style="justify-content:flex-end" onclick="toggleSort('right','Size')">Größe <span id="sort-right-Size"></span></div>
+          <div class="col-cell" onclick="toggleSort('right','Modified')">Geändert <span id="sort-right-Modified"></span></div>
+          <div class="col-cell" onclick="toggleSort('right','Extension')">Typ <span id="sort-right-Extension"></span></div>
+        </div>
+        <div class="file-list" id="list-right" tabindex="0"></div>
+        <div class="pane-foot">
+          <span id="foot-right-count">0 Elemente</span>
+          <span id="foot-right-marked"></span>
+          <span id="foot-right-size">0 B</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Collapsible Studio Inspector Dock (.dock) -->
+    <div class="dock" id="rightDock">
+      <div class="dock-tabs">
+        <div class="dock-tab active" id="dtab-preview" onclick="switchDockTab('preview')">👁 Vorschau</div>
+        <div class="dock-tab" id="dtab-basket" onclick="switchDockTab('basket')">🧺 Korb (<span id="dockBasketCount">0</span>)</div>
+        <div class="dock-tab" id="dtab-git" onclick="switchDockTab('git')">⎇ Git</div>
+        <div class="dock-tab" id="dtab-info" onclick="switchDockTab('info')">ℹ Details</div>
+      </div>
+      <div class="dock-body" id="dockBody">
+        <div style="color:var(--fg-muted);text-align:center;margin-top:30px;">Datei auswählen für Live-Vorschau (Strg+Q)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. EMBEDDED QUICK COMMAND BAR (>_ Console) -->
+  <div class="qconsole hidden" id="quickConsoleBar">
+    <div class="qc-row">
+      <span class="qc-prompt" id="qcPrompt">PS &gt;</span>
+      <input class="qc-input" id="qcInput" placeholder="Befehl ausführen oder 'cd <Ordner>' zum Navigieren (↑/↓ Historie, Enter)…" onkeydown="onQuickConsoleKey(event)">
+      <button class="btn primary" onclick="runQuickConsole()">▶ Ausführen</button>
+      <button class="btn" onclick="copyText(document.getElementById('qcOutput').textContent)">📋 Kopieren</button>
+      <button class="btn" onclick="document.getElementById('qcOutput').textContent=''">🧹 Leeren</button>
+      <button class="btn" onclick="openExternalTerminal()">🖥 Terminal (F9)</button>
+      <button class="btn" onclick="toggleQuickConsole()">▼ Ausblenden</button>
+    </div>
+    <pre class="qc-output" id="qcOutput">Bereit. Tipp: 'cd ..' oder beliebige Shell-/Git-Befehle ohne aufblitzende Fenster ausführen.</pre>
+  </div>
+
+  <!-- 6. F1-F12 FUNCTION KEY BAR -->
+  <div class="fnbar" id="fnKeyBar">
+    <div class="fn-btn" onclick="openSettingsModal('Shortcuts')"><kbd>F1</kbd> Hilfe</div>
+    <div class="fn-btn" onclick="renameSelected()"><kbd>F2</kbd> Umbenennen</div>
+    <div class="fn-btn" onclick="openViewerModal(false)"><kbd>F3</kbd> Ansicht</div>
+    <div class="fn-btn" onclick="openViewerModal(true)"><kbd>F4</kbd> Editor</div>
+    <div class="fn-btn" onclick="copyOrMoveActive(false)"><kbd>F5</kbd> Kopieren</div>
+    <div class="fn-btn" onclick="copyOrMoveActive(true)"><kbd>F6</kbd> Verschieben</div>
+    <div class="fn-btn" onclick="openCreateModal(false)"><kbd>F7</kbd> +Datei</div>
+    <div class="fn-btn" onclick="openCreateModal(true)"><kbd>⇧F7</kbd> +Ordner</div>
+    <div class="fn-btn" onclick="deleteSelected()"><kbd>F8</kbd> Löschen</div>
+    <div class="fn-btn" onclick="openExternalTerminal()"><kbd>F9</kbd> Terminal</div>
+    <div class="fn-btn" onclick=" setDualPaneMode(!STATE.isDualPane)"><kbd>F12</kbd> Dual/Single</div>
+  </div>
+
+  <!-- 7. STUDIO STATUS BAR (.status) -->
+  <div class="status">
+    <div class="st-item"><span class="dot"></span><span id="statusText">Bereit</span></div>
+    <div class="st-item" id="statusUndoInfo"></div>
+    <div class="st-spacer"></div>
+    <div class="st-item" style="cursor:pointer" onclick="openSettingsModal('Appearance')">Theme: <strong id="statusThemeName">dark</strong></div>
+    <div class="st-item">Zoom:
+      <span class="zoom-ctl">
+        <button onclick="adjustZoom(-10)">−</button>
+        <span id="statusZoom">100%</span>
+        <button onclick="adjustZoom(10)">+</button>
+      </span>
+    </div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong>v1.8.1 (Rust Studio)</strong></div>
+  </div>
+</div>
+
+<!-- FLOATING IMAGE HOVER PREVIEW CARD -->
+<div class="img-hover-card" id="imgHoverCard">
+  <img id="imgHoverEl" src="" alt="Preview">
+  <div class="img-hover-meta" id="imgHoverMeta"></div>
+</div>
+
+<!-- UNIVERSAL CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu"></div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast" id="toast"></div>
+<!-- ==================== STUDIO SETTINGS MODAL (.prefs with all 6 .NET Categories + Shortcuts) ==================== -->
+<div class="modal-bg" id="modalSettings" onclick="if(event.target===this)closeModal('modalSettings')">
+  <div class="modal xl" style="width:980px;">
+    <div class="modal-head">
+      <span>⚙ Einstellungen — ModernExplorer Studio</span>
+      <button class="ibtn" onclick="closeModal('modalSettings')">✕</button>
+    </div>
+    <div class="prefs">
+      <div class="prefs-nav" id="prefsNav">
+        <div class="prefs-nav-item active" data-cat="Appearance" onclick="switchSettingsCat('Appearance')">🎨 Darstellung &amp; Design</div>
+        <div class="prefs-nav-item" data-cat="Colors" onclick="switchSettingsCat('Colors')">🖌️ Farben &amp; Hervorhebung</div>
+        <div class="prefs-nav-item" data-cat="Behavior" onclick="switchSettingsCat('Behavior')">📁 Dateiliste &amp; Verhalten</div>
+        <div class="prefs-nav-item" data-cat="Preview" onclick="switchSettingsCat('Preview')">🖼️ Bildvorschau</div>
+        <div class="prefs-nav-item" data-cat="Fonts" onclick="switchSettingsCat('Fonts')">🔤 Schriftgrößen</div>
+        <div class="prefs-nav-item" data-cat="Session" onclick="switchSettingsCat('Session')">💾 Sitzung, Updates &amp; Fenster</div>
+        <div class="prefs-nav-item" data-cat="Shortcuts" onclick="switchSettingsCat('Shortcuts')">⌨️ Tastenkürzel</div>
+      </div>
+
+      <!-- 1. APPEARANCE & DESIGN -->
+      <div class="prefs-pane active" id="pcat-Appearance">
+        <div class="prefs-section-title">🌐 Sprache / Language</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Anzeigesprache der Benutzeroberfläche</div>
+              <div class="pr-sub">Automatische Systemsprache oder eine von 14 Sprachen direkt wählen</div>
+            </div>
+            <div class="pr-ctl">
+              <select class="select" id="set-language" onchange="updateSetting('language', this.value)"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">🎨 Studio Farbschema (Theme)</div>
+        <div class="prefs-card">
+          <div class="theme-grid">
+            <div class="theme-card" data-t="dark" onclick="updateSetting('theme','dark')">
+              <div class="tc-mock"><div style="background:#0f1115"></div><div style="background:#151821"></div><div style="background:#6ea8fe"></div></div>
+              <div class="tc-name">Studio Dark</div>
+            </div>
+            <div class="theme-card" data-t="light" onclick="updateSetting('theme','light')">
+              <div class="tc-mock"><div style="background:#f5f6f8"></div><div style="background:#ffffff"></div><div style="background:#2563eb"></div></div>
+              <div class="tc-name">Studio Light</div>
+            </div>
+            <div class="theme-card" data-t="github" onclick="updateSetting('theme','github')">
+              <div class="tc-mock"><div style="background:#f6f8fa"></div><div style="background:#ffffff"></div><div style="background:#0969da"></div></div>
+              <div class="tc-name">GitHub Light</div>
+            </div>
+            <div class="theme-card" data-t="github-dark" onclick="updateSetting('theme','github-dark')">
+              <div class="tc-mock"><div style="background:#0d1117"></div><div style="background:#161b22"></div><div style="background:#2f81f7"></div></div>
+              <div class="tc-name">GitHub Dark</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">🛠 Werkzeugleisten &amp; Zeilenabstand</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Laufwerksleiste über den Panels anzeigen</div><div class="pr-sub">Zeigt Laufwerke inkl. freiem Speicherplatz und Belegungsbalken</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_drive_bar" onclick="toggleBoolSetting('show_drive_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Funktionsleiste (F1–F12) am unteren Fensterrand anzeigen</div><div class="pr-sub">Schnellzugriff auf F1–F12 Kommandos</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_function_key_bar" onclick="toggleBoolSetting('show_function_key_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Tooltips mit Funktionsbeschreibungen bei Buttons anzeigen</div><div class="pr-sub">Hilfetexte beim Überfahren von Symbolen einblenden</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_tooltips" onclick="toggleBoolSetting('show_tooltips')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Zeilenhöhe in der Dateiliste (Kompaktheit)</div><div class="pr-sub">20 px (sehr kompakt) bis 44 px (großzügig) — Standard: 26 px</div></div>
+            <div class="pr-ctl">
+              <input type="range" min="20" max="44" step="1" id="rng-file_list_row_height" oninput="updateSetting('file_list_row_height', parseFloat(this.value))">
+              <span id="lbl-file_list_row_height" style="min-width:42px;text-align:right;font-family:var(--font-mono)">26 px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. COLORS & HIGHLIGHTING -->
+      <div class="prefs-pane" id="pcat-Colors">
+        <div class="prefs-section-title">1. Rahmenfarbe des aktiven Explorer-Panels</div>
+        <div class="prefs-card" id="colorCardActivePanel"></div>
+
+        <div class="prefs-section-title">2. Umrandungsfarbe des ausgewählten Elements</div>
+        <div class="prefs-card" id="colorCardSelection"></div>
+
+        <div class="prefs-section-title">3. Textfarbe für markierte Elemente (✓ mit Leertaste / Einfg)</div>
+        <div class="prefs-card" id="colorCardMarked"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px 0;">
+          <div class="prefs-section-title" style="margin:0;">4. Treemap-Kategoriefarben (Speicherplatz-Analysator)</div>
+          <button class="btn" onclick="resetTreemapColors()">↺ Treemap-Farben auf Standardwerte zurücksetzen</button>
+        </div>
+        <div class="prefs-card" id="colorCardTreemapList"></div>
+      </div>
+
+      <!-- 3. FILE LIST & BEHAVIOR -->
+      <div class="prefs-pane" id="pcat-Behavior">
+        <div class="prefs-section-title">📁 Darstellung &amp; Sortierung in der Dateiliste</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Ansichtsmodus für neue Tabs</div><div class="pr-sub">Wird beim Öffnen neuer Tabs verwendet</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-default_view_mode" onchange="updateSetting('default_view_mode', this.value)">
+                <option value="Details">Details (Tabelle mit allen Spalten)</option>
+                <option value="List">Liste (Kompakt)</option>
+                <option value="Tiles">Kacheln (Tiles)</option>
+                <option value="SmallIcons">Kleine Symbole</option>
+                <option value="MediumIcons">Mittlere Symbole</option>
+                <option value="LargeIcons">Große Symbole</option>
+                <option value="ExtraLargeIcons">Extra große Symbole</option>
+                <option value="Content">Inhalt (Content)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Ordner immer vor Dateien sortieren</div><div class="pr-sub">Hält Verzeichnisse unabhängig von der Sortierspalte oben</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-sort_folders_first" onclick="toggleBoolSetting('sort_folders_first')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Dateiendungen in der Namensspalte anzeigen</div><div class="pr-sub">Wenn deaktiviert, wird die Endung nur in der Typ-Spalte gezeigt</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_file_extensions" onclick="toggleBoolSetting('show_file_extensions')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Versteckte Dateien standardmäßig anzeigen (Strg+H)</div><div class="pr-sub">Zeigt Dateien und Ordner mit gesetztem Hidden-Attribut oder führendem Punkt</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_hidden_files" onclick="toggleBoolSetting('show_hidden_files')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Systemdateien anzeigen</div><div class="pr-sub">Geschützte Betriebssystemdateien einblenden</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_system_files" onclick="toggleBoolSetting('show_system_files')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Ordnergröße beim Markieren mit Leertaste automatisch berechnen</div><div class="pr-sub">Berechnet sofort die rekursive Größe des markierten Ordners</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-auto_calculate_folder_size_on_mark" onclick="toggleBoolSetting('auto_calculate_folder_size_on_mark')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Bestätigungsdialog beim Löschen (F8 / Entf) anzeigen</div><div class="pr-sub">Schützt vor versehentlichem Löschen von Dateien</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-confirm_delete" onclick="toggleBoolSetting('confirm_delete')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Einfachklick zum Öffnen von Ordnern und Dateien</div><div class="pr-sub">Wenn deaktiviert, öffnet Doppelklick (Standard)</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-single_click_open" onclick="toggleBoolSetting('single_click_open')"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. IMAGE HOVER PREVIEW -->
+      <div class="prefs-pane" id="pcat-Preview">
+        <div class="prefs-section-title">🖼️ Bildvorschau beim Überfahren mit der Maus (Hover-Preview)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Bildvorschau beim Überfahren einer Bilddatei anzeigen</div><div class="pr-sub">Zeigt ein schwebendes Vorschaubild direkt neben dem Mauszeiger</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-enable_image_hover_preview" onclick="toggleBoolSetting('enable_image_hover_preview')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Maximale Größe des Vorschaubildes (Breite / Höhe)</div><div class="pr-sub">160 px (klein) bis 720 px (groß) — Standard: 320 px</div></div>
+            <div class="pr-ctl">
+              <input type="range" min="160" max="720" step="20" id="rng-image_hover_preview_size" oninput="updateSetting('image_hover_preview_size', parseFloat(this.value))">
+              <span id="lbl-image_hover_preview_size" style="min-width:48px;text-align:right;font-family:var(--font-mono)">320 px</span>
+            </div>
+          </div>
+        </div>
+        <div class="prefs-card" style="color:var(--fg-dim);font-size:12px;">
+          💡 <strong>Unterstützte Bildformate:</strong> PNG, JPG / JPEG, GIF, BMP, WEBP, SVG, ICO, TIF / TIFF, JFIF.
+        </div>
+      </div>
+
+      <!-- 5. FONT SIZES -->
+      <div class="prefs-pane" id="pcat-Fonts">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="prefs-section-title" style="margin:0;">🔤 Globale Schriftgröße</div>
+          <button class="btn" onclick="resetFontSizes()">↺ Schriftgrößen auf Standardwerte zurücksetzen</button>
+        </div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Globale Schriftgröße für alle Bereiche verwenden</div><div class="pr-sub">Überschreibt alle Einzel-Schriftgrößen mit einem einheitlichen Wert</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-use_global_font_size" onclick="toggleBoolSetting('use_global_font_size')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Globale Schriftgröße (8 – 24 px)</div></div>
+            <div class="pr-ctl">
+              <input type="range" min="8" max="24" step="0.5" id="rng-global_font_size" oninput="updateSetting('global_font_size', parseFloat(this.value))">
+              <span id="lbl-global_font_size" style="min-width:46px;text-align:right;font-family:var(--font-mono)">13 px</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">🖥 Hauptfenster — Einzelne Bereiche (8 Bereiche)</div>
+        <div class="prefs-card" id="fontMainAreasList"></div>
+
+        <div class="prefs-section-title">🪟 Child-Fenster — Einzelne Dialoge &amp; Werkzeuge (10 Fenster)</div>
+        <div class="prefs-card" id="fontChildWindowsList"></div>
+      </div>
+
+      <!-- 6. SESSION, UPDATES & WINDOW BOUNDS -->
+      <div class="prefs-pane" id="pcat-Session">
+        <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub">Installierte Version: v1.8.1</div></div>
+            <div class="pr-ctl">
+              <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
+              <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">💾 Sitzungsverwaltung (Tabs &amp; Pfade)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Beim Beenden geöffnete Tabs, Pfade, Ansichtsmodi &amp; Layout speichern</div><div class="pr-sub">Stellt alle offenen Tabs beider Panels beim nächsten Start wieder her</div></div>
+            <div class="pr-ctl">
+              <div class="switch" id="sw-restore_previous_session" onclick="toggleBoolSetting('restore_previous_session')"></div>
+              <button class="btn" onclick="saveCurrentSessionNow(true)">💾 Aktuelle Session jetzt sofort speichern</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">📐 Gespeicherte Fenstergrößen</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Gespeicherte Abmessungen für Hauptfenster, Einstellungen &amp; Dialoge</div>
+              <div class="pr-sub" id="lblWindowBoundsInfo">Hauptfenster: 1520 × 920 px | Einstellungen: 860 × 660 px | Dialoge: 960 × 680 px</div>
+            </div>
+            <div class="pr-ctl">
+              <button class="btn" onclick="resetWindowBounds()">↺ Fenstergrößen zurücksetzen</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">⚠️ Werkseinstellungen wiederherstellen</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Alle Einstellungen auf Werkseinstellungen zurücksetzen</div><div class="pr-sub">Setzt Farben, Schriftgrößen, Darstellung und Verhalten auf Standard zurück</div></div>
+            <div class="pr-ctl">
+              <button class="btn danger" onclick="resetAllSettings()">⚠️ Alles auf Standard zurücksetzen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. SHORTCUTS REFERENCE -->
+      <div class="prefs-pane" id="pcat-Shortcuts">
+        <div class="prefs-section-title">⌨️ Tastenkombinationen &amp; Kurzbefehle</div>
+        <input class="input" style="width:100%;margin-bottom:10px;" placeholder="Tastenkürzel oder Befehl filtern…" oninput="renderShortcutsTable(this.value)">
+        <div class="prefs-card" style="padding:0;overflow:hidden;">
+          <table class="data-tbl" id="shortcutsTbl"></table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn primary" onclick="closeModal('modalSettings')">✓ Fertig &amp; Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ABOUT & UPDATE MODAL (Multi-Line Scrollable Release Notes + GitHub Link) ==================== -->
+<div class="modal-bg" id="modalAbout" onclick="if(event.target===this)closeModal('modalAbout')">
+  <div class="modal" style="width:680px;">
+    <div class="modal-head">
+      <span>ℹ Über ModernExplorer Studio &amp; Updates</span>
+      <button class="ibtn" onclick="closeModal('modalAbout')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elev);padding:12px 16px;border-radius:8px;border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;">ME</div>
+          <div>
+            <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.0</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.0</strong></div>
+          </div>
+        </div>
+        <button class="btn primary" onclick="checkUpdatesLive()">🔄 Jetzt prüfen</button>
+      </div>
+      <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;">
+        ✓ Sie verwenden die aktuelle Version v1.9.0.
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-weight:600;font-size:12.5px;">📋 Release Notes &amp; Neuerungen (mehrzeilig &amp; scrollbar):</span>
+          <a href="#" onclick="openReleaseUrl();return false;" style="color:var(--accent);font-size:12px;text-decoration:none;font-weight:600;">🌐 Auf GitHub im Browser ansehen ↗</a>
+        </div>
+        <textarea class="textarea" id="aboutReleaseNotesBox" readonly style="width:100%;height:240px;font-family:var(--font-ui);line-height:1.55;resize:vertical;white-space:pre-wrap;"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="openReleaseUrl()">🌐 GitHub Releases öffnen ↗</button>
+      <button class="btn primary" onclick="closeModal('modalAbout')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== COMMAND PALETTE MODAL (F10 / Ctrl+Shift+P) ==================== -->
+<div class="modal-bg" id="modalPalette" onclick="if(event.target===this)closeModal('modalPalette')">
+  <div class="modal" style="width:620px;">
+    <div class="modal-head">
+      <span>⌘ Befehlspalette (Command Palette)</span>
+      <button class="ibtn" onclick="closeModal('modalPalette')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input class="input" id="paletteInput" style="width:100%;margin-bottom:10px;" placeholder="Befehl, Werkzeug oder Tastenkürzel suchen…" oninput="renderPaletteList(this.value)">
+      <div id="paletteList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== F3 / F4 QUICK VIEWER & EDITOR MODAL ==================== -->
+<div class="modal-bg" id="modalViewer" onclick="if(event.target===this)closeModal('modalViewer')">
+  <div class="modal xl">
+    <div class="modal-head">
+      <span id="viewerTitle">👁 Quick Viewer / Editor</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="seg">
+          <button id="vtab-text" class="active" onclick="switchViewerTab('text')">Text / Code</button>
+          <button id="vtab-image" onclick="switchViewerTab('image')">Bild</button>
+          <button id="vtab-hex" onclick="switchViewerTab('hex')">Hex-Dump</button>
+          <button id="vtab-csv" onclick="switchViewerTab('csv')">CSV-Tabelle</button>
+        </div>
+        <button class="ibtn" onclick="closeModal('modalViewer')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="viewerBody" style="min-height:430px;display:flex;flex-direction:column;">
+      <textarea class="textarea" id="viewerTextarea" style="flex:1;width:100%;min-height:400px;font-family:var(--font-mono);font-size:13px;line-height:1.5;"></textarea>
+      <div id="viewerImageWrap" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:10px;">
+        <img id="viewerImgEl" src="" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:6px;">
+        <div id="viewerImgMeta" style="color:var(--fg-dim);font-family:var(--font-mono)"></div>
+      </div>
+      <pre id="viewerHexPre" style="display:none;flex:1;margin:0;padding:10px;background:var(--bg-sunken);border-radius:6px;font-family:var(--font-mono);font-size:12px;overflow:auto;max-height:420px;"></pre>
+      <div id="viewerCsvWrap" style="display:none;flex:1;overflow:auto;max-height:420px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn primary" id="btnViewerSave" onclick="saveViewerFile()">💾 Änderungen speichern (Strg+S)</button>
+      <button class="btn" onclick="closeModal('modalViewer')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CREATE FILE / FOLDER MODAL (F7 / Shift+F7) ==================== -->
+<div class="modal-bg" id="modalCreate" onclick="if(event.target===this)closeModal('modalCreate')">
+  <div class="modal" style="width:520px;">
+    <div class="modal-head"><span id="createModalTitle">+ Neues Element erstellen</span><button class="ibtn" onclick="closeModal('modalCreate')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div id="createTplRow">
+        <label style="font-size:12px;color:var(--fg-dim);">Vorlage wählen:</label>
+        <select class="select" id="createTplSelect" style="width:100%;margin-top:4px;" onchange="onTemplateChange()"></select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--fg-dim);">Name:</label>
+        <input class="input" id="createNameInput" style="width:100%;margin-top:4px;" onkeydown="if(event.key==='Enter')executeCreateItem()">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modalCreate')">Abbrechen</button>
+      <button class="btn primary" onclick="executeCreateItem()">✓ Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== UNIVERSAL POWER-TOOL MODAL (Dynamic Multi-Tool Host) ==================== -->
+<div class="modal-bg" id="modalTool" onclick="if(event.target===this)closeModal('modalTool')">
+  <div class="modal xl">
+    <div class="modal-head">
+      <span id="toolModalTitle">Power-Tool</span>
+      <button class="ibtn" onclick="closeModal('modalTool')">✕</button>
+    </div>
+    <div class="modal-body" id="toolModalBody" style="min-height:420px;"></div>
+    <div class="modal-foot" id="toolModalFoot">
+      <button class="btn" onclick="closeModal('modalTool')">Schließen</button>
+    </div>
+  </div>
+</div>
+<script>
+const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
+
+const STATE = {
+  version: '1.9.0',
+  releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
+  defaultReleaseNotes: '',
+  settings: {},
+  favorites: [],
+  workspaces: [],
+  remoteProfiles: [],
+  drives: [],
+  templates: [],
+  commands: [],
+  languages: [],
+  canUndo: false,
+  undoDesc: '',
+  basketCount: 0,
+  basketSummary: '',
+  activeSide: 'left',
+  isDualPane: true,
+  dockOpen: true,
+  dockTab: 'preview',
+  zoom: 100,
+  createIsFolder: false,
+  viewerPath: '',
+  viewerData: null,
+  qcHistoryIdx: -1,
+  qcHistory: [],
+  panes: {
+    left: {
+      tabs: [{ path: '.', homePath: '.', title: 'Tab', lockState: 'Normal', viewMode: 'Details', branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }],
+      activeTab: 0,
+      items: [],
+      selected: new Set(),
+      marked: new Set(),
+      history: [],
+      historyPos: -1
+    },
+    right: {
+      tabs: [{ path: '.', homePath: '.', title: 'Tab', lockState: 'Normal', viewMode: 'Details', branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }],
+      activeTab: 0,
+      items: [],
+      selected: new Set(),
+      marked: new Set(),
+      history: [],
+      historyPos: -1
+    }
+  }
+};
+
+async function rpc(action, params = {}) {
+  try {
+    const res = await fetch('/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params })
+    });
+    return await res.json();
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2600);
+  document.getElementById('statusText').textContent = msg;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function isImageExt(ext) {
+  return IMAGE_EXTS.has(String(ext || '').toLowerCase());
+}
+
+function fileIcon(item) {
+  if (item.is_directory) return '📁';
+  const ext = (item.extension || '').toLowerCase();
+  if (IMAGE_EXTS.has(ext)) return '🖼️';
+  if (['.zip','.tar','.gz','.tgz','.7z','.rar','.nupkg'].includes(ext)) return '📦';
+  if (['.rs','.cs','.js','.ts','.py','.go','.c','.cpp','.h','.html','.css','.json','.toml','.yaml','.yml','.xml','.xaml','.ps1','.sh'].includes(ext)) return '📄';
+  if (['.exe','.msi','.bat','.cmd'].includes(ext)) return '⚙️';
+  if (['.mp4','.mkv','.avi','.mov','.mp3','.wav','.flac'].includes(ext)) return '🎬';
+  if (['.md','.txt','.log','.csv'].includes(ext)) return '📝';
+  return '📄';
+}
+
+/* ==================== STUDIO MENU BAR (.menubar) ==================== */
+const MENUS = [
+  { label: 'Datei', items: [
+    { label: 'Neue Datei aus Vorlage…', kbd: 'F7', run: () => openCreateModal(false) },
+    { label: 'Neuer Ordner…', kbd: 'Umschalt+F7', run: () => openCreateModal(true) },
+    'sep',
+    { label: 'Neuer Tab im aktiven Panel', kbd: 'Strg+T', run: () => addTab(STATE.activeSide) },
+    { label: 'Aktuellen Tab schließen', kbd: 'Strg+W', run: () => closeTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+    'sep',
+    { label: 'Schnellansicht (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
+    { label: 'Interner Text- & Code-Editor', kbd: 'F4', run: () => openViewerModal(true) },
+    { label: 'Externes Terminal hier öffnen', kbd: 'F9', run: () => openExternalTerminal() },
+    'sep',
+    { label: 'Aktuelle Session jetzt speichern', kbd: 'Strg+S', run: () => saveCurrentSessionNow(true) }
+  ]},
+  { label: 'Bearbeiten', items: [
+    { label: 'Rückgängig (Undo)', kbd: 'Strg+Z', run: () => doUndo() },
+    'sep',
+    { label: 'Kopieren in anderes Panel', kbd: 'F5', run: () => copyOrMoveActive(false) },
+    { label: 'Verschieben in anderes Panel', kbd: 'F6', run: () => copyOrMoveActive(true) },
+    { label: 'Umbenennen', kbd: 'F2', run: () => renameSelected() },
+    { label: 'Mehrfach-Umbenennen (Batch Rename)', kbd: 'Strg+M', run: () => openBatchRenameModal() },
+    { label: 'Löschen', kbd: 'F8 / Entf', run: () => deleteSelected() },
+    'sep',
+    { label: 'Alle Elemente markieren / demarkieren', kbd: 'Strg+A', run: () => toggleMarkAll(STATE.activeSide) },
+    { label: 'Smart Copy / Pfad & Tabellen-Export…', kbd: 'Strg+Shift+E', run: () => openSmartExportModal() }
+  ]},
+  { label: 'Ansicht', items: [
+    { label: 'Dual-Pane / Single-Pane umschalten', kbd: 'F12', run: () => setDualPaneMode(!STATE.isDualPane) },
+    { label: 'Rechtes Inspector-Dock ein-/ausblenden', kbd: 'Strg+Q', run: () => toggleDock() },
+    { label: 'Eingebettete Schnell-Konsole (>_)', kbd: 'Strg+Shift+J', run: () => toggleQuickConsole() },
+    { label: 'Branch-View (Flache Unterordner-Ansicht)', kbd: 'Strg+B', run: () => toggleBranchView(STATE.activeSide) },
+    { label: 'Versteckte Dateien ein-/ausblenden', kbd: 'Strg+H', run: () => toggleBoolSetting('show_hidden_files') },
+    'sep',
+    { label: 'Ansicht: Details (Tabelle)', kbd: '1', run: () => changePaneViewMode(STATE.activeSide, 'Details') },
+    { label: 'Ansicht: Liste', kbd: '2', run: () => changePaneViewMode(STATE.activeSide, 'List') },
+    { label: 'Ansicht: Kacheln (Tiles)', kbd: '3', run: () => changePaneViewMode(STATE.activeSide, 'Tiles') },
+    { label: 'Ansicht: Große Symbole', kbd: '4', run: () => changePaneViewMode(STATE.activeSide, 'LargeIcons') },
+    { label: 'Ansicht: Extra große Symbole', kbd: '5', run: () => changePaneViewMode(STATE.activeSide, 'ExtraLargeIcons') },
+    'sep',
+    { label: 'Theme: Studio Dark', run: () => updateSetting('theme','dark') },
+    { label: 'Theme: Studio Light', run: () => updateSetting('theme','light') },
+    { label: 'Theme: GitHub Light', run: () => updateSetting('theme','github') },
+    { label: 'Theme: GitHub Dark', run: () => updateSetting('theme','github-dark') }
+  ]},
+  { label: 'Werkzeuge', items: [
+    { label: '🏷 Mehrfach-Umbenennungstool (Batch Rename)', kbd: 'Strg+M', run: () => openBatchRenameModal() },
+    { label: '⚖ Visueller Side-by-Side Datei-Diff', kbd: 'Strg+Shift+U', run: () => openDiffModal() },
+    { label: '⇄ Verzeichnisse vergleichen & synchronisieren', kbd: 'Strg+Shift+S', run: () => openSyncModal() },
+    { label: '🔍 Rekursive Tiefensuche', kbd: 'Alt+F7', run: () => openDeepSearchModal() },
+    { label: '🧹 3-Phasen Duplikat-Finder', kbd: 'Strg+Shift+D', run: () => openDuplicatesModal() },
+    { label: '📊 Speicherplatz-Analysator & Squarified Treemap', kbd: 'Strg+Shift+W', run: () => openTreemapModal() },
+    'sep',
+    { label: '🔐 Prüfsummen-Generator & Manifest-Verifizierer', kbd: 'Strg+Shift+K', run: () => openChecksumsModal() },
+    { label: '✂ Datei-Splitter, Joiner (.001) & Datei-Shredder', kbd: 'Strg+Shift+X', run: () => openSplitShredModal() },
+    { label: '🎨 Farbige Datei-Tags & Notizen', kbd: 'Strg+Shift+L', run: () => openTagModal() },
+    { label: '🛠 Attribute, Zeitstempel & EXIF-Editor', kbd: 'Strg+Shift+A', run: () => openAttrExifModal() },
+    { label: '📦 Archiv-Browser & Packer (.zip / .tar.gz)', kbd: 'Alt+F5', run: () => openArchiveModal() },
+    { label: '🌐 Eingebauter FTP / FTPS / SFTP Client', kbd: 'Strg+Shift+C', run: () => openRemoteModal() },
+    { label: '⎇ Erweitertes Git-Panel (Branches, Stage, Commit)', kbd: 'Strg+Shift+G', run: () => openGitModal() },
+    { label: '🗂 Arbeitsbereiche (Workspace-Profile)', kbd: 'Strg+Shift+O', run: () => openWorkspacesModal() }
+  ]},
+  { label: 'Tabs & Favoriten', items: [
+    { label: 'Neuer Tab', kbd: 'Strg+T', run: () => addTab(STATE.activeSide) },
+    { label: 'Aktuellen Tab duplizieren', run: () => duplicateTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+    { label: 'Aktuellen Tab anheften / lösen (📌)', run: () => togglePinTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+    { label: 'Aktuellen Tab sperren / entsperren (🔒)', run: () => toggleLockTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+    'sep',
+    { label: '★ Aktuellen Ordner zu Favoriten hinzufügen/entfernen', kbd: 'Strg+D', run: () => toggleCurrentFavorite() },
+    { label: '🗂 Arbeitsbereiche verwalten…', kbd: 'Strg+Shift+O', run: () => openWorkspacesModal() }
+  ]},
+  { label: 'Einstellungen', items: [
+    { label: '🎨 Darstellung & Design…', kbd: 'Strg+,', run: () => openSettingsModal('Appearance') },
+    { label: '🖌️ Farben & Hervorhebung (inkl. Treemap-Farben)…', run: () => openSettingsModal('Colors') },
+    { label: '📁 Dateiliste & Verhalten…', run: () => openSettingsModal('Behavior') },
+    { label: '🖼️ Bildvorschau (Hover-Preview)…', run: () => openSettingsModal('Preview') },
+    { label: '🔤 Schriftgrößen (Hauptfenster & 10 Dialoge)…', run: () => openSettingsModal('Fonts') },
+    { label: '💾 Sitzung, Updates & Fenstergrößen…', run: () => openSettingsModal('Session') },
+    { label: '⌨️ Tastenkürzel-Übersicht…', kbd: 'F1', run: () => openSettingsModal('Shortcuts') }
+  ]},
+  { label: 'Hilfe', items: [
+    { label: '⌘ Befehlspalette öffnen', kbd: 'F10', run: () => openCommandPalette() },
+    { label: '⌨️ Tastenkombinationen', kbd: 'F1', run: () => openSettingsModal('Shortcuts') },
+    'sep',
+    { label: '🔄 Auf Updates prüfen…', run: () => openAboutModal(true) },
+    { label: '🌐 GitHub Releases im Browser öffnen ↗', run: () => openReleaseUrl() },
+    { label: 'ℹ Über ModernExplorer Studio & Release Notes', run: () => openAboutModal(false) }
+  ]}
+];
+
+function buildMenus() {
+  const host = document.getElementById('menuItems');
+  host.innerHTML = '';
+  MENUS.forEach(m => {
+    const mi = document.createElement('div');
+    mi.className = 'menu-item';
+    mi.textContent = m.label;
+    const dd = document.createElement('div');
+    dd.className = 'dropdown';
+    m.items.forEach(it => {
+      if (it === 'sep') {
+        const s = document.createElement('div');
+        s.className = 'dd-sep';
+        dd.appendChild(s);
+      } else {
+        const row = document.createElement('div');
+        row.className = 'dd-item';
+        row.innerHTML = `<span class="dd-left"><span>${esc(it.label)}</span></span>${it.kbd ? `<kbd>${esc(it.kbd)}</kbd>` : ''}`;
+        row.onclick = (e) => {
+          e.stopPropagation();
+          closeAllMenus();
+          it.run();
+        };
+        dd.appendChild(row);
+      }
+    });
+    mi.appendChild(dd);
+    mi.onclick = (e) => {
+      e.stopPropagation();
+      const wasOpen = mi.classList.contains('open');
+      closeAllMenus();
+      if (!wasOpen) mi.classList.add('open');
+    };
+    host.appendChild(mi);
+  });
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.menu-item.open').forEach(el => el.classList.remove('open'));
+  document.getElementById('ctxMenu').classList.remove('open');
+}
+
+document.addEventListener('click', () => {
+  closeAllMenus();
+  document.getElementById('ac-left').classList.remove('open');
+  document.getElementById('ac-right').classList.remove('open');
+});
+
+/* ==================== APPLY SETTINGS TO CSS & DOM ==================== */
+function applySettingsToDom() {
+  const s = STATE.settings;
+  const theme = s.theme || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('statusThemeName').textContent = theme;
+
+  const r = document.documentElement.style;
+  r.setProperty('--active-pane-border', s.active_panel_border_color_hex || '#0078D4');
+  r.setProperty('--active-pane-border-w', (s.active_panel_border_thickness ?? 2) + 'px');
+  r.setProperty('--sel-border-color', s.selection_border_color_hex || '#60CDFF');
+  r.setProperty('--sel-border-w', (s.selection_border_thickness ?? 1.5) + 'px');
+  r.setProperty('--marked-color', s.marked_item_text_color_hex || '#FFB900');
+  r.setProperty('--row-height', (s.file_list_row_height ?? 26) + 'px');
+
+  const g = s.use_global_font_size ? (s.global_font_size || 13) : null;
+  r.setProperty('--fs-filelist', (g ?? s.file_list_font_size ?? 13) + 'px');
+  r.setProperty('--fs-details', (g ?? s.file_list_details_font_size ?? 12) + 'px');
+  r.setProperty('--fs-tabs', (g ?? s.tab_header_font_size ?? 12) + 'px');
+  r.setProperty('--fs-drives', (g ?? s.drive_bar_font_size ?? 12) + 'px');
+  r.setProperty('--fs-address', (g ?? s.address_bar_font_size ?? 12.5) + 'px');
+  r.setProperty('--fs-breadcrumbs', (g ?? s.breadcrumb_font_size ?? 11.5) + 'px');
+  r.setProperty('--fs-status', (g ?? s.status_bar_font_size ?? 11.5) + 'px');
+  r.setProperty('--fs-fnbar', (g ?? s.function_key_bar_font_size ?? 11.5) + 'px');
+  r.setProperty('--fs-child', (g ?? s.child_window_font_size ?? 13) + 'px');
+
+  document.getElementById('drives-left').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
+  document.getElementById('drives-right').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
+  document.getElementById('fnKeyBar').classList.toggle('hidden', s.show_function_key_bar === false);
+}
+
+/* ==================== INITIALIZATION ==================== */
+async function initApp() {
+  buildMenus();
+  initSplitter();
+  const data = await rpc('init');
+  if (!data || data.error) {
+    toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
+    return;
+  }
+  STATE.version = data.version || '1.8.1';
+  STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
+  STATE.defaultReleaseNotes = data.default_release_notes || '';
+  STATE.settings = data.settings || {};
+  STATE.favorites = data.favorites || [];
+  STATE.workspaces = data.workspaces || [];
+  STATE.remoteProfiles = data.remote_profiles || [];
+  STATE.drives = data.drives || [];
+  STATE.templates = data.templates || [];
+  STATE.commands = data.commands || [];
+  STATE.languages = data.languages || [];
+  STATE.canUndo = !!data.can_undo;
+  STATE.undoDesc = data.undo_desc || '';
+  STATE.basketCount = data.basket_count || 0;
+  STATE.basketSummary = data.basket_summary || '';
+
+  applySettingsToDom();
+  renderFavorites();
+  updateUndoStatus();
+  document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+
+  const cwd = data.cwd || '.';
+  const defView = STATE.settings.default_view_mode || 'Details';
+
+  if (STATE.settings.restore_previous_session && data.session && Array.isArray(data.session.left_tabs) && data.session.left_tabs.length > 0) {
+    const sess = data.session;
+    STATE.panes.left.tabs = sess.left_tabs.map(t => ({
+      path: t.path || cwd,
+      homePath: t.home_path || t.path || cwd,
+      title: (t.path || cwd).split(/[\\/]/).filter(Boolean).pop() || t.path || 'Tab',
+      lockState: t.lock_state || 'Normal',
+      viewMode: t.view_mode || defView,
+      branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true
+    }));
+    STATE.panes.right.tabs = (sess.right_tabs && sess.right_tabs.length > 0 ? sess.right_tabs : sess.left_tabs).map(t => ({
+      path: t.path || cwd,
+      homePath: t.home_path || t.path || cwd,
+      title: (t.path || cwd).split(/[\\/]/).filter(Boolean).pop() || t.path || 'Tab',
+      lockState: t.lock_state || 'Normal',
+      viewMode: t.view_mode || defView,
+      branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true
+    }));
+    STATE.panes.left.activeTab = Math.min(sess.active_left_tab || 0, STATE.panes.left.tabs.length - 1);
+    STATE.panes.right.activeTab = Math.min(sess.active_right_tab || 0, STATE.panes.right.tabs.length - 1);
+    setDualPaneMode(sess.is_dual_pane !== false);
+  } else {
+    STATE.panes.left.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
+    STATE.panes.right.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
+  }
+
+  await loadPane('left', true);
+  await loadPane('right', true);
+}
+
+function getTab(side) {
+  const p = STATE.panes[side];
+  return p.tabs[p.activeTab] || p.tabs[0];
+}
+
+function setActiveSide(side) {
+  STATE.activeSide = side;
+  document.getElementById('pane-left').classList.toggle('active-pane', side === 'left');
+  document.getElementById('pane-right').classList.toggle('active-pane', side === 'right');
+  const tab = getTab(side);
+  document.getElementById('headerActivePath').textContent = tab.path;
+  document.getElementById('qcPrompt').textContent = `PS ${tab.path}>`;
+}
+
+function setDualPaneMode(dual) {
+  STATE.isDualPane = dual;
+  document.getElementById('pane-right').style.display = dual ? 'flex' : 'none';
+  document.getElementById('paneSplitter').style.display = dual ? 'block' : 'none';
+  document.getElementById('segDual').classList.toggle('active', dual);
+  document.getElementById('segSingle').classList.toggle('active', !dual);
+  document.getElementById('headerModeBadge').textContent = dual ? 'Dual-Pane' : 'Single-Pane';
+  if (!dual && STATE.activeSide === 'right') setActiveSide('left');
+}
+
+function renderDrives(side, currentPath) {
+  const host = document.getElementById('drives-' + side);
+  host.innerHTML = '';
+  STATE.drives.forEach(d => {
+    const chip = document.createElement('div');
+    const isAct = String(currentPath || '').toUpperCase().startsWith(String(d.root_path).toUpperCase());
+    chip.className = 'drive-chip' + (isAct ? ' active' : '');
+    if (STATE.settings.show_tooltips !== false) chip.title = d.tooltip;
+    chip.innerHTML = `<span>💾 ${esc(d.display_text)}</span><div class="drive-prog"><span style="width:${d.used_percent}%"></span></div>`;
+    chip.onclick = (e) => {
+      e.stopPropagation();
+      navigateTo(side, d.root_path);
+    };
+    host.appendChild(chip);
+  });
+}
+
+function renderTabs(side) {
+  const p = STATE.panes[side];
+  const host = document.getElementById('tabs-' + side);
+  host.innerHTML = '';
+  p.tabs.forEach((t, idx) => {
+    const el = document.createElement('div');
+    el.className = 'tab' + (idx === p.activeTab ? ' active' : '');
+    const lockIcon = t.lockState === 'Pinned' ? '📌 ' : (t.lockState === 'Locked' ? '🔒 ' : '');
+    el.innerHTML = `<span class="name">${lockIcon}${esc(t.title || 'Tab')}</span>` +
+      (t.lockState === 'Normal' && p.tabs.length > 1 ? `<span class="close" title="Tab schließen">×</span>` : '');
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (e.target.classList.contains('close')) {
+        closeTab(side, idx);
+      } else {
+        p.activeTab = idx;
+        loadPane(side);
+      }
+    };
+    el.onauxclick = (e) => {
+      if (e.button === 1) closeTab(side, idx);
+    };
+    el.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openTabContextMenu(e, side, idx);
+    };
+    host.appendChild(el);
+  });
+  const addBtn = document.createElement('div');
+  addBtn.className = 'tab-add';
+  addBtn.textContent = '+';
+  addBtn.title = 'Neuer Tab (Strg+T)';
+  addBtn.onclick = (e) => { e.stopPropagation(); addTab(side); };
+  host.appendChild(addBtn);
+}
+
+function addTab(side, customPath) {
+  const p = STATE.panes[side];
+  const cur = getTab(side);
+  const path = customPath || cur.path;
+  p.tabs.push({
+    path,
+    homePath: path,
+    title: path.split(/[\\/]/).filter(Boolean).pop() || path,
+    lockState: 'Normal',
+    viewMode: STATE.settings.default_view_mode || cur.viewMode || 'Details',
+    branchView: false,
+    treeSizes: false,
+    sortCol: 'Name',
+    sortAsc: true
+  });
+  p.activeTab = p.tabs.length - 1;
+  loadPane(side, true);
+}
+
+function duplicateTab(side, idx) {
+  const t = STATE.panes[side].tabs[idx];
+  if (t) addTab(side, t.path);
+}
+
+function togglePinTab(side, idx) {
+  const t = STATE.panes[side].tabs[idx];
+  if (!t) return;
+  t.lockState = t.lockState === 'Pinned' ? 'Normal' : 'Pinned';
+  renderTabs(side);
+  saveCurrentSessionNow(false);
+}
+
+function toggleLockTab(side, idx) {
+  const t = STATE.panes[side].tabs[idx];
+  if (!t) return;
+  t.lockState = t.lockState === 'Locked' ? 'Normal' : 'Locked';
+  renderTabs(side);
+  saveCurrentSessionNow(false);
+}
+
+function closeTab(side, idx) {
+  const p = STATE.panes[side];
+  const t = p.tabs[idx];
+  if (!t) return;
+  if (t.lockState !== 'Normal') {
+    toast('Angeheftete oder gesperrte Tabs können nicht geschlossen werden.');
+    return;
+  }
+  if (p.tabs.length <= 1) return;
+  p.tabs.splice(idx, 1);
+  if (p.activeTab >= p.tabs.length) p.activeTab = p.tabs.length - 1;
+  loadPane(side);
+}
+
+async function navigateTo(side, newPath) {
+  const p = STATE.panes[side];
+  const t = getTab(side);
+  if (t.lockState === 'Locked' && newPath !== t.path) {
+    // Open in a new tab when current tab is locked
+    addTab(side, newPath);
+    return;
+  }
+  t.path = newPath;
+  await loadPane(side, true);
+}
+
+async function loadPane(side, recordHistory = false) {
+  const p = STATE.panes[side];
+  const t = getTab(side);
+  const filter = document.getElementById('filter-' + side).value || '';
+  const data = await rpc('list_dir', {
+    path: t.path,
+    branch_view: t.branchView,
+    show_tree_sizes: t.treeSizes,
+    filter,
+    sort_col: t.sortCol,
+    sort_asc: t.sortAsc
+  });
+  if (!data || data.error) return;
+
+  t.path = data.path;
+  t.title = data.title;
+  p.items = data.items || [];
+  p.selected.clear();
+  p.marked.clear();
+
+  if (recordHistory) {
+    p.history = p.history.slice(0, p.historyPos + 1);
+    p.history.push(t.path);
+    p.historyPos = p.history.length - 1;
+  }
+
+  document.getElementById('addr-' + side).value = t.path;
+  document.getElementById('viewmode-' + side).value = t.viewMode || 'Details';
+  document.getElementById('branch-' + side).classList.toggle('active', !!t.branchView);
+  document.getElementById('treesize-' + side).classList.toggle('active', !!t.treeSizes);
+
+  const star = document.getElementById('star-' + side);
+  star.textContent = data.is_favorite ? '★' : '☆';
+  star.classList.toggle('fav', !!data.is_favorite);
+
+  renderDrives(side, t.path);
+  renderTabs(side);
+  renderBreadcrumbs(side, data.breadcrumbs || [], data.git_badge);
+  renderFileList(side);
+  updatePaneFooter(side, data.total_bytes_text);
+
+  if (STATE.activeSide === side) {
+    document.getElementById('headerActivePath').textContent = t.path;
+    document.getElementById('qcPrompt').textContent = `PS ${t.path}>`;
+  }
+  if (STATE.settings.restore_previous_session) {
+    saveCurrentSessionNow(false);
+  }
+}
+
+function renderBreadcrumbs(side, crumbs, gitBadge) {
+  const host = document.getElementById('crumbs-' + side);
+  host.innerHTML = '';
+  crumbs.forEach((c, idx) => {
+    if (idx > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '›';
+      host.appendChild(sep);
+    }
+    const el = document.createElement('span');
+    el.className = 'crumb';
+    el.textContent = c.label;
+    el.onclick = (e) => { e.stopPropagation(); navigateTo(side, c.full_path); };
+    host.appendChild(el);
+  });
+
+  const gb = document.getElementById('gitbadge-' + side);
+  if (gitBadge) {
+    gb.innerHTML = `<span class="git-pill" onclick="setActiveSide('${side}');openGitModal()" title="Git-Repository öffnen">${esc(gitBadge)}</span>`;
+  } else {
+    gb.innerHTML = '';
+  }
+}
+
+function renderFileList(side) {
+  const p = STATE.panes[side];
+  const t = getTab(side);
+  const mode = t.viewMode || 'Details';
+  const host = document.getElementById('list-' + side);
+  host.className = 'file-list mode-' + mode;
+  document.getElementById('colhead-' + side).style.display = mode === 'Details' ? 'grid' : 'none';
+  host.innerHTML = '';
+
+  // Parent directory [..] entry if not at root
+  const hasParent = t.path.length > 3 && (t.path.includes('\\') || t.path.includes('/'));
+  if (hasParent && mode === 'Details') {
+    const upRow = document.createElement('div');
+    upRow.className = 'file-row';
+    upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name" style="font-weight:600;color:var(--fg-dim)">[..] Übergeordneter Ordner</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
+    upRow.ondblclick = () => navUp(side);
+    host.appendChild(upRow);
+  }
+
+  p.items.forEach((item, idx) => {
+    const isSel = p.selected.has(item.full_path);
+    const isMark = p.marked.has(item.full_path);
+
+    if (mode !== 'Details') {
+      const card = document.createElement('div');
+      card.className = 'file-card' + (isSel ? ' selected' : '') + (isMark ? ' marked' : '');
+      const showThumb = isImageExt(item.extension) && ['MediumIcons','LargeIcons','ExtraLargeIcons','Tiles'].includes(mode);
+      card.innerHTML = showThumb
+        ? `<img class="thumb-img" src="/file?path=${encodeURIComponent(item.full_path)}" loading="lazy"><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
+        : `<div style="font-size:${mode==='SmallIcons'||mode==='List'?'16px':'28px'}">${fileIcon(item)}</div><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`;
+      bindItemEvents(card, side, item, idx);
+      host.appendChild(card);
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'file-row' + (isSel ? ' selected' : '') + (isMark ? ' marked' : '') + (item.is_hidden ? ' is-hidden' : '');
+    row.dataset.path = item.full_path;
+
+    const tagDot = item.tag_color_hex ? `<span class="f-tag-dot" style="background:${item.tag_color_hex}"></span>` : '';
+    const tagBadge = item.tag_label ? `<span class="f-tag-badge">${esc(item.tag_label)}</span>` : '';
+
+    row.innerHTML = `
+      <div><span class="f-check" data-chk="1">${isMark ? '✓' : ''}</span></div>
+      <div class="f-name-wrap">
+        <span class="f-ico">${fileIcon(item)}</span>
+        ${tagDot}
+        <span class="f-name">${esc(item.display_name)}</span>
+        ${tagBadge}
+      </div>
+      <div class="f-size-cell">
+        ${item.size_bar_percent > 0 ? `<div class="f-size-bar" style="width:${item.size_bar_percent}%"></div>` : ''}
+        <span class="f-size-txt" id="sz-${side}-${idx}">${esc(item.size_text)}</span>
+      </div>
+      <div class="f-mod">${esc(item.modified_text)}</div>
+      <div class="f-type">${esc(item.type_text)}</div>
+    `;
+    bindItemEvents(row, side, item, idx);
+    host.appendChild(row);
+  });
+}
+
+function bindItemEvents(el, side, item, idx) {
+  const p = STATE.panes[side];
+  el.onclick = (e) => {
+    e.stopPropagation();
+    setActiveSide(side);
+    if (e.target.dataset.chk) {
+      toggleMarkItem(side, item, idx);
+      return;
+    }
+    if (e.ctrlKey) {
+      if (p.selected.has(item.full_path)) p.selected.delete(item.full_path);
+      else p.selected.add(item.full_path);
+    } else {
+      p.selected.clear();
+      p.selected.add(item.full_path);
+    }
+    renderFileList(side);
+    updateDockInspector(item);
+    if (STATE.settings.single_click_open) {
+      activateItem(side, item);
+    }
+  };
+  el.ondblclick = (e) => {
+    e.stopPropagation();
+    if (!STATE.settings.single_click_open) {
+      activateItem(side, item);
+    }
+  };
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveSide(side);
+    if (!p.selected.has(item.full_path)) {
+      p.selected.clear();
+      p.selected.add(item.full_path);
+      renderFileList(side);
+    }
+    openFileContextMenu(e, side, item);
+  };
+  if (isImageExt(item.extension)) {
+    el.onmouseenter = (e) => showImageHoverPreview(e, item);
+    el.onmousemove = (e) => moveImageHoverPreview(e);
+    el.onmouseleave = () => hideImageHoverPreview();
+  }
+}
+
+async function toggleMarkItem(side, item, idx) {
+  const p = STATE.panes[side];
+  if (p.marked.has(item.full_path)) {
+    p.marked.delete(item.full_path);
+  } else {
+    p.marked.add(item.full_path);
+    if (item.is_directory && STATE.settings.auto_calculate_folder_size_on_mark !== false) {
+      const res = await rpc('calc_folder_size', { path: item.full_path });
+      if (res && res.ok) {
+        item.effective_size = res.size_bytes;
+        item.size_text = res.size_text;
+      }
+    }
+  }
+  renderFileList(side);
+  updatePaneFooter(side);
+}
+
+function toggleMarkAll(side) {
+  const p = STATE.panes[side];
+  if (p.marked.size === p.items.length) p.marked.clear();
+  else p.items.forEach(i => p.marked.add(i.full_path));
+  renderFileList(side);
+  updatePaneFooter(side);
+}
+
+function updatePaneFooter(side, totalBytesText) {
+  const p = STATE.panes[side];
+  document.getElementById(`foot-${side}-count`).textContent = `${p.items.length} Elemente`;
+  document.getElementById(`foot-${side}-marked`).textContent = p.marked.size > 0 ? `✓ ${p.marked.size} markiert` : '';
+  if (totalBytesText) document.getElementById(`foot-${side}-size`).textContent = totalBytesText;
+}
+
+function activateItem(side, item) {
+  if (item.is_directory) {
+    navigateTo(side, item.full_path);
+  } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => item.name.toLowerCase().endsWith(x))) {
+    openArchiveModal(item.full_path);
+  } else {
+    rpc('open_item', { path: item.full_path });
+  }
+}
+
+function getActionPaths(side = STATE.activeSide) {
+  const p = STATE.panes[side];
+  if (p.marked.size > 0) return Array.from(p.marked);
+  if (p.selected.size > 0) return Array.from(p.selected);
+  return [];
+}
+
+function getSelectedSingleItem(side = STATE.activeSide) {
+  const p = STATE.panes[side];
+  const first = Array.from(p.selected)[0] || Array.from(p.marked)[0];
+  return p.items.find(i => i.full_path === first) || p.items[0] || null;
+}
+
+/* ==================== IMAGE HOVER PREVIEW ==================== */
+function showImageHoverPreview(e, item) {
+  if (STATE.settings.enable_image_hover_preview === false) return;
+  const card = document.getElementById('imgHoverCard');
+  const img = document.getElementById('imgHoverEl');
+  const meta = document.getElementById('imgHoverMeta');
+  const sz = STATE.settings.image_hover_preview_size || 320;
+  img.style.maxWidth = sz + 'px';
+  img.style.maxHeight = sz + 'px';
+  img.src = `/file?path=${encodeURIComponent(item.full_path)}`;
+  meta.textContent = `${item.name} (${item.size_text})`;
+  card.classList.add('visible');
+  moveImageHoverPreview(e);
+}
+
+function moveImageHoverPreview(e) {
+  const card = document.getElementById('imgHoverCard');
+  if (!card.classList.contains('visible')) return;
+  const sz = (STATE.settings.image_hover_preview_size || 320) + 40;
+  let x = e.clientX + 18;
+  let y = e.clientY + 18;
+  if (x + sz > window.innerWidth) x = Math.max(10, e.clientX - sz);
+  if (y + sz > window.innerHeight) y = Math.max(10, window.innerHeight - sz);
+  card.style.left = x + 'px';
+  card.style.top = y + 'px';
+}
+
+function hideImageHoverPreview() {
+  document.getElementById('imgHoverCard').classList.remove('visible');
+}
+
+/* ==================== NAVIGATION, SORT & AUTOCOMPLETE ==================== */
+function navUp(side) {
+  const t = getTab(side);
+  const norm = t.path.replace(/[\\/]+$/, '');
+  const idx = Math.max(norm.lastIndexOf('\\'), norm.lastIndexOf('/'));
+  if (idx > 0) {
+    let par = norm.slice(0, idx);
+    if (par.endsWith(':')) par += '\\';
+    navigateTo(side, par);
+  }
+}
+
+function navHistory(side, delta) {
+  const p = STATE.panes[side];
+  const next = p.historyPos + delta;
+  if (next >= 0 && next < p.history.length) {
+    p.historyPos = next;
+    getTab(side).path = p.history[next];
+    loadPane(side, false);
+  }
+}
+
+function toggleBranchView(side) {
+  const t = getTab(side);
+  t.branchView = !t.branchView;
+  loadPane(side);
+}
+
+function toggleTreeSizes(side) {
+  const t = getTab(side);
+  t.treeSizes = !t.treeSizes;
+  loadPane(side);
+}
+
+function changePaneViewMode(side, mode) {
+  getTab(side).viewMode = mode;
+  document.getElementById('viewmode-' + side).value = mode;
+  renderFileList(side);
+}
+
+function toggleSort(side, col) {
+  const t = getTab(side);
+  if (t.sortCol === col) t.sortAsc = !t.sortAsc;
+  else { t.sortCol = col; t.sortAsc = true; }
+  ['Name','Size','Modified','Extension'].forEach(c => {
+    const el = document.getElementById(`sort-${side}-${c}`);
+    if (el) el.textContent = c === t.sortCol ? (t.sortAsc ? '▲' : '▼') : '';
+  });
+  loadPane(side);
+}
+
+async function onAddressInput(side, val) {
+  if (val.startsWith('>')) {
+    openCommandPalette(val.slice(1).trim());
+    return;
+  }
+  const ac = document.getElementById('ac-' + side);
+  if (!val || val.length < 2) { ac.classList.remove('open'); return; }
+  const res = await rpc('autocomplete_path', { query: val });
+  const list = res?.suggestions || [];
+  if (!list.length) { ac.classList.remove('open'); return; }
+  ac.innerHTML = list.map(s => `<div class="addr-ac-item" onclick="selectAutocomplete('${side}','${esc(s).replace(/\\/g,'\\\\')}')">📁 ${esc(s)}</div>`).join('');
+  ac.classList.add('open');
+}
+
+function selectAutocomplete(side, path) {
+  document.getElementById('ac-' + side).classList.remove('open');
+  navigateTo(side, path);
+}
+
+function onAddressKey(side, e) {
+  if (e.key === 'Enter') {
+    document.getElementById('ac-' + side).classList.remove('open');
+    const v = e.target.value.trim();
+    if (v.startsWith('>')) openCommandPalette(v.slice(1).trim());
+    else navigateTo(side, v);
+  }
+}
+
+/* ==================== CONTEXT MENUS (Files, Tabs, Favorites) ==================== */
+function showContextMenuAt(e, items) {
+  const menu = document.getElementById('ctxMenu');
+  menu.innerHTML = '';
+  items.forEach(it => {
+    if (it === 'sep') {
+      const s = document.createElement('div');
+      s.className = 'dd-sep';
+      menu.appendChild(s);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'dd-item';
+      row.innerHTML = `<span class="dd-left"><span>${esc(it.label)}</span></span>${it.kbd ? `<kbd>${esc(it.kbd)}</kbd>` : ''}`;
+      row.onclick = (ev) => {
+        ev.stopPropagation();
+        menu.classList.remove('open');
+        it.run();
+      };
+      menu.appendChild(row);
+    }
+  });
+  menu.classList.add('open');
+  let x = e.clientX, y = e.clientY;
+  const rect = menu.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth) x = Math.max(8, window.innerWidth - rect.width - 8);
+  if (y + rect.height > window.innerHeight) y = Math.max(8, window.innerHeight - rect.height - 8);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+}
+
+function openFileContextMenu(e, side, item) {
+  const other = side === 'left' ? 'right' : 'left';
+  showContextMenuAt(e, [
+    { label: item.is_directory ? '📂 Ordner öffnen' : '▶ Datei öffnen', kbd: 'Enter', run: () => activateItem(side, item) },
+    ...(item.is_directory ? [
+      { label: '➕ In neuem Tab öffnen', kbd: 'Strg+T', run: () => addTab(side, item.full_path) },
+      { label: '⇄ Im anderen Panel öffnen', run: () => navigateTo(other, item.full_path) }
+    ] : []),
+    'sep',
+    { label: '👁 Schnellansicht (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
+    { label: '✏️ Im Text- & Code-Editor bearbeiten', kbd: 'F4', run: () => openViewerModal(true) },
+    { label: '⚖ Side-by-Side Datei-Diff', kbd: 'Strg+Shift+U', run: () => openDiffModal() },
+    'sep',
+    { label: '➔ Kopieren in anderes Panel', kbd: 'F5', run: () => copyOrMoveActive(false) },
+    { label: '➔ Verschieben in anderes Panel', kbd: 'F6', run: () => copyOrMoveActive(true) },
+    { label: '🏷 Umbenennen…', kbd: 'F2', run: () => renameSelected() },
+    { label: '🏷 Mehrfach-Umbenennen (Batch Rename)…', kbd: 'Strg+M', run: () => openBatchRenameModal() },
+    { label: '🗑 Löschen', kbd: 'F8', run: () => deleteSelected() },
+    'sep',
+    { label: '🎨 Farb-Tag & Notiz zuweisen…', kbd: 'Strg+Shift+L', run: () => openTagModal() },
+    { label: '🧺 Zum virtuellen Sammelkorb hinzufügen', kbd: 'Strg+Shift+B', run: () => addSelectedToBasket() },
+    { label: '🛠 Attribute, Zeitstempel & EXIF…', kbd: 'Strg+Shift+A', run: () => openAttrExifModal() },
+    { label: '🔐 Prüfsummen berechnen (SHA-256 / MD5 / CRC32)…', kbd: 'Strg+Shift+K', run: () => openChecksumsModal() },
+    { label: '✂ Datei teilen (.001) / zusammenfügen / schreddern…', kbd: 'Strg+Shift+X', run: () => openSplitShredModal() },
+    'sep',
+    { label: '📦 In Archiv packen (.zip / .tar.gz)…', kbd: 'Alt+F5', run: () => openArchiveModal() },
+    { label: '📋 Pfad kopieren', run: () => copyText(item.full_path) },
+    { label: '📋 Smart Export (Markdown / CSV / JSON)…', kbd: 'Strg+Shift+E', run: () => openSmartExportModal() },
+    { label: '🖥 PowerShell-Terminal hier öffnen', kbd: 'F9', run: () => openExternalTerminal() }
+  ]);
+}
+
+function openTabContextMenu(e, side, idx) {
+  const t = STATE.panes[side].tabs[idx];
+  const other = side === 'left' ? 'right' : 'left';
+  showContextMenuAt(e, [
+    { label: '➕ Neuer Tab', kbd: 'Strg+T', run: () => addTab(side) },
+    { label: '📑 Tab duplizieren', run: () => duplicateTab(side, idx) },
+    { label: '⇄ In anderem Panel öffnen', run: () => addTab(other, t.path) },
+    'sep',
+    { label: t.lockState === 'Pinned' ? '📌 Anheftung lösen' : '📌 Tab anheften (Pin)', run: () => togglePinTab(side, idx) },
+    { label: t.lockState === 'Locked' ? '🔓 Tab entsperren' : '🔒 Tab auf diesen Pfad sperren', run: () => toggleLockTab(side, idx) },
+    'sep',
+    { label: '✕ Tab schließen', kbd: 'Strg+W', run: () => closeTab(side, idx) }
+  ]);
+}
+
+/* ==================== FAVORITES ==================== */
+function renderFavorites() {
+  const host = document.getElementById('favList');
+  host.innerHTML = '';
+  STATE.favorites.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'fav-chip';
+    chip.title = f.path;
+    chip.innerHTML = `<span>📁 ${esc(f.name)}</span>`;
+    chip.onclick = () => navigateTo(STATE.activeSide, f.path);
+    chip.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showContextMenuAt(e, [
+        { label: 'Im aktiven Panel öffnen', run: () => navigateTo(STATE.activeSide, f.path) },
+        { label: 'In neuem Tab öffnen', run: () => addTab(STATE.activeSide, f.path) },
+        'sep',
+        { label: '✕ Aus Favoriten entfernen', run: () => toggleFavoritePath(f.path) }
+      ]);
+    };
+    host.appendChild(chip);
+  });
+}
+
+async function toggleFavoritePath(path) {
+  const res = await rpc('toggle_favorite', { path });
+  if (res && res.ok) {
+    STATE.favorites = res.favorites || [];
+    renderFavorites();
+    loadPane('left');
+    loadPane('right');
+    toast(res.is_favorite ? 'Zu Favoriten hinzugefügt' : 'Aus Favoriten entfernt');
+  }
+}
+
+function togglePaneFavorite(side) {
+  toggleFavoritePath(getTab(side).path);
+}
+
+function toggleCurrentFavorite() {
+  toggleFavoritePath(getTab(STATE.activeSide).path);
+}
+
+/* ==================== CORE FILE OPERATIONS & UNDO ==================== */
+function updateUndoStatus() {
+  const btn = document.getElementById('btnUndo');
+  btn.style.opacity = STATE.canUndo ? '1' : '0.5';
+  btn.title = STATE.canUndo ? `Rückgängig: ${STATE.undoDesc} (Strg+Z)` : 'Keine Aktion zum Rückgängigmachen';
+  document.getElementById('statusUndoInfo').textContent = STATE.canUndo ? `↶ Undo bereit: ${STATE.undoDesc}` : '';
+}
+
+async function doUndo() {
+  const res = await rpc('undo');
+  if (res && res.ok) {
+    STATE.canUndo = !!res.can_undo;
+    STATE.undoDesc = res.undo_desc || '';
+    updateUndoStatus();
+    await loadPane('left');
+    await loadPane('right');
+    toast('Rückgängig gemacht: ' + res.desc);
+  } else {
+    toast(res?.error || 'Nichts zum Rückgängigmachen.');
+  }
+}
+
+async function copyOrMoveActive(isMove) {
+  const srcSide = STATE.activeSide;
+  const dstSide = srcSide === 'left' ? 'right' : 'left';
+  const paths = getActionPaths(srcSide);
+  if (!paths.length) { toast('Bitte zuerst Dateien auswählen oder markieren.'); return; }
+  const destDir = getTab(dstSide).path;
+  const res = await rpc('copy_or_move', { is_move: isMove, paths, dest_dir: destDir });
+  if (res && res.ok) {
+    STATE.canUndo = !!res.can_undo;
+    STATE.undoDesc = res.undo_desc || '';
+    updateUndoStatus();
+    await loadPane('left');
+    await loadPane('right');
+    toast(`${res.count} Element(e) ${isMove ? 'verschoben' : 'kopiert'}.`);
+  }
+}
+
+async function deleteSelected() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Keine Elemente zum Löschen ausgewählt.'); return; }
+  if (STATE.settings.confirm_delete !== false) {
+    if (!confirm(`Möchten Sie wirklich ${paths.length} Element(e) löschen?`)) return;
+  }
+  const res = await rpc('delete_items', { paths });
+  if (res && res.ok) {
+    await loadPane('left');
+    await loadPane('right');
+    toast(`${res.count} Element(e) gelöscht.`);
+  }
+}
+
+async function renameSelected() {
+  const item = getSelectedSingleItem();
+  if (!item) return;
+  const newName = prompt('Neuer Name für ' + item.name + ':', item.name);
+  if (!newName || newName === item.name) return;
+  const res = await rpc('rename_item', { path: item.full_path, new_name: newName });
+  if (res && res.ok) {
+    STATE.canUndo = !!res.can_undo;
+    STATE.undoDesc = res.undo_desc || '';
+    updateUndoStatus();
+    await loadPane(STATE.activeSide);
+    toast('Umbenannt in ' + newName);
+  } else if (res?.error) {
+    toast('Fehler: ' + res.error);
+  }
+}
+
+function openCreateModal(isFolder) {
+  STATE.createIsFolder = isFolder;
+  document.getElementById('createModalTitle').textContent = isFolder ? '📁 Neuen Ordner erstellen (Shift+F7)' : '📄 Neue Datei aus Vorlage erstellen (F7)';
+  document.getElementById('createTplRow').style.display = isFolder ? 'none' : 'block';
+  const sel = document.getElementById('createTplSelect');
+  sel.innerHTML = STATE.templates.map((t, i) => `<option value="${i}">${esc(t.display_name)}</option>`).join('');
+  document.getElementById('createNameInput').value = isFolder ? 'Neuer Ordner' : (STATE.templates[0]?.default_file_name || 'NewFile.txt');
+  openModal('modalCreate');
+  setTimeout(() => document.getElementById('createNameInput').select(), 50);
+}
+
+function onTemplateChange() {
+  const idx = parseInt(document.getElementById('createTplSelect').value, 10) || 0;
+  const tpl = STATE.templates[idx];
+  if (tpl) document.getElementById('createNameInput').value = tpl.default_file_name;
+}
+
+async function executeCreateItem() {
+  const dir = getTab(STATE.activeSide).path;
+  const name = document.getElementById('createNameInput').value.trim();
+  const idx = parseInt(document.getElementById('createTplSelect').value, 10) || 0;
+  const content = STATE.createIsFolder ? '' : (STATE.templates[idx]?.initial_content || '');
+  const res = await rpc('create_item', { dir, name, is_folder: STATE.createIsFolder, content });
+  if (res && res.ok) {
+    STATE.canUndo = !!res.can_undo;
+    STATE.undoDesc = res.undo_desc || '';
+    updateUndoStatus();
+    closeModal('modalCreate');
+    await loadPane(STATE.activeSide);
+    toast('Erstellt: ' + name);
+  } else {
+    toast(res?.error || 'Fehler beim Erstellen');
+  }
+}
+
+/* ==================== RIGHT COLLAPSIBLE INSPECTOR DOCK (.dock) ==================== */
+function toggleDock() {
+  STATE.dockOpen = !STATE.dockOpen;
+  document.getElementById('rightDock').classList.toggle('collapsed', !STATE.dockOpen);
+  document.getElementById('segDock').classList.toggle('active', STATE.dockOpen);
+}
+
+function switchDockTab(tab) {
+  STATE.dockTab = tab;
+  ['preview','basket','git','info'].forEach(t => {
+    document.getElementById('dtab-' + t).classList.toggle('active', t === tab);
+  });
+  const item = getSelectedSingleItem();
+  updateDockInspector(item);
+}
+
+async function updateDockInspector(item) {
+  if (!STATE.dockOpen) return;
+  const body = document.getElementById('dockBody');
+  if (STATE.dockTab === 'basket') {
+    const res = await rpc('basket', { sub: 'list' });
+    STATE.basketCount = res.count || 0;
+    document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+    const items = res.items || [];
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong>${esc(res.summary || '0 Elemente')}</strong>
+        <button class="btn" onclick="addSelectedToBasket()">+ Auswahl</button>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="btn primary" onclick="basketAction('copy_here')">Hierher kopieren</button>
+        <button class="btn" onclick="basketAction('move_here')">Hierher verschieben</button>
+        <button class="btn" onclick="basketAction('clear')">Leeren</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${items.map(i => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:var(--bg-elev);border-radius:4px;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(i.full_path)}">${esc(i.name)}</span>
+          <button class="ibtn" style="height:20px;min-width:20px;" onclick="basketRemove('${esc(i.full_path).replace(/\\/g,'\\\\')}')">✕</button>
+        </div>`).join('') || '<div style="color:var(--fg-muted)">Sammelkorb ist leer.</div>'}
+      </div>
+    `;
+    return;
+  }
+  if (STATE.dockTab === 'git') {
+    const dir = getTab(STATE.activeSide).path;
+    const g = await rpc('git_panel', { dir, sub: 'status' });
+    if (!g.is_repo) {
+      body.innerHTML = `<div style="color:var(--fg-muted)">Kein Git-Repository im aktuellen Pfad.</div>`;
+      return;
+    }
+    body.innerHTML = `
+      <div style="margin-bottom:8px;">Branch: <strong style="color:var(--accent)">⎇ ${esc(g.current_branch)}</strong></div>
+      <button class="btn primary" style="width:100%;margin-bottom:10px;" onclick="openGitModal()">⎇ Vollständiges Git-Panel öffnen</button>
+      <div style="font-weight:600;margin-bottom:4px;">Geänderte Dateien (${(g.changed_files||[]).length}):</div>
+      ${(g.changed_files||[]).map(f => `<div style="font-family:var(--font-mono);font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><strong style="color:var(--warn)">${esc(f.status_code)}</strong> ${esc(f.relative_path)}</div>`).join('') || '<div style="color:var(--ok)">Working Tree sauber ✓</div>'}
+    `;
+    return;
+  }
+  if (!item) {
+    body.innerHTML = `<div style="color:var(--fg-muted)">Element auswählen für Details & Vorschau.</div>`;
+    return;
+  }
+  if (item.is_directory) {
+    body.innerHTML = `
+      <div style="font-size:28px;margin-bottom:6px;">📁</div>
+      <div style="font-weight:700;font-size:14px;word-break:break-all;">${esc(item.name)}</div>
+      <div style="color:var(--fg-muted);margin:6px 0;">${esc(item.full_path)}</div>
+      <div style="margin-top:8px;">Geändert: <strong>${esc(item.modified_text)}</strong></div>
+      <button class="btn primary" style="margin-top:12px;width:100%;" onclick="openTreemapModal()">📊 Ordner in Treemap analysieren</button>
+    `;
+    return;
+  }
+  const prev = await rpc('quick_preview', { path: item.full_path });
+  if (STATE.dockTab === 'info') {
+    body.innerHTML = `
+      <div style="font-weight:700;font-size:13.5px;word-break:break-all;margin-bottom:8px;">${esc(item.name)}</div>
+      <div class="prefs-card" style="padding:8px 10px;font-size:11.5px;">
+        <div><strong>Größe:</strong> ${esc(item.size_text)} (${item.size_bytes} Bytes)</div>
+        <div><strong>Typ:</strong> ${esc(item.type_text)}</div>
+        <div><strong>Geändert:</strong> ${esc(item.modified_text)}</div>
+        ${prev.resolution ? `<div><strong>Auflösung:</strong> ${esc(prev.resolution)} (${esc(prev.media_format)})</div>` : ''}
+        ${prev.checksum ? `<div style="margin-top:6px;word-break:break-all;font-family:var(--font-mono);font-size:10.5px;"><strong>SHA-256:</strong><br>${esc(prev.checksum.sha256)}<br><strong>CRC32:</strong> ${esc(prev.checksum.crc32)}</div>` : ''}
+      </div>
+    `;
+    return;
+  }
+  // Preview tab
+  if (isImageExt(item.extension)) {
+    body.innerHTML = `
+      <div style="text-align:center;">
+        <img src="/file?path=${encodeURIComponent(item.full_path)}" style="max-width:100%;max-height:260px;border-radius:6px;background:var(--bg-sunken);">
+        <div style="margin-top:6px;font-weight:600;">${esc(item.name)}</div>
+        <div style="color:var(--fg-dim);font-family:var(--font-mono);font-size:11px;">${esc(prev.resolution || '')} • ${esc(item.size_text)}</div>
+      </div>
+    `;
+  } else {
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong>${esc(item.name)}</strong>
+        <button class="btn" style="padding:2px 8px;font-size:11px;" onclick="openViewerModal(true)">✏️ F4 Editor</button>
+      </div>
+      <pre style="margin:0;padding:8px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:5px;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;max-height:460px;overflow:auto;">${esc((prev.text || prev.hex || '').slice(0, 6000))}</pre>
+    `;
+  }
+}
+
+async function addSelectedToBasket() {
+  const paths = getActionPaths();
+  if (!paths.length) return;
+  const res = await rpc('basket', { sub: 'add', paths });
+  STATE.basketCount = res.count || 0;
+  document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+  toast(`${paths.length} Element(e) zum Sammelkorb hinzugefügt.`);
+  if (STATE.dockTab === 'basket') updateDockInspector(null);
+}
+
+async function basketRemove(path) {
+  await rpc('basket', { sub: 'remove', path });
+  updateDockInspector(null);
+}
+
+async function basketAction(sub) {
+  const destDir = getTab(STATE.activeSide).path;
+  await rpc('basket', { sub, dest_dir: destDir });
+  await loadPane('left');
+  await loadPane('right');
+  updateDockInspector(null);
+  toast('Sammelkorb-Aktion ausgeführt.');
+}
+
+/* ==================== QUICK CONSOLE (>_ Bar) ==================== */
+function toggleQuickConsole() {
+  const bar = document.getElementById('quickConsoleBar');
+  const hidden = bar.classList.toggle('hidden');
+  document.getElementById('segConsole').classList.toggle('active', !hidden);
+  if (!hidden) document.getElementById('qcInput').focus();
+}
+
+function onQuickConsoleKey(e) {
+  if (e.key === 'Enter') {
+    runQuickConsole();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (STATE.qcHistory.length > 0) {
+      STATE.qcHistoryIdx = Math.max(0, STATE.qcHistoryIdx <= 0 ? STATE.qcHistory.length - 1 : STATE.qcHistoryIdx - 1);
+      e.target.value = STATE.qcHistory[STATE.qcHistoryIdx] || '';
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (STATE.qcHistory.length > 0) {
+      STATE.qcHistoryIdx = Math.min(STATE.qcHistory.length - 1, STATE.qcHistoryIdx + 1);
+      e.target.value = STATE.qcHistory[STATE.qcHistoryIdx] || '';
+    }
+  }
+}
+
+async function runQuickConsole() {
+  const inp = document.getElementById('qcInput');
+  const cmd = inp.value.trim();
+  if (!cmd) return;
+  inp.value = '';
+  const cwd = getTab(STATE.activeSide).path;
+  const res = await rpc('quick_console', { cmd, cwd });
+  STATE.qcHistory = res.history || [];
+  STATE.qcHistoryIdx = STATE.qcHistory.length;
+  document.getElementById('qcOutput').textContent = `$ ${res.command_line} (Exit ${res.exit_code})\n${res.output_text || '(Keine Ausgabe)'}`;
+  if (res.navigate_to_directory) {
+    await navigateTo(STATE.activeSide, res.navigate_to_directory);
+  } else {
+    await loadPane(STATE.activeSide);
+  }
+}
+
+function openExternalTerminal() {
+  rpc('open_terminal', { dir: getTab(STATE.activeSide).path });
+  toast('PowerShell-Terminal gestartet.');
+}
+/* ==================== STUDIO SETTINGS CONTROLLER (All 6 .NET Categories + Shortcuts) ==================== */
+const COLOR_TARGETS = [
+  { key: 'active_panel_border_color_hex', target: 'ActivePanelBorder', title: 'Rahmenfarbe des aktiven Panels', presets: ['#0078D4','#6EA8FE','#10B981','#F59E0B','#EC4899','#8B5CF6'], hasWidth: 'active_panel_border_thickness' },
+  { key: 'selection_border_color_hex', target: 'SelectionBorder', title: 'Umrandungsfarbe des ausgewählten Elements', presets: ['#60CDFF','#38BDF8','#34D399','#FBBF24','#F472B6','#A78BFA'] },
+  { key: 'marked_item_text_color_hex', target: 'MarkedItemText', title: 'Textfarbe für markierte Elemente (✓ Leertaste / Einfg)', presets: ['#FFB900','#F59E0B','#4FD18B','#60CDFF','#F472B6','#EF4444'] }
+];
+
+const TREEMAP_COLOR_TARGETS = [
+  { key: 'treemap_video_media_color_hex', target: 'TreemapVideoMedia', title: '🎬 Video & Audio (.mp4, .mkv, .mp3, .wav)', presets: ['#E11D48','#F43F5E','#BE123C','#FB7185'] },
+  { key: 'treemap_archive_image_color_hex', target: 'TreemapArchiveImage', title: '📦 Archive & Disk-Images (.zip, .7z, .rar, .iso)', presets: ['#D97706','#F59E0B','#B45309','#FBBF24'] },
+  { key: 'treemap_virtual_disk_system_color_hex', target: 'TreemapVirtualDiskSystem', title: '💿 Virtuelle Laufwerke & System (.vhdx, .vmdk, .sys)', presets: ['#7C3AED','#8B5CF6','#6D28D9','#A78BFA'] },
+  { key: 'treemap_code_document_color_hex', target: 'TreemapCodeDocument', title: '📄 Quellcode & Dokumente (.rs, .cs, .pdf, .docx, .md)', presets: ['#0284C7','#0EA5E9','#0369A1','#38BDF8'] },
+  { key: 'treemap_picture_graphic_color_hex', target: 'TreemapPictureGraphic', title: '🖼️ Bilder & Grafiken (.png, .jpg, .webp, .svg, .psd)', presets: ['#059669','#10B981','#047857','#34D399'] },
+  { key: 'treemap_binary_executable_color_hex', target: 'TreemapBinaryExecutable', title: '⚙️ Programme & Binärdateien (.exe, .dll, .msi, .pdb)', presets: ['#2563EB','#3B82F6','#1D4ED8','#60A5FA'] },
+  { key: 'treemap_other_temp_color_hex', target: 'TreemapOtherTemp', title: '📁 Sonstige & Temporäre Dateien (.tmp, .bak, .dat)', presets: ['#475569','#64748B','#334155','#94A3B8'] }
+];
+
+const MAIN_FONT_FIELDS = [
+  { key: 'file_list_font_size', label: '📋 Dateiliste (Dateinamen & Ordner)', min: 9, max: 24 },
+  { key: 'file_list_details_font_size', label: '📊 Dateiliste Details (Größe, Datum, Typ & Spaltenköpfe)', min: 8, max: 22 },
+  { key: 'tab_header_font_size', label: '🗂️ Tabs (Ordner-Reiter)', min: 9, max: 22 },
+  { key: 'drive_bar_font_size', label: '💾 Laufwerksleiste (C:, D:, …)', min: 9, max: 22 },
+  { key: 'address_bar_font_size', label: '📍 Adressleiste & Filterfeld', min: 9, max: 22 },
+  { key: 'breadcrumb_font_size', label: '🧭 Breadcrumb-Pfadnavigation', min: 8, max: 20 },
+  { key: 'status_bar_font_size', label: 'ℹ️ Statusleiste (Elementanzahl & Infos)', min: 8, max: 20 },
+  { key: 'function_key_bar_font_size', label: '⌨️ Funktionsleiste (F1–F12 Buttons)', min: 8, max: 20 }
+];
+
+const CHILD_FONT_FIELDS = [
+  { key: 'quick_viewer_font_size', label: '👁️ Quick-Viewer / Schnellansicht (F3)', min: 8, max: 24 },
+  { key: 'editor_font_size', label: '✏️ Interner Text- & Code-Editor (F4)', min: 8, max: 24 },
+  { key: 'storage_analyzer_font_size', label: '🗺️ Speicherplatz-Analysator & Treemap (Strg+Shift+W)', min: 8, max: 24 },
+  { key: 'deep_search_font_size', label: '🔍 Rekursive Tiefensuche (Alt+F7)', min: 8, max: 24 },
+  { key: 'duplicate_finder_font_size', label: '🧹 Duplikat-Finder (Strg+Shift+D)', min: 8, max: 24 },
+  { key: 'directory_sync_font_size', label: '⇄ Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)', min: 8, max: 24 },
+  { key: 'batch_rename_font_size', label: '🏷️ Mehrfach-Umbenennungstool (Strg+M)', min: 8, max: 24 },
+  { key: 'ftp_manager_font_size', label: '🌐 FTP / FTPS / SFTP Verbindungsmanager (Strg+Shift+C)', min: 8, max: 24 },
+  { key: 'archive_dialog_font_size', label: '📦 In Archiv packen (Alt+F5)', min: 8, max: 24 },
+  { key: 'about_window_font_size', label: 'ℹ️ Über ModernExplorer & Hilfe-Fenster', min: 8, max: 24 }
+];
+
+function openSettingsModal(cat = 'Appearance') {
+  populateSettingsUi();
+  switchSettingsCat(cat);
+  openModal('modalSettings');
+}
+
+function switchSettingsCat(cat) {
+  document.querySelectorAll('#prefsNav .prefs-nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.cat === cat);
+  });
+  document.querySelectorAll('.prefs-pane').forEach(el => {
+    el.classList.toggle('active', el.id === 'pcat-' + cat);
+  });
+}
+
+function populateSettingsUi() {
+  const s = STATE.settings;
+  // Languages
+  const langSel = document.getElementById('set-language');
+  langSel.innerHTML = STATE.languages.map(l => `<option value="${esc(l.code)}">${esc(l.label)}</option>`).join('');
+  langSel.value = s.language || 'system';
+
+  // Theme cards
+  document.querySelectorAll('.theme-card').forEach(tc => {
+    tc.classList.toggle('active', tc.dataset.t === (s.theme || 'dark'));
+  });
+
+  // Switches
+  const boolKeys = [
+    'show_drive_bar','show_function_key_bar','show_tooltips',
+    'sort_folders_first','show_file_extensions','show_hidden_files','show_system_files',
+    'auto_calculate_folder_size_on_mark','confirm_delete','single_click_open',
+    'enable_image_hover_preview','use_global_font_size',
+    'check_updates_on_startup','restore_previous_session'
+  ];
+  boolKeys.forEach(k => {
+    const sw = document.getElementById('sw-' + k);
+    if (sw) sw.classList.toggle('on', !!s[k]);
+  });
+
+  // Sliders & Selects
+  const rh = s.file_list_row_height ?? 26;
+  document.getElementById('rng-file_list_row_height').value = rh;
+  document.getElementById('lbl-file_list_row_height').textContent = rh + ' px';
+
+  document.getElementById('set-default_view_mode').value = s.default_view_mode || 'Details';
+
+  const hp = s.image_hover_preview_size ?? 320;
+  document.getElementById('rng-image_hover_preview_size').value = hp;
+  document.getElementById('lbl-image_hover_preview_size').textContent = hp + ' px';
+
+  const gf = s.global_font_size ?? 13;
+  document.getElementById('rng-global_font_size').value = gf;
+  document.getElementById('lbl-global_font_size').textContent = gf + ' px';
+
+  renderColorsSettings();
+  renderFontsSettings();
+  renderShortcutsTable('');
+}
+
+function buildColorRowHtml(cfg) {
+  const val = STATE.settings[cfg.key] || '#0078D4';
+  const swatches = cfg.presets.map(p => `<button class="swatch-btn" style="background:${p}" title="${p}" onclick="updateSetting('${cfg.key}','${p}')"></button>`).join('');
+  return `
+    <div class="prefs-row">
+      <div>
+        <div class="pr-label">${esc(cfg.title)}</div>
+        <div class="pr-sub">Aktuell: <code style="font-family:var(--font-mono)">${esc(val)}</code></div>
+      </div>
+      <div class="pr-ctl">
+        <div style="display:flex;gap:4px;">${swatches}</div>
+        <input type="color" value="${esc(val.slice(0,7))}" style="width:28px;height:26px;border:none;background:transparent;cursor:pointer;" onchange="updateSetting('${cfg.key}',this.value)">
+        <input class="input" style="width:82px;font-family:var(--font-mono);font-size:11.5px;" value="${esc(val)}" onchange="updateSetting('${cfg.key}',this.value)">
+        <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="resetSingleColor('${cfg.target}')">↺</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderColorsSettings() {
+  document.getElementById('colorCardActivePanel').innerHTML = buildColorRowHtml(COLOR_TARGETS[0]) + `
+    <div class="prefs-row">
+      <div><div class="pr-label">Rahmenstärke des aktiven Panels (px)</div></div>
+      <div class="pr-ctl">
+        <input type="range" min="1" max="5" step="0.5" value="${STATE.settings.active_panel_border_thickness ?? 2}" oninput="updateSetting('active_panel_border_thickness', parseFloat(this.value))">
+        <span style="min-width:36px;text-align:right;font-family:var(--font-mono)">${STATE.settings.active_panel_border_thickness ?? 2} px</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('colorCardSelection').innerHTML = buildColorRowHtml(COLOR_TARGETS[1]);
+  document.getElementById('colorCardMarked').innerHTML = buildColorRowHtml(COLOR_TARGETS[2]);
+  document.getElementById('colorCardTreemapList').innerHTML = TREEMAP_COLOR_TARGETS.map(buildColorRowHtml).join('');
+}
+
+function renderFontsSettings() {
+  const disabledAttr = STATE.settings.use_global_font_size ? 'disabled style="opacity:0.45"' : '';
+  const buildFontRows = (arr) => arr.map(f => {
+    const val = STATE.settings[f.key] ?? 12.5;
+    return `
+      <div class="prefs-row" ${disabledAttr}>
+        <div><div class="pr-label">${esc(f.label)}</div></div>
+        <div class="pr-ctl">
+          <input type="range" min="${f.min}" max="${f.max}" step="0.5" value="${val}" ${disabledAttr}
+            oninput="updateSetting('${f.key}', parseFloat(this.value));this.nextElementSibling.textContent=this.value+' px'">
+          <span style="min-width:46px;text-align:right;font-family:var(--font-mono)">${val} px</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('fontMainAreasList').innerHTML = buildFontRows(MAIN_FONT_FIELDS);
+  document.getElementById('fontChildWindowsList').innerHTML = buildFontRows(CHILD_FONT_FIELDS);
+}
+
+async function updateSetting(key, val) {
+  STATE.settings[key] = val;
+  applySettingsToDom();
+  const res = await rpc('save_settings', { settings: STATE.settings });
+  if (res && res.settings) STATE.settings = res.settings;
+  populateSettingsUi();
+  if (['show_hidden_files','show_file_extensions','sort_folders_first'].includes(key)) {
+    loadPane('left');
+    loadPane('right');
+  }
+}
+
+function toggleBoolSetting(key) {
+  updateSetting(key, !STATE.settings[key]);
+}
+
+async function resetSingleColor(target) {
+  const res = await rpc('reset_color', { target });
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    applySettingsToDom();
+    populateSettingsUi();
+    toast('Farbe auf Standard zurückgesetzt.');
+  }
+}
+
+async function resetTreemapColors() {
+  const res = await rpc('reset_treemap_colors');
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    applySettingsToDom();
+    populateSettingsUi();
+    toast('Alle 7 Treemap-Farben auf Standard zurückgesetzt.');
+  }
+}
+
+async function resetFontSizes() {
+  const res = await rpc('reset_font_sizes');
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    applySettingsToDom();
+    populateSettingsUi();
+    toast('Alle Schriftgrößen auf Standardwerte zurückgesetzt.');
+  }
+}
+
+async function resetWindowBounds() {
+  const res = await rpc('reset_window_bounds');
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    populateSettingsUi();
+    toast('Fenstergrößen auf Standardwerte zurückgesetzt.');
+  }
+}
+
+async function resetAllSettings() {
+  if (!confirm('Möchten Sie wirklich alle Einstellungen auf die Werkseinstellungen zurücksetzen?')) return;
+  const res = await rpc('reset_all_settings');
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    applySettingsToDom();
+    populateSettingsUi();
+    loadPane('left');
+    loadPane('right');
+    toast('Werkseinstellungen wiederhergestellt.');
+  }
+}
+
+async function saveCurrentSessionNow(showToastMsg) {
+  const session = {
+    left_tabs: STATE.panes.left.tabs.map(t => ({ path: t.path, home_path: t.homePath || t.path, lock_state: t.lockState || 'Normal', view_mode: t.viewMode || 'Details' })),
+    right_tabs: STATE.panes.right.tabs.map(t => ({ path: t.path, home_path: t.homePath || t.path, lock_state: t.lockState || 'Normal', view_mode: t.viewMode || 'Details' })),
+    active_left_tab: STATE.panes.left.activeTab,
+    active_right_tab: STATE.panes.right.activeTab,
+    is_dual_pane: STATE.isDualPane,
+    show_preview_pane: STATE.dockOpen,
+    show_quick_console: !document.getElementById('quickConsoleBar').classList.contains('hidden'),
+    split_ratio: 0.5
+  };
+  await rpc('save_session', { session });
+  if (showToastMsg) toast('Aktuelle Session (Tabs, Pfade & Layout) gespeichert.');
+}
+
+function renderShortcutsTable(filter) {
+  const q = (filter || '').toLowerCase();
+  const rows = STATE.commands.filter(c => !q || c.title.toLowerCase().includes(q) || c.shortcut.toLowerCase().includes(q) || c.category.toLowerCase().includes(q));
+  document.getElementById('shortcutsTbl').innerHTML = `
+    <thead><tr><th>Kategorie</th><th>Befehl / Funktion</th><th>Tastenkürzel</th><th>Aktion</th></tr></thead>
+    <tbody>
+      ${rows.map(c => `<tr>
+        <td><span class="f-tag-badge">${esc(c.category)}</span></td>
+        <td><strong>${esc(c.title)}</strong></td>
+        <td><kbd style="font-family:var(--font-mono);background:var(--bg-sunken);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">${esc(c.shortcut || '—')}</kbd></td>
+        <td><button class="btn" style="padding:2px 8px;font-size:11px;" onclick="closeModal('modalSettings');runCommandById('${c.id}')">Ausführen</button></td>
+      </tr>`).join('')}
+    </tbody>
+  `;
+}
+
+/* ==================== ABOUT & UPDATES MODAL ==================== */
+function openAboutModal(autoCheck = false) {
+  document.getElementById('aboutInstalledVer').textContent = 'v' + STATE.version;
+  document.getElementById('aboutLatestVer').textContent = 'v' + STATE.version;
+  document.getElementById('aboutReleaseNotesBox').value = STATE.defaultReleaseNotes;
+  openModal('modalAbout');
+  if (autoCheck) checkUpdatesLive();
+}
+
+async function checkUpdatesLive() {
+  const banner = document.getElementById('aboutUpdateBanner');
+  banner.textContent = '⏳ Prüfe GitHub Releases auf neue Version…';
+  const res = await rpc('check_updates');
+  if (res.update_available) {
+    document.getElementById('aboutLatestVer').textContent = res.tag_name;
+    banner.innerHTML = `🎉 <strong>Neues Update verfügbar: ${esc(res.name || res.tag_name)}</strong> — Klicken Sie unten auf „GitHub Releases öffnen“, um das Update herunterzuladen.`;
+    if (res.release_notes) document.getElementById('aboutReleaseNotesBox').value = res.release_notes;
+    STATE.releasesUrl = res.html_url || STATE.releasesUrl;
+  } else {
+    banner.textContent = `✓ Sie verwenden bereits die aktuellste Version (v${STATE.version}).`;
+  }
+}
+
+function openReleaseUrl() {
+  rpc('open_url', { url: STATE.releasesUrl });
+}
+
+/* ==================== COMMAND PALETTE (F10 / Ctrl+Shift+P) ==================== */
+function openCommandPalette(initial = '') {
+  const inp = document.getElementById('paletteInput');
+  inp.value = initial;
+  renderPaletteList(initial);
+  openModal('modalPalette');
+  setTimeout(() => inp.focus(), 50);
+}
+
+function renderPaletteList(q) {
+  const needle = (q || '').toLowerCase();
+  const matches = STATE.commands.filter(c => !needle || c.title.toLowerCase().includes(needle) || c.shortcut.toLowerCase().includes(needle));
+  document.getElementById('paletteList').innerHTML = matches.map(c => `
+    <div class="dd-item" onclick="closeModal('modalPalette');runCommandById('${c.id}')">
+      <span><strong>[${esc(c.category)}]</strong> ${esc(c.title)}</span>
+      ${c.shortcut ? `<kbd>${esc(c.shortcut)}</kbd>` : ''}
+    </div>
+  `).join('');
+}
+
+function runCommandById(id) {
+  const map = {
+    'help.shortcuts': () => openSettingsModal('Shortcuts'),
+    'file.rename': () => renameSelected(),
+    'view.quickViewer': () => openViewerModal(false),
+    'file.edit': () => openViewerModal(true),
+    'file.copy': () => copyOrMoveActive(false),
+    'file.move': () => copyOrMoveActive(true),
+    'file.newFile': () => openCreateModal(false),
+    'file.newFolder': () => openCreateModal(true),
+    'file.delete': () => deleteSelected(),
+    'tools.terminal': () => openExternalTerminal(),
+    'view.commandPalette': () => openCommandPalette(),
+    'view.dualPane': () => setDualPaneMode(!STATE.isDualPane),
+    'tools.batchRename': () => openBatchRenameModal(),
+    'tools.diff': () => openDiffModal(),
+    'tools.hashes': () => openChecksumsModal(),
+    'tools.splitShred': () => openSplitShredModal(),
+    'tools.tags': () => openTagModal(),
+    'tools.workspaces': () => openWorkspacesModal(),
+    'tools.export': () => openSmartExportModal(),
+    'tools.basket': () => { if (!STATE.dockOpen) toggleDock(); switchDockTab('basket'); },
+    'tools.attrExif': () => openAttrExifModal(),
+    'tools.quickConsole': () => toggleQuickConsole(),
+    'tools.git': () => openGitModal(),
+    'tools.sync': () => openSyncModal(),
+    'tools.treemap': () => openTreemapModal(),
+    'tools.deepSearch': () => openDeepSearchModal(),
+    'tools.duplicates': () => openDuplicatesModal(),
+    'tools.archive': () => openArchiveModal(),
+    'tools.remote': () => openRemoteModal(),
+    'view.branchView': () => toggleBranchView(STATE.activeSide),
+    'view.previewPane': () => toggleDock(),
+    'edit.undo': () => doUndo(),
+    'app.settings': () => openSettingsModal('Appearance'),
+    'app.about': () => openAboutModal(false)
+  };
+  if (map[id]) map[id]();
+}
+
+/* ==================== F3 VIEWER / F4 EDITOR ==================== */
+async function openViewerModal(editable) {
+  const item = getSelectedSingleItem();
+  if (!item || item.is_directory) { toast('Bitte eine Datei für F3/F4 auswählen.'); return; }
+  STATE.viewerPath = item.full_path;
+  const res = await rpc('quick_preview', { path: item.full_path });
+  STATE.viewerData = res;
+  document.getElementById('viewerTitle').textContent = (editable ? '✏️ Editor: ' : '👁 Quick Viewer: ') + item.name;
+  const ta = document.getElementById('viewerTextarea');
+  ta.value = res.text || '';
+  ta.readOnly = !editable;
+  document.getElementById('btnViewerSave').style.display = editable ? 'inline-flex' : 'none';
+  document.getElementById('viewerHexPre').textContent = res.hex || '';
+  document.getElementById('viewerImgEl').src = isImageExt(item.extension) ? `/file?path=${encodeURIComponent(item.full_path)}` : '';
+  document.getElementById('viewerImgMeta').textContent = `${item.name} • ${res.resolution || ''} • ${item.size_text}`;
+
+  const csvRows = res.csv_rows || [];
+  document.getElementById('viewerCsvWrap').innerHTML = csvRows.length
+    ? `<table class="data-tbl"><tbody>${csvRows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : '<div style="color:var(--fg-muted)">Keine CSV-Tabellendaten erkannt.</div>';
+
+  switchViewerTab(isImageExt(item.extension) && !editable ? 'image' : 'text');
+  openModal('modalViewer');
+}
+
+function switchViewerTab(tab) {
+  ['text','image','hex','csv'].forEach(t => {
+    document.getElementById('vtab-' + t).classList.toggle('active', t === tab);
+  });
+  document.getElementById('viewerTextarea').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('viewerImageWrap').style.display = tab === 'image' ? 'flex' : 'none';
+  document.getElementById('viewerHexPre').style.display = tab === 'hex' ? 'block' : 'none';
+  document.getElementById('viewerCsvWrap').style.display = tab === 'csv' ? 'block' : 'none';
+}
+
+async function saveViewerFile() {
+  const content = document.getElementById('viewerTextarea').value;
+  const res = await rpc('save_file_text', { path: STATE.viewerPath, content });
+  if (res && res.ok) {
+    toast('Datei gespeichert.');
+    loadPane(STATE.activeSide);
+  } else {
+    toast(res?.error || 'Fehler beim Speichern');
+  }
+}
+
+/* ==================== ALL POWER-TOOLS IN #modalTool ==================== */
+function showToolModal(title, bodyHtml, footHtml) {
+  document.getElementById('toolModalTitle').innerHTML = title;
+  document.getElementById('toolModalBody').innerHTML = bodyHtml;
+  document.getElementById('toolModalFoot').innerHTML = footHtml || `<button class="btn primary" onclick="closeModal('modalTool')">Schließen</button>`;
+  openModal('modalTool');
+}
+
+/* 1. Batch Rename (Ctrl+M) */
+async function openBatchRenameModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte Dateien für Mehrfach-Umbenennung auswählen.'); return; }
+  showToolModal('🏷 Mehrfach-Umbenennungstool (Batch Rename — Strg+M)', `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+      <div><label>Namensmaske ([N], [C], [Y][M][D], [Resolution]):</label><input class="input" id="br-name" value="[N]_[C]" style="width:100%" oninput="refreshBatchRename()"></div>
+      <div><label>Erweiterung ([E]):</label><input class="input" id="br-ext" value="[E]" style="width:100%" oninput="refreshBatchRename()"></div>
+      <div><label>Groß-/Kleinschreibung:</label>
+        <select class="select" id="br-case" style="width:100%" onchange="refreshBatchRename()">
+          <option value="Unchanged">Unverändert</option>
+          <option value="Lowercase">alles kleinschreiben</option>
+          <option value="Uppercase">ALLES GROSSSCHREIBEN</option>
+          <option value="TitleCase">Title Case</option>
+        </select>
+      </div>
+      <div><label>Suchen nach (optional Regex):</label><input class="input" id="br-search" style="width:100%" oninput="refreshBatchRename()"></div>
+      <div><label>Ersetzen durch:</label><input class="input" id="br-replace" style="width:100%" oninput="refreshBatchRename()"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <label><input type="checkbox" id="br-regex" onchange="refreshBatchRename()"> Regex</label>
+        <label>Start: <input class="input" type="number" id="br-start" value="1" style="width:55px" oninput="refreshBatchRename()"></label>
+        <label>Stellen: <input class="input" type="number" id="br-digits" value="3" style="width:50px" oninput="refreshBatchRename()"></label>
+      </div>
+    </div>
+    <div style="max-height:310px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead ><tr><th>Originalname</th><th>Neuer Name (Live-Vorschau)</th><th>Status</th></tr></thead><tbody id="br-tbody"></tbody></table>
+    </div>
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="executeBatchRename()">✓ Umbenennung jetzt ausführen</button>`);
+  refreshBatchRename();
+}
+
+function collectBatchParams() {
+  return {
+    paths: getActionPaths(),
+    name_pattern: document.getElementById('br-name').value,
+    extension_pattern: document.getElementById('br-ext').value,
+    case_transform: document.getElementById('br-case').value,
+    search_for: document.getElementById('br-search').value,
+    replace_with: document.getElementById('br-replace').value,
+    use_regex: document.getElementById('br-regex').checked,
+    counter_start: parseInt(document.getElementById('br-start').value, 10) || 1,
+    counter_step: 1,
+    counter_digits: parseInt(document.getElementById('br-digits').value, 10) || 3
+  };
+}
+
+async function refreshBatchRename() {
+  const res = await rpc('batch_rename_preview', collectBatchParams());
+  const rows = res.previews || [];
+  document.getElementById('br-tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${esc(r.original_name)}</td>
+      <td style="font-weight:600;color:var(--accent)">${esc(r.new_name)}</td>
+      <td>${r.has_conflict ? `<span style="color:var(--danger)">⚠ Konflikt</span>` : `<span style="color:var(--ok)">✓ OK</span>`}</td>
+    </tr>
+  `).join('');
+}
+
+async function executeBatchRename() {
+  const res = await rpc('batch_rename_execute', collectBatchParams());
+  if (res && res.ok) {
+    STATE.canUndo = !!res.can_undo;
+    STATE.undoDesc = res.undo_desc || '';
+    updateUndoStatus();
+    closeModal('modalTool');
+    await loadPane(STATE.activeSide);
+    toast(`${res.count} Datei(en) erfolgreich umbenannt.`);
+  } else {
+    toast(res?.error || 'Fehler bei Mehrfach-Umbenennung');
+  }
+}
+
+/* 2. Side-by-Side File Diff (Ctrl+Shift+U) */
+async function openDiffModal() {
+  const lItem = getSelectedSingleItem('left');
+  const rItem = getSelectedSingleItem('right');
+  const lp = lItem && !lItem.is_directory ? lItem.full_path : '';
+  const rp = rItem && !rItem.is_directory ? rItem.full_path : '';
+  showToolModal('⚖ Visueller Side-by-Side Datei-Diff-Viewer (Strg+Shift+U)', `
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:10px;">
+      <input class="input" id="diff-left" value="${esc(lp)}" placeholder="Linke Datei…">
+      <input class="input" id="diff-right" value="${esc(rp)}" placeholder="Rechte Datei…">
+      <button class="btn primary" onclick="runDiffCompare()">Vergleichen</button>
+    </div>
+    <div id="diff-summary" style="margin-bottom:8px;font-weight:600;"></div>
+    <div style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;">
+      <table class="data-tbl"><thead ><tr><th>#L</th><th>Links</th><th>#R</th><th>Rechts</th><th>Status</th></tr></thead><tbody id="diff-tbody"></tbody></table>
+    </div>
+  `);
+  if (lp && rp) runDiffCompare();
+}
+
+async function runDiffCompare() {
+  const left_path = document.getElementById('diff-left').value.trim();
+  const right_path = document.getElementById('diff-right').value.trim();
+  const res = await rpc('file_diff', { left_path, right_path, ignore_whitespace: false });
+  document.getElementById('diff-summary').innerHTML = `Hunks: <strong>${res.hunk_count||0}</strong> • <span style="color:var(--ok)">+${res.added_count||0} Added</span> • <span style="color:var(--danger)">-${res.removed_count||0} Removed</span> • <span style="color:var(--warn)">~${res.modified_count||0} Modified</span>`;
+  document.getElementById('diff-tbody').innerHTML = (res.rows || []).map(r => {
+    const bg = r.kind === 'Added' ? 'rgba(79,209,139,0.12)' : (r.kind === 'Removed' ? 'rgba(244,112,103,0.12)' : (r.kind === 'Modified' ? 'rgba(245,185,66,0.12)' : 'transparent'));
+    return `<tr style="background:${bg}">
+      <td style="color:var(--fg-muted)">${r.left_line_number ?? ''}</td>
+      <td style="white-space:pre-wrap">${esc(r.left_text)}</td>
+      <td style="color:var(--fg-muted)">${r.right_line_number ?? ''}</td>
+      <td style="white-space:pre-wrap">${esc(r.right_text)}</td>
+      <td>${esc(r.kind)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* 3. Directory Sync (Ctrl+Shift+S) */
+function openSyncModal() {
+  const lDir = getTab('left').path;
+  const rDir = getTab('right').path;
+  showToolModal('⇄ Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)', `
+    <div style="display:grid;grid-template-columns:1fr 1fr 160px 160px auto;gap:8px;margin-bottom:10px;">
+      <input class="input" id="sync-left" value="${esc(lDir)}">
+      <input class="input" id="sync-right" value="${esc(rDir)}">
+      <select class="select" id="sync-comp"><option value="SizeAndTimestamp">Größe &amp; Zeit</option><option value="SizeOnly">Nur Größe</option><option value="Sha256Content">SHA-256 Inhalt</option></select>
+      <select class="select" id="sync-dir"><option value="Bidirectional">⇄ Bidirektional</option><option value="LeftToRight">➔ Links nach Rechts</option><option value="RightToLeft">⬅ Rechts nach Links</option></select>
+      <button class="btn" onclick="runDirSync(false)">🔍 Vergleichen</button>
+    </div>
+    <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Relativer Pfad</th><th>Größe Links</th><th>Aktion</th><th>Größe Rechts</th></tr></thead><tbody id="sync-tbody"></tbody></table>
+    </div>
+  `, `<button class="btn" onclick="closeModal('modalTool')">Schließen</button><button class="btn primary" onclick="runDirSync(true)">⚡ Synchronisierung jetzt ausführen</button>`);
+  runDirSync(false);
+}
+
+async function runDirSync(execute) {
+  const res = await rpc('dir_sync', {
+    left_dir: document.getElementById('sync-left').value,
+    right_dir: document.getElementById('sync-right').value,
+    comp_mode: document.getElementById('sync-comp').value,
+    dir_mode: document.getElementById('sync-dir').value,
+    delete_orphans: false,
+    execute
+  });
+  const items = res.items || [];
+  document.getElementById('sync-tbody').innerHTML = items.map(i => `
+    <tr><td>${esc(i.relative_path)}</td><td>${esc(i.left_size)}</td><td><strong style="color:var(--accent)">${esc(i.action)}</strong></td><td>${esc(i.right_size)}</td></tr>
+  `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--ok)">✓ Beide Verzeichnisse sind identisch!</td></tr>';
+  if (execute) {
+    await loadPane('left');
+    await loadPane('right');
+    toast(`${res.executed_count} Datei-Aktion(en) synchronisiert.`);
+  }
+}
+
+/* 4. Deep Search (Alt+F7) */
+function openDeepSearchModal() {
+  const root = getTab(STATE.activeSide).path;
+  showToolModal('🔍 Rekursive Tiefensuche (Alt+F7)', `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;">
+      <input class="input" id="ds-root" value="${esc(root)}" placeholder="Suchpfad…">
+      <input class="input" id="ds-pat" placeholder="Dateiname (*.rs; *.cs oder Regex)…">
+      <input class="input" id="ds-txt" placeholder="Volltext-Inhaltssuche…">
+      <button class="btn primary" onclick="runDeepSearch()">🔍 Suchen</button>
+    </div>
+    <div style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Name</th><th>Ordner</th><th>Größe</th><th>Geändert</th></tr></thead><tbody id="ds-tbody"></tbody></table>
+    </div>
+  `);
+}
+
+async function runDeepSearch() {
+  const res = await rpc('deep_search', {
+    root_path: document.getElementById('ds-root').value,
+    name_pattern: document.getElementById('ds-pat').value,
+    content_query: document.getElementById('ds-txt').value,
+    use_regex: false
+  });
+  const hits = res.results || [];
+  document.getElementById('ds-tbody').innerHTML = hits.map(h => `
+    <tr style="cursor:pointer" onclick="closeModal('modalTool');navigateTo(STATE.activeSide,'${esc(h.parent_dir).replace(/\\/g,'\\\\')}')">
+      <td><strong>${esc(h.name)}</strong></td><td>${esc(h.parent_dir)}</td><td>${esc(h.size_text)}</td><td>${esc(h.modified_text)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Keine Treffer gefunden.</td></tr>';
+}
+
+/* 5. Duplicate Finder (Ctrl+Shift+D) */
+function openDuplicatesModal() {
+  const dir = getTab(STATE.activeSide).path;
+  showToolModal('🧹 3-Phasen Duplikat-Finder (Größe → 4KB Hash → Voll-SHA256)', `
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input class="input" id="dup-dir" value="${esc(dir)}" style="flex:1">
+      <button class="btn primary" onclick="runDuplicatesScan()">🧹 Scan starten</button>
+    </div>
+    <div id="dup-summary" style="margin-bottom:8px;font-weight:600;"></div>
+    <div id="dup-list" style="max-height:350px;overflow:auto;display:flex;flex-direction:column;gap:8px;"></div>
+  `);
+  runDuplicatesScan();
+}
+
+async function runDuplicatesScan() {
+  const res = await rpc('duplicates', { dir: document.getElementById('dup-dir').value, min_size_kb: 1 });
+  document.getElementById('dup-summary').textContent = `Gescannt: ${res.total_files_scanned} Dateien • Verschwendeter Speicherplatz: ${res.total_wasted_text} (${(res.groups||[]).length} Duplikat-Gruppen)`;
+  document.getElementById('dup-list').innerHTML = (res.groups || []).map(g => `
+    <div class="prefs-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <strong>SHA-256: ${esc(g.sha256.slice(0,16))}… (${esc(g.size_text)} pro Datei)</strong>
+        <span style="color:var(--warn)">Verschwendet: ${esc(g.wasted_text)}</span>
+      </div>
+      ${g.files.map((f, i) => `<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11.5px;padding:2px 0;">
+        <span>${i===0?'🟢 Original':'🟠 Duplikat'}: ${esc(f)}</span>
+        ${i>0?`<button class="btn danger" style="padding:1px 7px;font-size:10.5px;" onclick="rpc('delete_items',{paths:['${esc(f).replace(/\\/g,'\\\\')}']}).then(()=>runDuplicatesScan())">Löschen</button>`:''}
+      </div>`).join('')}
+    </div>
+  `).join('') || '<div style="color:var(--ok)">✓ Keine Duplikate im gewählten Ordner gefunden.</div>';
+}
+
+/* 6. Squarified Storage Treemap (Ctrl+Shift+W) */
+async function openTreemapModal() {
+  const dir = getTab(STATE.activeSide).path;
+  showToolModal('📊 Speicherplatz-Analysator & Squarified Treemap (Strg+Shift+W)', `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <input class="input" id="tm-dir" value="${esc(dir)}" style="flex:1">
+      <select class="select" id="tm-mode" onchange="renderTreemapView(false)">
+        <option value="Category">Farbmodus: Dateityp-Kategorien (aus Einstellungen)</option>
+        <option value="FileAgeHeatmap">Farbmodus: Dateialter-Heatmap</option>
+      </select>
+      <button class="btn primary" onclick="renderTreemapView(true)">↻ Neu scannen</button>
+    </div>
+    <div id="tm-stats" style="margin-bottom:8px;font-weight:600;"></div>
+    <div id="tm-canvas" style="position:relative;width:960px;max-width:100%;height:330px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;overflow:hidden;"></div>
+  `);
+  renderTreemapView(true);
+}
+
+async function renderTreemapView(rescan) {
+  const dir = document.getElementById('tm-dir').value;
+  const color_mode = document.getElementById('tm-mode').value;
+  const res = await rpc('treemap', { dir, rescan, width: 960, height: 330, color_mode });
+  document.getElementById('tm-stats').textContent = `Gesamtgröße: ${res.total_size_text} • ${res.file_count} Dateien in ${res.folder_count} Ordnern`;
+  const host = document.getElementById('tm-canvas');
+  host.innerHTML = (res.rects || []).map(r => `
+    <div title="${esc(r.name)} (${esc(r.size_text)} — ${esc(r.category)})"
+      style="position:absolute;left:${r.x}px;top:${r.y}px;width:${Math.max(0,r.width-1)}px;height:${Math.max(0,r.height-1)}px;background:${r.color_hex};border:1px solid rgba(0,0,0,0.35);padding:2px 4px;overflow:hidden;font-size:10.5px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;">
+      ${r.width > 48 && r.height > 20 ? `<strong>${esc(r.name)}</strong><br>${esc(r.size_text)}` : ''}
+    </div>
+  `).join('');
+}
+
+/* 7. Checksum Generator & Manifest Verifier (Ctrl+Shift+K) */
+async function openChecksumsModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte mindestens eine Datei auswählen.'); return; }
+  const res = await rpc('checksums', { sub: 'compute', paths });
+  showToolModal('🔐 Prüfsummen-Generator & Manifest-Verifizierer (SHA-256, SHA-512, MD5, CRC32)', `
+    <div style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">
+      <table class="data-tbl"><thead><tr><th>Datei</th><th>SHA-256</th><th>MD5</th><th>CRC32</th></tr></thead><tbody>
+        ${(res.entries || []).map(e => `<tr>
+          <td><strong>${esc(e.file_name)}</strong></td>
+          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.sha256)}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.md5)}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.crc32)}</td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div><label style="font-weight:600">Generiertes .sha256 / .sfv Manifest:</label>
+    <textarea class="textarea" style="width:100%;height:110px;font-family:var(--font-mono);margin-top:4px;">${esc(res.sha256_manifest || '')}</textarea></div>
+  `);
+}
+
+/* 8. Split / Join / Secure Shred (Ctrl+Shift+X) */
+function openSplitShredModal() {
+  const item = getSelectedSingleItem();
+  const p = item ? item.full_path : '';
+  showToolModal('✂ Datei-Splitter (.001), Joiner & Sicherer Datei-Shredder (Strg+Shift+X)', `
+    <div class="prefs-card">
+      <div><strong>Zieldatei:</strong> <input class="input" id="ss-path" value="${esc(p)}" style="width:75%"></div>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;">
+        <label>Teilgröße (MB): <input class="input" type="number" id="ss-mb" value="100" style="width:80px"></label>
+        <button class="btn primary" onclick="runSplitShred('split')">✂ Datei in .001 Teile splitten</button>
+        <button class="btn" onclick="runSplitShred('join')">🔗 .001 Teile wieder zusammenfügen</button>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+      <div style="display:flex;gap:10px;align-items:center;">
+        <select class="select" id="ss-passes">
+          <option value="1">1-Pass Zufallsdaten</option>
+          <option value="3" selected>3-Pass DoD 5220.22-M Standard</option>
+          <option value="7">7-Pass Kryptografischer Wipe</option>
+        </select>
+        <button class="btn danger" onclick="runSplitShred('shred')">🔥 Datei unwiderruflich schreddern</button>
+      </div>
+    </div>
+    <div id="ss-msg" style="margin-top:10px;font-weight:600;"></div>
+  `);
+}
+
+async function runSplitShred(mode) {
+  const path = document.getElementById('ss-path').value;
+  if (mode === 'shred' && !confirm('WARNUNG: Diese Datei wird kryptografisch überschrieben und kann NICHT wiederhergestellt werden. Fortfahren?')) return;
+  const res = await rpc('split_or_join_or_shred', {
+    mode,
+    path,
+    part_size_mb: parseInt(document.getElementById('ss-mb').value, 10) || 100,
+    passes: parseInt(document.getElementById('ss-passes').value, 10) || 3
+  });
+  document.getElementById('ss-msg').textContent = res.message || res.error || '';
+  loadPane(STATE.activeSide);
+}
+
+/* 9. Color File Tags & Notes (Ctrl+Shift+L) */
+function openTagModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte Elemente auswählen.'); return; }
+  showToolModal('🎨 Farbige Datei-Tags & Notizen (Strg+Shift+L)', `
+    <div class="prefs-card">
+      <div style="margin-bottom:10px;">Farb-Label für <strong>${paths.length} Element(e)</strong> wählen:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        ${['None','Red','Orange','Yellow','Green','Blue','Purple'].map(c => `<button class="btn" onclick="document.getElementById('tag-col').value='${c}'">${c}</button>`).join('')}
+        <input class="input" id="tag-col" value="Red" style="width:100px">
+      </div>
+      <div><label>Optionale Notiz (durchsuchbar mit <code>note:...</code> im Filter):</label>
+      <input class="input" id="tag-note" style="width:100%;margin-top:4px;" placeholder="Notiz eingeben…"></div>
+    </div>
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="applyTagModal()">✓ Speichern</button>`);
+}
+
+async function applyTagModal() {
+  await rpc('set_tag', {
+    paths: getActionPaths(),
+    color: document.getElementById('tag-col').value,
+    note: document.getElementById('tag-note').value
+  });
+  closeModal('modalTool');
+  loadPane(STATE.activeSide);
+  toast('Tag & Notiz gespeichert.');
+}
+
+/* 10. Attributes, Timestamps & EXIF (Ctrl+Shift+A) */
+async function openAttrExifModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte Elemente auswählen.'); return; }
+  const res = await rpc('attr_exif', { sub: 'inspect', paths });
+  showToolModal('🛠 Attribute, Zeitstempel & EXIF-Metadaten (Strg+Shift+A)', `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+      <label>Zeitstempel verschieben (Stunden): <input class="input" type="number" id="ae-shift" value="0" style="width:70px"></label>
+      <label><input type="checkbox" id="ae-touch"> Auf aktuelle Uhrzeit setzen (Touch)</label>
+      <button class="btn primary" onclick="applyAttrExif()">Anwenden</button>
+    </div>
+    <table class="data-tbl"><thead><tr><th>Name</th><th>Geändert</th><th>Format / Auflösung</th><th>ReadOnly</th></tr></thead><tbody>
+      ${(res.details || []).map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.modified)}</td><td>${esc(d.format_name)} ${esc(d.resolution)}</td><td>${d.is_readonly?'Ja':'Nein'}</td></tr>`).join('')}
+    </tbody></table>
+  `);
+}
+
+async function applyAttrExif() {
+  await rpc('attr_exif', {
+    sub: 'apply',
+    paths: getActionPaths(),
+    shift_hours: parseInt(document.getElementById('ae-shift').value, 10) || 0,
+    touch_to_now: document.getElementById('ae-touch').checked
+  });
+  closeModal('modalTool');
+  loadPane(STATE.activeSide);
+  toast('Zeitstempel/Attribute aktualisiert.');
+}
+
+/* 11. Smart Export (Ctrl+Shift+E) */
+async function openSmartExportModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte Elemente auswählen.'); return; }
+  showToolModal('📋 Smart Copy & Tabellen-Exporter (Strg+Shift+E)', `
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select class="select" id="se-fmt" onchange="refreshSmartExport()" style="flex:1">
+        <option value="FullPaths">Vollständige Pfade</option>
+        <option value="FileNamesOnly">Nur Dateinamen</option>
+        <option value="ForwardSlashPaths">Forward-Slash Pfade (C:/...)</option>
+        <option value="MarkdownFileLinks">Markdown file://-Links</option>
+        <option value="MarkdownTable">Markdown-Tabelle (.md)</option>
+        <option value="CsvTable">CSV-Tabelle (.csv)</option>
+        <option value="JsonArray">JSON-Array (.json)</option>
+        <option value="HtmlTable">HTML-Tabelle (.html)</option>
+      </select>
+      <button class="btn primary" onclick="copyText(document.getElementById('se-out').value)">📋 In Zwischenablage kopieren</button>
+    </div>
+    <textarea class="textarea" id="se-out" style="width:100%;height:320px;font-family:var(--font-mono);"></textarea>
+  `);
+  refreshSmartExport();
+}
+
+async function refreshSmartExport() {
+  const res = await rpc('smart_export', {
+    paths: getActionPaths(),
+    base_dir: getTab(STATE.activeSide).path,
+    format: document.getElementById('se-fmt').value
+  });
+  document.getElementById('se-out').value = res.output || '';
+}
+
+/* 12. Archive Browser & Packer (Alt+F5) */
+async function openArchiveModal(archivePath) {
+  const paths = getActionPaths();
+  const dir = getTab(STATE.activeSide).path;
+  const defaultDest = dir.replace(/[\\/]+$/,'') + '\\bundle.zip';
+  let entriesHtml = '';
+  if (archivePath) {
+    const lres = await rpc('archive', { sub: 'list', archive_path: archivePath });
+    entriesHtml = `<div style="margin-top:12px;"><strong>Inhalt von ${esc(archivePath)}:</strong>
+      <div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+        <table class="data-tbl"><thead><tr><th>Eintrag</th><th>Größe</th><th>Komprimiert</th></tr></thead><tbody>
+          ${(lres.entries||[]).map(e => `<tr><td>${esc(e.full_name)}</td><td>${esc(e.size_text)}</td><td>${esc(e.compressed_text)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+      <button class="btn primary" style="margin-top:8px;" onclick="rpc('archive',{sub:'extract',archive_path:'${esc(archivePath).replace(/\\/g,'\\\\')}',dest_dir:'${esc(dir).replace(/\\/g,'\\\\')}'}).then(()=>{closeModal('modalTool');loadPane(STATE.activeSide);toast('Archiv entpackt!');})">📂 Komplettes Archiv hierher entpacken</button>
+    </div>`;
+  }
+  showToolModal('📦 Archiv-Browser & Packer (.zip / .tar.gz — Alt+F5)', `
+    <div class="prefs-card">
+      <div style="margin-bottom:6px;">Ausgewählte Elemente (${paths.length}) in neues Archiv packen:</div>
+      <div style="display:flex;gap:8px;">
+        <input class="input" id="arch-dest" value="${esc(defaultDest)}" style="flex:1">
+        <button class="btn primary" onclick="packNewArchive()">📦 Jetzt packen</button>
+      </div>
+    </div>
+    ${entriesHtml}
+  `);
+}
+
+async function packNewArchive() {
+  const dest = document.getElementById('arch-dest').value;
+  const res = await rpc('archive', { sub: 'pack', paths: getActionPaths(), dest_archive: dest });
+  if (res && res.ok) {
+    closeModal('modalTool');
+    loadPane(STATE.activeSide);
+    toast(`Archiv mit ${res.count} Datei(en) erstellt.`);
+  } else {
+    toast(res?.error || 'Archiv-Fehler');
+  }
+}
+
+/* 13. Built-in FTP / FTPS / SFTP Client (Ctrl+Shift+C) */
+function openRemoteModal() {
+  showToolModal('🌐 FTP / FTPS / SFTP Verbindungsmanager (Strg+Shift+C)', `
+    <div style="display:grid;grid-template-columns:1fr 110px 1fr 80px 1fr 1fr auto;gap:6px;margin-bottom:12px;">
+      <input class="input" id="rm-name" placeholder="Profilname">
+      <select class="select" id="rm-proto"><option value="Sftp">SFTP (SSH)</option><option value="Ftps">FTPS (TLS)</option><option value="Ftp">FTP</option></select>
+      <input class="input" id="rm-host" placeholder="Host (z.B. sftp.example.com)">
+      <input class="input" id="rm-port" type="number" value="22">
+      <input class="input" id="rm-user" placeholder="Benutzername">
+      <input class="input" id="rm-path" value="/var/www">
+      <button class="btn primary" onclick="saveRemoteProfile()">+ Speichern</button>
+    </div>
+    <table class="data-tbl"><thead><tr><th>Name</th><th>Protokoll</th><th>Host</th><th>Benutzer</th><th>Pfad</th><th>Aktion</th></tr></thead><tbody id="rm-tbody"></tbody></table>
+  `);
+  renderRemoteTable();
+}
+
+function renderRemoteTable() {
+  document.getElementById('rm-tbody').innerHTML = (STATE.remoteProfiles || []).map(p => `
+    <tr>
+      <td><strong>${esc(p.name)}</strong></td><td>${esc(p.protocol)}</td><td>${esc(p.host)}:${p.port}</td><td>${esc(p.username)}</td><td>${esc(p.remote_path)}</td>
+      <td><button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteRemoteProfile('${esc(p.name)}')">Löschen</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="6">Noch keine Verbindungsprofile gespeichert.</td></tr>';
+}
+
+async function saveRemoteProfile() {
+  const res = await rpc('remote', {
+    sub: 'save',
+    name: document.getElementById('rm-name').value || 'Server',
+    protocol: document.getElementById('rm-proto').value,
+    host: document.getElementById('rm-host').value || 'localhost',
+    port: parseInt(document.getElementById('rm-port').value, 10) || 22,
+    username: document.getElementById('rm-user').value || 'root',
+    remote_path: document.getElementById('rm-path').value || '/'
+  });
+  STATE.remoteProfiles = res.profiles || [];
+  renderRemoteTable();
+  toast('Verbindungsprofil gespeichert.');
+}
+
+async function deleteRemoteProfile(name) {
+  const res = await rpc('remote', { sub: 'delete', name });
+  STATE.remoteProfiles = res.profiles || [];
+  renderRemoteTable();
+}
+
+/* 14. Extended Git Panel (Ctrl+Shift+G) */
+async function openGitModal() {
+  const dir = getTab(STATE.activeSide).path;
+  const g = await rpc('git_panel', { dir, sub: 'status' });
+  if (!g.is_repo) {
+    toast('Aktueller Ordner ist kein Git-Repository.');
+    return;
+  }
+  showToolModal(`⎇ Erweitertes Git-Panel — ${esc(g.repo_root)}`, `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <span>Aktueller Branch:</span>
+      <select class="select" onchange="gitCheckoutBranch(this.value)">
+        ${(g.branches||[]).map(b => `<option value="${esc(b)}" ${b===g.current_branch?'selected':''}>⎇ ${esc(b)}</option>`).join('')}
+      </select>
+      <input class="input" id="git-commit-msg" placeholder="Commit-Nachricht eingeben…" style="flex:1">
+      <button class="btn primary" onclick="gitCommitNow()">✓ Commit</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <strong>Geänderte Dateien (${(g.changed_files||[]).length}):</strong>
+        <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
+          <table class="data-tbl"><thead><tr><th>Status</th><th>Datei</th><th>Aktionen</th></tr></thead><tbody>
+            ${(g.changed_files||[]).map(f => `<tr>
+              <td><strong style="color:var(--warn)">${esc(f.status_code)}</strong></td>
+              <td style="font-family:var(--font-mono);font-size:11.5px;">${esc(f.relative_path)}</td>
+              <td style="display:flex;gap:4px;">
+                <button class="btn" style="padding:1px 6px;font-size:10.5px;" onclick="gitStageFile('${esc(f.relative_path).replace(/\\/g,'\\\\')}')">+ Stage</button>
+                <button class="btn" style="padding:1px 6px;font-size:10.5px;" onclick="gitUnstageFile('${esc(f.relative_path).replace(/\\/g,'\\\\')}')">- Unstage</button>
+              </td>
+            </tr>`).join('') || '<tr><td colspan="3" style="color:var(--ok)">Working Tree sauber ✓</td></tr>'}
+          </tbody></table>
+        </div>
+      </div>
+      <div>
+        <strong>Letzte Commits:</strong>
+        <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
+          <table class="data-tbl"><thead><tr><th>Hash</th><th>Datum</th><th>Autor</th><th>Betreff</th></tr></thead><tbody>
+            ${(g.recent_commits||[]).map(c => `<tr>
+              <td style="font-family:var(--font-mono);color:var(--accent)">${esc(c.short_hash)}</td>
+              <td>${esc(c.date)}</td><td>${esc(c.author)}</td><td>${esc(c.subject)}</td>
+            </tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+async function gitCheckoutBranch(branch) {
+  await rpc('git_panel', { dir: getTab(STATE.activeSide).path, sub: 'checkout', branch });
+  await loadPane('left');
+  await loadPane('right');
+  openGitModal();
+}
+
+async function gitStageFile(rel) {
+  await rpc('git_panel', { dir: getTab(STATE.activeSide).path, sub: 'stage', relative_path: rel });
+  openGitModal();
+}
+
+async function gitUnstageFile(rel) {
+  await rpc('git_panel', { dir: getTab(STATE.activeSide).path, sub: 'unstage', relative_path: rel });
+  openGitModal();
+}
+
+async function gitCommitNow() {
+  const msg = document.getElementById('git-commit-msg').value.trim();
+  if (!msg) { toast('Bitte Commit-Nachricht eingeben.'); return; }
+  await rpc('git_panel', { dir: getTab(STATE.activeSide).path, sub: 'commit', message: msg });
+  openGitModal();
+  toast('Commit ausgeführt.');
+}
+
+/* 15. Workspaces Manager (Ctrl+Shift+O) */
+function openWorkspacesModal() {
+  showToolModal('🗂 Arbeitsbereiche / Workspace-Profile (Strg+Shift+O)', `
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input class="input" id="ws-name" placeholder="Name des Arbeitsbereichs (z.B. Rust-Entwicklung)…" style="flex:1">
+      <button class="btn primary" onclick="saveWorkspaceProfile()">💾 Aktuelle Tabs als Profil speichern</button>
+    </div>
+    <table class="data-tbl"><thead><tr><th>Name</th><th>Tabs (Links / Rechts)</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody id="ws-tbody"></tbody></table>
+  `);
+  renderWorkspacesTable();
+}
+
+function renderWorkspacesTable() {
+  document.getElementById('ws-tbody').innerHTML = (STATE.workspaces || []).map((w, idx) => `
+    <tr>
+      <td><strong>${esc(w.name)}</strong></td>
+      <td>${(w.left_tabs||[]).length} Links / ${(w.right_tabs||[]).length} Rechts</td>
+      <td>${esc(w.created_at || '')}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="loadWorkspaceProfile(${idx})">Laden</button>
+        <button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteWorkspaceProfile('${esc(w.name)}')">Löschen</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Noch keine Arbeitsbereiche gespeichert.</td></tr>';
+}
+
+async function saveWorkspaceProfile() {
+  const name = document.getElementById('ws-name').value.trim() || 'Workspace';
+  const profile = {
+    name,
+    left_tabs: STATE.panes.left.tabs.map(t => ({ path: t.path, is_pinned: t.lockState === 'Pinned', is_locked: t.lockState === 'Locked', view_mode: t.viewMode || 'Details' })),
+    right_tabs: STATE.panes.right.tabs.map(t => ({ path: t.path, is_pinned: t.lockState === 'Pinned', is_locked: t.lockState === 'Locked', view_mode: t.viewMode || 'Details' })),
+    is_dual_pane: STATE.isDualPane,
+    split_ratio: 0.5,
+    created_at: new Date().toLocaleString('de-DE')
+  };
+  const res = await rpc('workspaces', { sub: 'save', profile });
+  STATE.workspaces = res.workspaces || [];
+  renderWorkspacesTable();
+  toast('Arbeitsbereich gespeichert.');
+}
+
+async function loadWorkspaceProfile(idx) {
+  const w = STATE.workspaces[idx];
+  if (!w) return;
+  if (w.left_tabs?.length) {
+    STATE.panes.left.tabs = w.left_tabs.map(t => ({ path: t.path, homePath: t.path, title: t.path, lockState: t.is_locked ? 'Locked' : (t.is_pinned ? 'Pinned' : 'Normal'), viewMode: t.view_mode || 'Details', branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }));
+    STATE.panes.left.activeTab = 0;
+  }
+  if (w.right_tabs?.length) {
+    STATE.panes.right.tabs = w.right_tabs.map(t => ({ path: t.path, homePath: t.path, title: t.path, lockState: t.is_locked ? 'Locked' : (t.is_pinned ? 'Pinned' : 'Normal'), viewMode: t.view_mode || 'Details', branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }));
+    STATE.panes.right.activeTab = 0;
+  }
+  closeModal('modalTool');
+  await loadPane('left', true);
+  await loadPane('right', true);
+  toast('Arbeitsbereich geladen: ' + w.name);
+}
+
+async function deleteWorkspaceProfile(name) {
+  const res = await rpc('workspaces', { sub: 'delete', name });
+  STATE.workspaces = res.workspaces || [];
+  renderWorkspacesTable();
+}
+
+/* ==================== UTILITIES, MODALS, SPLITTER, ZOOM & SHORTCUTS ==================== */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function copyText(txt) {
+  navigator.clipboard.writeText(txt || '');
+  toast('In die Zwischenablage kopiert.');
+}
+
+function adjustZoom(delta) {
+  STATE.zoom = Math.min(160, Math.max(75, STATE.zoom + delta));
+  document.body.style.zoom = (STATE.zoom / 100);
+  document.getElementById('statusZoom').textContent = STATE.zoom + '%';
+}
+
+function initSplitter() {
+  const sp = document.getElementById('paneSplitter');
+  const ws = document.getElementById('workspace');
+  const left = document.getElementById('pane-left');
+  const right = document.getElementById('pane-right');
+  let dragging = false;
+  sp.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    sp.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = ws.getBoundingClientRect();
+    const pct = Math.min(0.8, Math.max(0.2, (e.clientX - rect.left) / rect.width));
+    left.style.flex = `0 0 calc(${pct * 100}% - 3px)`;
+    right.style.flex = `1 1 0`;
+  });
+  window.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      sp.classList.remove('dragging');
+    }
+  });
+}
+
+window.addEventListener('keydown', (e) => {
+  const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+    closeAllMenus();
+    return;
+  }
+  if (e.key === 'F1') { e.preventDefault(); openSettingsModal('Shortcuts'); return; }
+  if (e.key === 'F2' && !inInput) { e.preventDefault(); renameSelected(); return; }
+  if (e.key === 'F3') { e.preventDefault(); openViewerModal(false); return; }
+  if (e.key === 'F4') { e.preventDefault(); openViewerModal(true); return; }
+  if (e.key === 'F5' && !inInput) { e.preventDefault(); copyOrMoveActive(false); return; }
+  if (e.key === 'F6' && !inInput) { e.preventDefault(); copyOrMoveActive(true); return; }
+  if (e.key === 'F7') { e.preventDefault(); openCreateModal(e.shiftKey); return; }
+  if ((e.key === 'F8' || (e.key === 'Delete' && !inInput))) { e.preventDefault(); deleteSelected(); return; }
+  if (e.key === 'F9') { e.preventDefault(); openExternalTerminal(); return; }
+  if (e.key === 'F10' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p')) { e.preventDefault(); openCommandPalette(); return; }
+  if (e.key === 'F12') { e.preventDefault(); setDualPaneMode(!STATE.isDualPane); return; }
+
+  if (e.ctrlKey && !e.shiftKey) {
+    const k = e.key.toLowerCase();
+    if (k === ',') { e.preventDefault(); openSettingsModal('Appearance'); return; }
+    if (k === 'm') { e.preventDefault(); openBatchRenameModal(); return; }
+    if (k === 'q') { e.preventDefault(); toggleDock(); return; }
+    if (k === 'b') { e.preventDefault(); toggleBranchView(STATE.activeSide); return; }
+    if (k === 'h') { e.preventDefault(); toggleBoolSetting('show_hidden_files'); return; }
+    if (k === 'd') { e.preventDefault(); toggleCurrentFavorite(); return; }
+    if (k === 't') { e.preventDefault(); addTab(STATE.activeSide); return; }
+    if (k === 'w') { e.preventDefault(); closeTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab); return; }
+    if (k === 'z' && !inInput) { e.preventDefault(); doUndo(); return; }
+    if (k === 'f') { e.preventDefault(); document.getElementById('filter-' + STATE.activeSide).focus(); return; }
+  }
+
+  if (e.ctrlKey && e.shiftKey) {
+    const k = e.key.toLowerCase();
+    if (k === 'u') { e.preventDefault(); openDiffModal(); return; }
+    if (k === 'k') { e.preventDefault(); openChecksumsModal(); return; }
+    if (k === 'x') { e.preventDefault(); openSplitShredModal(); return; }
+    if (k === 'l') { e.preventDefault(); openTagModal(); return; }
+    if (k === 'o') { e.preventDefault(); openWorkspacesModal(); return; }
+    if (k === 'e') { e.preventDefault(); openSmartExportModal(); return; }
+    if (k === 'a') { e.preventDefault(); openAttrExifModal(); return; }
+    if (k === 'j') { e.preventDefault(); toggleQuickConsole(); return; }
+    if (k === 'g') { e.preventDefault(); openGitModal(); return; }
+    if (k === 's') { e.preventDefault(); openSyncModal(); return; }
+    if (k === 'w') { e.preventDefault(); openTreemapModal(); return; }
+    if (k === 'd') { e.preventDefault(); openDuplicatesModal(); return; }
+    if (k === 'c') { e.preventDefault(); openRemoteModal(); return; }
+  }
+
+  if (!inInput) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (STATE.isDualPane) setActiveSide(STATE.activeSide === 'left' ? 'right' : 'left');
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      navUp(STATE.activeSide);
+    } else if (e.key === ' ' || e.key === 'Insert') {
+      e.preventDefault();
+      const it = getSelectedSingleItem(STATE.activeSide);
+      if (it) toggleMarkItem(STATE.activeSide, it, 0);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const it = getSelectedSingleItem(STATE.activeSide);
+      if (it) activateItem(STATE.activeSide, it);
+    }
+  }
+});
+
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>

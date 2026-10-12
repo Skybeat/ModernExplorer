@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "modern-explorer-core",
+    "modern-explorer-app",
+]
+
+[workspace.package]
+version = "1.9.0"
+edition = "2021"
+authors = ["ModernExplorer Team"]
+license = "MIT"
+repository = "https://github.com/Skybeat/ModernExplorer"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+

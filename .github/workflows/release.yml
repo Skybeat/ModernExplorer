@@ -185,9 +185,185 @@ jobs:
             dist/*.dmg
             dist/*.pkg
 
+  build-rust-windows:
+    name: Build Rust Windows (x64 & ARM64 Portable + Setup.exe Installers)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (x64 & ARM64)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
+
+      - name: Run Rust Core Unit Tests
+        run: cargo test --manifest-path rust/Cargo.toml
+
+      - name: Build Rust Windows x64 & ARM64 Portable + Inno Setup Installers
+        shell: pwsh
+        run: |
+          $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
+          $version = $rawTag.TrimStart('v')
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.0" }
+
+          New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
+          $distFull = (Resolve-Path dist-rust).Path
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+          $targets = @(
+            @{ Target = "x86_64-pc-windows-msvc"; Rid = "win-x64"; ArchLabel = "windows-x64" },
+            @{ Target = "aarch64-pc-windows-msvc"; Rid = "win-arm64"; ArchLabel = "windows-arm64" }
+          )
+
+          foreach ($t in $targets) {
+            cargo build --manifest-path rust/Cargo.toml --release --target $($t.Target)
+            $exePath = "rust/target/$($t.Target)/release/ModernExplorer-Rust.exe"
+
+            # 1. Standalone Portable .exe
+            Copy-Item $exePath -Destination "$distFull/ModernExplorer-Rust-$($t.ArchLabel)-Portable.exe" -Force
+
+            # 2. Portable .zip Archive (with Assets & README)
+            $stageDir = Join-Path $distFull "stage-$($t.Rid)"
+            New-Item -ItemType Directory -Force -Path "$stageDir/Assets" | Out-Null
+            Copy-Item $exePath -Destination "$stageDir/ModernExplorer-Rust.exe" -Force
+            Copy-Item "src/ModernExplorer.App/Assets/AppIcon.ico" -Destination "$stageDir/Assets/AppIcon.ico" -Force
+            Copy-Item "src/ModernExplorer.App/Assets/AppIcon.png" -Destination "$stageDir/Assets/AppIcon.png" -Force
+            Set-Content -Path "$stageDir/README-Portable.txt" -Value "ModernExplorer Studio v$version (Rust Edition - $($t.ArchLabel) Portable)`r`nStart ModernExplorer-Rust.exe directly without installation." -Encoding UTF8
+            Compress-Archive -Path "$stageDir/*" -DestinationPath "$distFull/ModernExplorer-Rust-$($t.ArchLabel)-Portable.zip" -Force
+
+            # 3. Inno Setup Windows Installer (.exe)
+            $stageAbs = (Resolve-Path $stageDir).Path
+            & $iscc "/DAppVersion=$version" "/DTargetRid=$($t.Rid)" "/DSourceDir=$stageAbs" "/DOutputDir=$distFull" "installers/rust/ModernExplorer-Rust.iss"
+            Remove-Item $stageDir -Recurse -Force
+          }
+
+      - name: Upload Rust Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-windows-releases
+          path: |
+            dist-rust/*.zip
+            dist-rust/*.exe
+
+  build-rust-linux:
+    name: Build Rust Linux (${{ matrix.arch_id }} Portable + .deb + .rpm + Arch + .AppImage + .sh)
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch_id: linux-x64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - arch_id: linux-arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux System Dependencies (GTK3, WebKit2GTK 4.1, RPM, Zstandard)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            rpm \
+            zstd \
+            zip
+
+      - name: Install Rust Toolchain (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Rust Linux Binary & Multi-Distro Installers
+        run: |
+          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.0"; fi
+
+          cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
+
+          mkdir -p dist-rust
+          sed -i 's/\r$//' installers/rust/build-linux-rust-installers.sh
+          chmod +x installers/rust/build-linux-rust-installers.sh
+          ./installers/rust/build-linux-rust-installers.sh \
+            "${{ matrix.arch_id }}" \
+            "${VERSION}" \
+            "$(pwd)/rust/target/${{ matrix.target }}/release/ModernExplorer-Rust" \
+            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/dist-rust"
+
+      - name: Upload Rust Linux ${{ matrix.arch_id }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-linux-releases-${{ matrix.arch_id }}
+          path: |
+            dist-rust/*.tar.gz
+            dist-rust/*.zip
+            dist-rust/*.AppImage
+            dist-rust/*.deb
+            dist-rust/*.rpm
+            dist-rust/*.pkg.tar.zst
+            dist-rust/*.sh
+
+  build-rust-macos:
+    name: Build Rust macOS (${{ matrix.arch_id }} Portable + .dmg + .pkg Installer)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch_id: macos-x64
+            target: x86_64-apple-darwin
+          - arch_id: macos-arm64
+            target: aarch64-apple-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Rust macOS Binary, Portable .app Bundles & .dmg/.pkg Installers
+        run: |
+          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.0"; fi
+
+          cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
+
+          mkdir -p dist-rust
+          sed -i '' 's/\r$//' installers/rust/build-macos-rust-installers.sh || true
+          chmod +x installers/rust/build-macos-rust-installers.sh
+          ./installers/rust/build-macos-rust-installers.sh \
+            "${{ matrix.arch_id }}" \
+            "${VERSION}" \
+            "$(pwd)/rust/target/${{ matrix.target }}/release/ModernExplorer-Rust" \
+            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/dist-rust"
+
+      - name: Upload Rust macOS ${{ matrix.arch_id }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-macos-releases-${{ matrix.arch_id }}
+          path: |
+            dist-rust/*.zip
+            dist-rust/*.tar.gz
+            dist-rust/*.dmg
+            dist-rust/*.pkg
+
   publish-github-release:
     name: Publish GitHub Release
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos, build-rust-windows, build-rust-linux, build-rust-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -209,7 +385,7 @@ jobs:
           if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
             $notes = "## What's New in Modern Explorer $tag`n`n$changelogSection"
           } else {
-            $notes = "## What's New in Modern Explorer $tag`n`nMulti-OS release of Modern Explorer $tag."
+            $notes = "## What's New in Modern Explorer $tag`n`nMulti-OS release of Modern Explorer $tag (.NET & Rust Studio Editions)."
           }
           Set-Content -Path "release-notes.md" -Value $notes -Encoding UTF8
 
@@ -223,13 +399,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-          name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }} (.NET & Rust Studio Editions)
           body_path: release-notes.md
           generate_release_notes: true
           files: |
             release-assets/*.zip
+            release-assets/*.tar.gz
             release-assets/*.exe
             release-assets/*.deb
+            release-assets/*.rpm
+            release-assets/*.pkg.tar.zst
+            release-assets/*.AppImage
             release-assets/*.sh
             release-assets/*.dmg
             release-assets/*.pkg
+
