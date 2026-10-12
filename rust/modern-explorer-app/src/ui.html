@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.8.1 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.1 (Rust Edition)</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" href="/app-icon.png">
 <style>
   :root, [data-theme="dark"] {
     --bg-app: #0f1115;
@@ -244,11 +246,13 @@
 
   /* ============ MAIN BODY (Left .tools Rail + Dual-Pane .workspace + Right .dock) ============ */
   .main {
-    display: grid;
-    grid-template-columns: 38px 1fr auto;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     min-height: 0; overflow: hidden;
   }
   .tools {
+    width: 38px; flex-shrink: 0;
     background: var(--bg-panel); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; align-items: center;
     padding: 6px 4px; gap: 2px; overflow-y: auto;
@@ -259,7 +263,7 @@
 
   /* ============ DUAL-PANE WORKSPACE ============ */
   .workspace {
-    display: flex; min-width: 0; min-height: 0; height: 100%;
+    display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%;
     background: var(--bg-app); overflow: hidden; padding: 4px; gap: 0;
   }
   .pane {
@@ -286,13 +290,19 @@
   .drive-bar {
     display: flex; align-items: center; gap: 4px; padding: 4px 8px;
     background: var(--bg-sunken); border-bottom: 1px solid var(--border);
-    overflow-x: auto; font-size: var(--fs-drives);
+    overflow-x: auto; flex-wrap: nowrap; font-size: var(--fs-drives);
+    flex-shrink: 0;
+  }
+  .drive-bar.multiline {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    row-gap: 4px;
   }
   .drive-chip {
     display: inline-flex; flex-direction: column; gap: 2px;
     padding: 2px 8px; border-radius: 4px; background: var(--bg-panel);
     border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
-    color: var(--fg-dim); transition: all 0.1s;
+    color: var(--fg-dim); transition: all 0.1s; flex-shrink: 0;
   }
   .drive-chip:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-strong); }
   .drive-chip.active { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
@@ -491,22 +501,94 @@
     font-size: var(--fs-status); color: var(--fg-dim);
   }
 
-  /* ============ RIGHT DOCK (.dock from Nuharji/markdown-studio) ============ */
+  /* ============ RIGHT DOCK (.dock — Minimizable & Resizable) ============ */
   .dock {
-    width: 310px; background: var(--bg-panel); border-left: 1px solid var(--border);
-    display: flex; flex-direction: column; min-height: 0;
+    width: 310px; min-width: 210px; max-width: 620px; background: var(--bg-panel); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 0; position: relative; flex-shrink: 0;
   }
-  .dock.collapsed { display: none; }
+  .dock.collapsed {
+    width: 38px !important; min-width: 38px !important; max-width: 38px !important;
+  }
+  .dock.collapsed .dock-tabs,
+  .dock.collapsed .dock-body { display: none !important; }
+  .dock-rail {
+    display: none; flex-direction: column; align-items: center; padding: 6px 0; gap: 6px;
+    height: 100%; background: var(--bg-sunken);
+  }
+  .dock.collapsed .dock-rail { display: flex; }
+  .dock-rail-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid transparent;
+    background: transparent; color: var(--fg-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative;
+  }
+  .dock-rail-btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
+  .dock-rail-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
+  .dock-rail-badge {
+    position: absolute; top: -3px; right: -3px; min-width: 14px; height: 14px;
+    border-radius: 99px; background: var(--accent); color: #fff; font-size: 9px;
+    font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  }
   .dock-tabs {
-    display: flex; border-bottom: 1px solid var(--border); background: var(--bg-sunken);
+    display: flex; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-sunken);
   }
   .dock-tab {
-    flex: 1; text-align: center; padding: 7px 4px; font-size: 11.5px;
+    flex: 1; text-align: center; padding: 7px 3px; font-size: 11.5px;
     color: var(--fg-dim); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
   }
   .dock-tab:hover { color: var(--fg); }
   .dock-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-panel); font-weight: 600; }
+  .dock-min-btn {
+    width: 26px; height: 26px; margin: 0 3px; border-radius: 5px; border: 1px solid transparent;
+    background: transparent; color: var(--fg-dim); cursor: pointer; font-size: 13px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .dock-min-btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
   .dock-body { flex: 1; overflow-y: auto; padding: 10px; font-size: 12px; }
+
+  /* ============ TREEMAP (.NET PARITY STYLES) ============ */
+  .tm-row {
+    display: grid; align-items: center; gap: 8px; padding: 3px 6px;
+    border-radius: 4px; border: 1px solid transparent; cursor: pointer; font-size: 12px;
+  }
+  .tm-row:hover { background: var(--bg-hover); }
+  .tm-row.selected { background: var(--accent-soft); border-color: var(--sel-border-color); }
+  .tm-bar-bg {
+    position: relative; height: 14px; background: rgba(128,128,145,0.2);
+    border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .tm-bar-fill {
+    position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+  }
+  .tm-bar-txt {
+    position: relative; z-index: 1; font-size: 10px; font-weight: 600; color: var(--fg);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+  }
+  .tm-split-h {
+    width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border-radius: 4px;
+  }
+  .tm-split-h::after {
+    content: ""; width: 4px; height: 36px; border-radius: 2px; background: rgba(148,163,184,0.45);
+  }
+  .tm-split-h:hover { background: rgba(56,189,248,0.12); }
+  .tm-split-h:hover::after { background: #38BDF8; }
+  .tm-split-v {
+    height: 10px; cursor: row-resize; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border-radius: 4px; margin: 2px 0;
+  }
+  .tm-split-v::after {
+    content: ""; width: 52px; height: 4px; border-radius: 2px; background: rgba(148,163,184,0.45);
+  }
+  .tm-split-v:hover { background: rgba(56,189,248,0.12); }
+  .tm-split-v:hover::after { background: #38BDF8; }
+  .tm-tree-flyout {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 540px; max-width: 90vw;
+    height: 420px; background: var(--bg-elev); border: 1px solid var(--border-strong);
+    border-radius: 8px; box-shadow: var(--shadow); z-index: 2600; padding: 8px;
+    flex-direction: column; gap: 6px;
+  }
+  .tm-tree-flyout.open { display: flex; }
 
   /* ============ BOTTOM QUICK CONSOLE (>_), FN BAR & STATUS BAR ============ */
   .qconsole {
@@ -585,23 +667,62 @@
   }
   .modal-bg.open { display: flex; }
   .modal {
+    position: relative;
     background: var(--bg-panel); border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg); box-shadow: var(--shadow);
-    width: 920px; max-width: 94vw; max-height: 88vh;
+    width: 920px; height: 680px;
+    min-width: 420px; min-height: 260px;
+    max-width: 97vw; max-height: 95vh;
     display: flex; flex-direction: column; overflow: hidden;
     font-size: var(--fs-child);
   }
-  .modal.xl { width: 1140px; }
+  .modal.xl { width: 1140px; height: 740px; }
+  .modal.maximized {
+    width: 96vw !important; height: 94vh !important;
+    transform: none !important;
+  }
+  .modal.resizing { user-select: none; transition: none !important; }
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 11px 16px; border-bottom: 1px solid var(--border);
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
     font-weight: 600; font-size: 13.5px; background: var(--bg-elev);
+    cursor: move; user-select: none; flex-shrink: 0; gap: 8px;
   }
-  .modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .modal-head-right {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .modal-size-badge {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-border); border-radius: 4px;
+    padding: 2px 7px; opacity: 0; transition: opacity 0.15s; pointer-events: none;
+  }
+  .modal.resizing .modal-size-badge { opacity: 1; }
+  .modal-body {
+    padding: 14px 16px; overflow-y: auto; flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+  }
   .modal-foot {
     padding: 10px 16px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px; background: var(--bg-sunken);
+    flex-shrink: 0;
   }
+  /* 8-Way Child Window Resize Handles + Corner Grip */
+  .modal-rz { position: absolute; z-index: 30; }
+  .modal-rz.n  { top: -3px; left: 12px; right: 12px; height: 7px; cursor: ns-resize; }
+  .modal-rz.s  { bottom: -3px; left: 12px; right: 12px; height: 7px; cursor: ns-resize; }
+  .modal-rz.e  { right: -3px; top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
+  .modal-rz.w  { left: -3px; top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
+  .modal-rz.nw { top: -4px; left: -4px; width: 14px; height: 14px; cursor: nwse-resize; z-index: 35; }
+  .modal-rz.ne { top: -4px; right: -4px; width: 14px; height: 14px; cursor: nesw-resize; z-index: 35; }
+  .modal-rz.sw { bottom: -4px; left: -4px; width: 14px; height: 14px; cursor: nesw-resize; z-index: 35; }
+  .modal-rz.se {
+    bottom: 0; right: 0; width: 20px; height: 20px; cursor: nwse-resize; z-index: 35;
+    display: flex; align-items: flex-end; justify-content: flex-end;
+    padding: 2px 3px; color: var(--fg-muted); font-size: 11px; line-height: 1;
+    user-select: none;
+  }
+  .modal-rz.se:hover { color: var(--accent); }
   .btn {
     padding: 6px 13px; border-radius: var(--radius);
     border: 1px solid var(--border-strong); background: var(--bg-elev);
@@ -619,7 +740,7 @@
 
   /* Nuharji/markdown-studio .prefs 2-column Settings Dialog */
   .prefs {
-    display: grid; grid-template-columns: 215px 1fr; height: 590px; max-height: 76vh;
+    display: grid; grid-template-columns: 215px 1fr; flex: 1; min-height: 0; height: 100%;
   }
   .prefs-nav {
     background: var(--bg-sunken); border-right: 1px solid var(--border);
@@ -711,7 +832,7 @@
   <!-- 1. STUDIO MENU BAR (.menubar) -->
   <div class="menubar" id="menubar">
     <div class="app-logo" onclick="openAboutModal()" title="Über ModernExplorer Studio">
-      <span class="logo-mark">ME</span>
+      <img src="/app-icon.png" alt="App Icon" style="width:18px;height:18px;border-radius:4px;object-fit:contain;display:block;">
       <span>ModernExplorer Studio</span>
     </div>
     <div id="menuItems" style="display:flex;align-items:center;gap:2px;"></div>
@@ -905,16 +1026,27 @@
       </div>
     </div>
 
+    <!-- Splitter for Right Dock Width -->
+    <div class="splitter" id="dockSplitter" title="Breite des rechten Bereichs anpassen"></div>
+
     <!-- Right Collapsible Studio Inspector Dock (.dock) -->
     <div class="dock" id="rightDock">
+      <div class="dock-rail" id="dockRail">
+        <button class="dock-rail-btn" id="btnDockExpand" onclick="toggleDock()" title="Rechten Bereich aufklappen (Strg+Q)">«</button>
+        <button class="dock-rail-btn active" id="drail-preview" onclick="expandDockToTab('preview')" title="👁 Vorschau öffnen">👁</button>
+        <button class="dock-rail-btn" id="drail-basket" onclick="expandDockToTab('basket')" title="🧺 Korb öffnen">🧺<span class="dock-rail-badge" id="dockRailBasketCount" style="display:none">0</span></button>
+        <button class="dock-rail-btn" id="drail-git" onclick="expandDockToTab('git')" title="⎇ Git öffnen">⎇</button>
+        <button class="dock-rail-btn" id="drail-info" onclick="expandDockToTab('info')" title="ℹ Details öffnen">ℹ</button>
+      </div>
       <div class="dock-tabs">
-        <div class="dock-tab active" id="dtab-preview" onclick="switchDockTab('preview')">👁 Vorschau</div>
-        <div class="dock-tab" id="dtab-basket" onclick="switchDockTab('basket')">🧺 Korb (<span id="dockBasketCount">0</span>)</div>
-        <div class="dock-tab" id="dtab-git" onclick="switchDockTab('git')">⎇ Git</div>
-        <div class="dock-tab" id="dtab-info" onclick="switchDockTab('info')">ℹ Details</div>
+        <div class="dock-tab active" id="dtab-preview" onclick="onDockTabClick('preview')"><span id="lblDockPreview">👁 Vorschau</span></div>
+        <div class="dock-tab" id="dtab-basket" onclick="onDockTabClick('basket')"><span id="lblDockBasket">🧺 Korb</span> (<span id="dockBasketCount">0</span>)</div>
+        <div class="dock-tab" id="dtab-git" onclick="onDockTabClick('git')"><span id="lblDockGit">⎇ Git</span></div>
+        <div class="dock-tab" id="dtab-info" onclick="onDockTabClick('info')"><span id="lblDockInfo">ℹ Details</span></div>
+        <button class="dock-min-btn" id="btnDockMinimize" onclick="toggleDock()" title="Rechten Bereich minimieren / einklappen (Strg+Q)">»</button>
       </div>
       <div class="dock-body" id="dockBody">
-        <div style="color:var(--fg-muted);text-align:center;margin-top:30px;">Datei auswählen für Live-Vorschau (Strg+Q)</div>
+        <div id="dockEmptyHint" style="color:var(--fg-muted);text-align:center;margin-top:30px;">Datei auswählen für Live-Vorschau (Strg+Q)</div>
       </div>
     </div>
   </div>
@@ -961,7 +1093,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong>v1.8.1 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong>v1.9.1 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -978,7 +1110,7 @@
 <div class="toast" id="toast"></div>
 <!-- ==================== STUDIO SETTINGS MODAL (.prefs with all 6 .NET Categories + Shortcuts) ==================== -->
 <div class="modal-bg" id="modalSettings" onclick="if(event.target===this)closeModal('modalSettings')">
-  <div class="modal xl" style="width:980px;">
+  <div class="modal xl" data-default-w="980" data-default-h="680" style="width:980px;height:680px;">
     <div class="modal-head">
       <span>⚙ Einstellungen — ModernExplorer Studio</span>
       <button class="ibtn" onclick="closeModal('modalSettings')">✕</button>
@@ -1036,6 +1168,10 @@
           <div class="prefs-row">
             <div><div class="pr-label">Laufwerksleiste über den Panels anzeigen</div><div class="pr-sub">Zeigt Laufwerke inkl. freiem Speicherplatz und Belegungsbalken</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-show_drive_bar" onclick="toggleBoolSetting('show_drive_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label" id="lblSetMultilineDriveBar">Laufwerksleiste mehrzeilig umbrechen</div><div class="pr-sub" id="subSetMultilineDriveBar">Bricht die Laufwerksleiste automatisch auf mehrere Zeilen um, wenn sie über die Breite des Explorerfensters hinausgeht</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-multiline_drive_bar" onclick="toggleBoolSetting('multiline_drive_bar')"></div></div>
           </div>
           <div class="prefs-row">
             <div><div class="pr-label">Funktionsleiste (F1–F12) am unteren Fensterrand anzeigen</div><div class="pr-sub">Schnellzugriff auf F1–F12 Kommandos</div></div>
@@ -1176,7 +1312,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub">Installierte Version: v1.8.1</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub">Installierte Version: v1.9.1</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1236,31 +1372,31 @@
 
 <!-- ==================== ABOUT & UPDATE MODAL (Multi-Line Scrollable Release Notes + GitHub Link) ==================== -->
 <div class="modal-bg" id="modalAbout" onclick="if(event.target===this)closeModal('modalAbout')">
-  <div class="modal" style="width:680px;">
+  <div class="modal" data-default-w="720" data-default-h="580" style="width:720px;height:580px;">
     <div class="modal-head">
       <span>ℹ Über ModernExplorer Studio &amp; Updates</span>
       <button class="ibtn" onclick="closeModal('modalAbout')">✕</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elev);padding:12px 16px;border-radius:8px;border:1px solid var(--border);">
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elev);padding:12px 16px;border-radius:8px;border:1px solid var(--border);flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;">ME</div>
+          <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.0</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.0</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.1</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.1</strong></div>
           </div>
         </div>
         <button class="btn primary" onclick="checkUpdatesLive()">🔄 Jetzt prüfen</button>
       </div>
-      <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;">
-        ✓ Sie verwenden die aktuelle Version v1.9.0.
+      <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
+        ✓ Sie verwenden die aktuelle Version v1.9.1.
       </div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
           <span style="font-weight:600;font-size:12.5px;">📋 Release Notes &amp; Neuerungen (mehrzeilig &amp; scrollbar):</span>
           <a href="#" onclick="openReleaseUrl();return false;" style="color:var(--accent);font-size:12px;text-decoration:none;font-weight:600;">🌐 Auf GitHub im Browser ansehen ↗</a>
         </div>
-        <textarea class="textarea" id="aboutReleaseNotesBox" readonly style="width:100%;height:240px;font-family:var(--font-ui);line-height:1.55;resize:vertical;white-space:pre-wrap;"></textarea>
+        <textarea class="textarea" id="aboutReleaseNotesBox" readonly style="width:100%;flex:1;min-height:140px;font-family:var(--font-ui);line-height:1.55;resize:none;white-space:pre-wrap;"></textarea>
       </div>
     </div>
     <div class="modal-foot">
@@ -1272,21 +1408,21 @@
 
 <!-- ==================== COMMAND PALETTE MODAL (F10 / Ctrl+Shift+P) ==================== -->
 <div class="modal-bg" id="modalPalette" onclick="if(event.target===this)closeModal('modalPalette')">
-  <div class="modal" style="width:620px;">
+  <div class="modal" data-default-w="660" data-default-h="520" style="width:660px;height:520px;">
     <div class="modal-head">
       <span>⌘ Befehlspalette (Command Palette)</span>
       <button class="ibtn" onclick="closeModal('modalPalette')">✕</button>
     </div>
-    <div class="modal-body">
-      <input class="input" id="paletteInput" style="width:100%;margin-bottom:10px;" placeholder="Befehl, Werkzeug oder Tastenkürzel suchen…" oninput="renderPaletteList(this.value)">
-      <div id="paletteList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <input class="input" id="paletteInput" style="width:100%;margin-bottom:10px;flex-shrink:0;" placeholder="Befehl, Werkzeug oder Tastenkürzel suchen…" oninput="renderPaletteList(this.value)">
+      <div id="paletteList" style="flex:1;min-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
     </div>
   </div>
 </div>
 
 <!-- ==================== F3 / F4 QUICK VIEWER & EDITOR MODAL ==================== -->
 <div class="modal-bg" id="modalViewer" onclick="if(event.target===this)closeModal('modalViewer')">
-  <div class="modal xl">
+  <div class="modal xl" data-default-w="1080" data-default-h="720">
     <div class="modal-head">
       <span id="viewerTitle">👁 Quick Viewer / Editor</span>
       <div style="display:flex;gap:6px;align-items:center;">
@@ -1299,14 +1435,14 @@
         <button class="ibtn" onclick="closeModal('modalViewer')">✕</button>
       </div>
     </div>
-    <div class="modal-body" id="viewerBody" style="min-height:430px;display:flex;flex-direction:column;">
-      <textarea class="textarea" id="viewerTextarea" style="flex:1;width:100%;min-height:400px;font-family:var(--font-mono);font-size:13px;line-height:1.5;"></textarea>
-      <div id="viewerImageWrap" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:10px;">
-        <img id="viewerImgEl" src="" style="max-width:100%;max-height:420px;object-fit:contain;border-radius:6px;">
-        <div id="viewerImgMeta" style="color:var(--fg-dim);font-family:var(--font-mono)"></div>
+    <div class="modal-body" id="viewerBody" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+      <textarea class="textarea" id="viewerTextarea" style="flex:1;width:100%;min-height:180px;resize:none;font-family:var(--font-mono);font-size:13px;line-height:1.5;"></textarea>
+      <div id="viewerImageWrap" style="display:none;flex:1;min-height:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;overflow:hidden;">
+        <img id="viewerImgEl" src="" style="max-width:100%;max-height:calc(100% - 32px);object-fit:contain;border-radius:6px;">
+        <div id="viewerImgMeta" style="color:var(--fg-dim);font-family:var(--font-mono);flex-shrink:0;"></div>
       </div>
-      <pre id="viewerHexPre" style="display:none;flex:1;margin:0;padding:10px;background:var(--bg-sunken);border-radius:6px;font-family:var(--font-mono);font-size:12px;overflow:auto;max-height:420px;"></pre>
-      <div id="viewerCsvWrap" style="display:none;flex:1;overflow:auto;max-height:420px;"></div>
+      <pre id="viewerHexPre" style="display:none;flex:1;min-height:0;margin:0;padding:10px;background:var(--bg-sunken);border-radius:6px;font-family:var(--font-mono);font-size:12px;overflow:auto;"></pre>
+      <div id="viewerCsvWrap" style="display:none;flex:1;min-height:0;overflow:auto;"></div>
     </div>
     <div class="modal-foot">
       <button class="btn primary" id="btnViewerSave" onclick="saveViewerFile()">💾 Änderungen speichern (Strg+S)</button>
@@ -1317,9 +1453,9 @@
 
 <!-- ==================== CREATE FILE / FOLDER MODAL (F7 / Shift+F7) ==================== -->
 <div class="modal-bg" id="modalCreate" onclick="if(event.target===this)closeModal('modalCreate')">
-  <div class="modal" style="width:520px;">
+  <div class="modal" data-default-w="540" data-default-h="310" style="width:540px;height:310px;">
     <div class="modal-head"><span id="createModalTitle">+ Neues Element erstellen</span><button class="ibtn" onclick="closeModal('modalCreate')">✕</button></div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;">
       <div id="createTplRow">
         <label style="font-size:12px;color:var(--fg-dim);">Vorlage wählen:</label>
         <select class="select" id="createTplSelect" style="width:100%;margin-top:4px;" onchange="onTemplateChange()"></select>
@@ -1338,12 +1474,12 @@
 
 <!-- ==================== UNIVERSAL POWER-TOOL MODAL (Dynamic Multi-Tool Host) ==================== -->
 <div class="modal-bg" id="modalTool" onclick="if(event.target===this)closeModal('modalTool')">
-  <div class="modal xl">
+  <div class="modal xl" data-default-w="1100" data-default-h="700">
     <div class="modal-head">
       <span id="toolModalTitle">Power-Tool</span>
       <button class="ibtn" onclick="closeModal('modalTool')">✕</button>
     </div>
-    <div class="modal-body" id="toolModalBody" style="min-height:420px;"></div>
+    <div class="modal-body" id="toolModalBody" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;"></div>
     <div class="modal-foot" id="toolModalFoot">
       <button class="btn" onclick="closeModal('modalTool')">Schließen</button>
     </div>
@@ -1442,100 +1578,419 @@ function fileIcon(item) {
   return '📄';
 }
 
+/* ==================== MULTI-LANGUAGE LOCALIZATION (I18N) ==================== */
+const I18N = {
+  de: {
+    'menu.file': 'Datei', 'menu.edit': 'Bearbeiten', 'menu.view': 'Ansicht', 'menu.tools': 'Werkzeuge',
+    'menu.tabs': 'Tabs & Favoriten', 'menu.settings': 'Einstellungen', 'menu.help': 'Hilfe',
+    'menu.file.new_file': 'Neue Datei aus Vorlage…', 'menu.file.new_folder': 'Neuer Ordner…',
+    'menu.file.new_tab': 'Neuer Tab im aktiven Panel', 'menu.file.close_tab': 'Aktuellen Tab schließen',
+    'menu.file.quick_viewer': 'Schnellansicht (Quick Viewer)', 'menu.file.editor': 'Interner Text- & Code-Editor',
+    'menu.file.terminal': 'Externes Terminal hier öffnen', 'menu.file.save_session': 'Aktuelle Session jetzt speichern',
+    'menu.edit.undo': 'Rückgängig (Undo)', 'menu.edit.copy': 'Kopieren in anderes Panel',
+    'menu.edit.move': 'Verschieben in anderes Panel', 'menu.edit.rename': 'Umbenennen',
+    'menu.edit.batch_rename': 'Mehrfach-Umbenennen (Batch Rename)', 'menu.edit.delete': 'Löschen',
+    'menu.edit.mark_all': 'Alle Elemente markieren / demarkieren', 'menu.edit.export': 'Smart Copy / Pfad & Tabellen-Export…',
+    'menu.view.dual_pane': 'Dual-Pane / Single-Pane umschalten', 'menu.view.dock': 'Rechtes Inspector-Dock ein-/ausblenden',
+    'menu.view.console': 'Eingebettete Schnell-Konsole (>_)', 'menu.view.branch': 'Branch-View (Flache Unterordner-Ansicht)',
+    'menu.view.hidden': 'Versteckte Dateien ein-/ausblenden',
+    'top.palette': '⌘ Palette', 'top.settings': '⚙ Einstellungen', 'top.updates': '🔄 Updates', 'top.about': 'ℹ Über',
+    'opt.undo': '↶ Rückgängig', 'opt.new_file': '+ Datei', 'opt.new_folder': '+ Ordner',
+    'opt.copy': '➔ Kopieren', 'opt.move': '➔ Verschieben', 'opt.delete': '🗑 Löschen',
+    'opt.deep_search': '🔍 Tiefensuche', 'opt.duplicates': '🧹 Duplikate', 'opt.archive': '📦 Archiv',
+    'opt.console': '>_ Konsole',
+    'fav.label': '★ Favoriten:', 'fav.pin_current': '+ Aktuellen Ordner anheften',
+    'pane.addr_placeholder': 'Pfad eingeben oder > für Befehlspalette…',
+    'pane.filter_placeholder': 'Filter (tag:red, *.rs)…',
+    'pane.parent_dir': '[..] Übergeordneter Ordner',
+    'pane.items': 'Elemente', 'pane.marked': 'markiert',
+    'col.name': 'Name', 'col.size': 'Größe', 'col.modified': 'Geändert', 'col.type': 'Typ',
+    'dock.preview': '👁 Vorschau', 'dock.basket': '🧺 Korb', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Details',
+    'dock.select_hint': 'Element auswählen für Details & Vorschau.',
+    'dock.analyze_treemap': 'Ordner in Treemap analysieren',
+    'dock.minimize_tip': 'Rechten Bereich minimieren / einklappen (Strg+Q)',
+    'dock.expand_tip': 'Rechten Bereich aufklappen (Strg+Q)',
+    'basket.empty_count': '0 Elemente', 'basket.add_sel': 'Auswahl', 'basket.copy_here': 'Hierher kopieren',
+    'basket.move_here': 'Hierher verschieben', 'basket.clear': 'Leeren', 'basket.empty': 'Sammelkorb ist leer.',
+    'git.no_repo': 'Kein Git-Repository im aktuellen Pfad.', 'git.open_full': 'Vollständiges Git-Panel öffnen',
+    'git.changed_files': 'Geänderte Dateien', 'git.clean': 'Working Tree sauber ✓',
+    'fn.help': 'Hilfe', 'fn.rename': 'Umbenennen', 'fn.view': 'Ansicht', 'fn.editor': 'Editor',
+    'fn.copy': 'Kopieren', 'fn.move': 'Verschieben', 'fn.new_file': '+Datei', 'fn.new_folder': '+Ordner',
+    'fn.delete': 'Löschen', 'fn.terminal': 'Terminal',
+    'status.ready': 'Bereit',
+    'prefs.title': '⚙ Einstellungen — ModernExplorer Studio',
+    'prefs.cat.appearance': '🎨 Darstellung & Design', 'prefs.cat.colors': '🖌️ Farben & Hervorhebung',
+    'prefs.cat.behavior': '📁 Dateiliste & Verhalten', 'prefs.cat.preview': '🖼️ Bildvorschau',
+    'prefs.cat.fonts': '🔤 Schriftgrößen', 'prefs.cat.session': '💾 Sitzung, Updates & Fenster',
+    'prefs.cat.shortcuts': '⌨️ Tastenkürzel',
+    'prefs.done': '✓ Fertig & Schließen',
+    'common.cancel': 'Abbrechen', 'common.close': 'Schließen',
+    'tm.title': 'Speicherplatz-Analysator & Squarified Treemap (Strg+Shift+W)',
+    'tm.explorer_tree': 'Explorer-Baum', 'tm.scan_btn': 'Analysieren / Scannen',
+    'tm.zoom_up': 'Ebene höher', 'tm.zoom_root': 'Zur Wurzel',
+    'tm.hierarchy_hdr': 'Ordner-Hierarchie & Größte Speicherfresser',
+    'tm.top100_hdr': 'Top 100 Größte Einzeldateien (Rekursiv)',
+    'tm.top100_files': 'Top 100 Größte Dateien', 'tm.subfolders': 'Unterordner',
+    'tm.ext_stats_hdr': 'Dateitypen-Statistik & Farblegende',
+    'tm.show_all_types': 'Alle Typen zeigen',
+    'tm.map_hdr': 'Visuelle Squarified Treemap (Doppelklick = Hineinzoomen, Rechtsklick = Aktionen, Strg+Klick = Mehrfachauswahl)',
+    'tm.mode_category': 'Farbmodus: Dateikategorie', 'tm.mode_age': 'Farbmodus: Dateialter (Heatmap)',
+    'tm.export_report': 'Bericht exportieren',
+    'tm.footer_hint': 'Klicken = Auswählen • Strg+Klick = Mehrfachauswahl • Doppelklick = In Ordner zoomen • Rechtsklick = Kontextmenü',
+    'tm.reveal_in_tab': 'Im Explorer-Tab zeigen', 'tm.open_as_tab': 'Ordner als Tab öffnen',
+    'tm.delete_sel': 'Markierte Datei(en) löschen (Entf)', 'tm.delete_confirm': 'Ja, jetzt löschen!',
+    'tm.scanning': 'Scanne', 'tm.files_in': 'Dateien in', 'tm.folders': 'Ordnern',
+    'tm.select_drive_or_folder': 'Laufwerk oder Ordner im Baum wählen:'
+  },
+  en: {
+    'menu.file': 'File', 'menu.edit': 'Edit', 'menu.view': 'View', 'menu.tools': 'Tools',
+    'menu.tabs': 'Tabs & Favorites', 'menu.settings': 'Settings', 'menu.help': 'Help',
+    'menu.file.new_file': 'New File from Template…', 'menu.file.new_folder': 'New Folder…',
+    'menu.file.new_tab': 'New Tab in Active Pane', 'menu.file.close_tab': 'Close Active Tab',
+    'menu.file.quick_viewer': 'Quick Viewer', 'menu.file.editor': 'Internal Text & Code Editor',
+    'menu.file.terminal': 'Open External Terminal Here', 'menu.file.save_session': 'Save Current Session Now',
+    'menu.edit.undo': 'Undo Last Action', 'menu.edit.copy': 'Copy to Other Pane',
+    'menu.edit.move': 'Move to Other Pane', 'menu.edit.rename': 'Rename',
+    'menu.edit.batch_rename': 'Batch Rename Tool', 'menu.edit.delete': 'Delete',
+    'menu.edit.mark_all': 'Select / Deselect All Items', 'menu.edit.export': 'Smart Copy / Table Export…',
+    'menu.view.dual_pane': 'Toggle Dual-Pane / Single-Pane', 'menu.view.dock': 'Toggle Right Inspector Dock',
+    'menu.view.console': 'Embedded Quick Console (>_)', 'menu.view.branch': 'Branch View (Flat Subfolder View)',
+    'menu.view.hidden': 'Toggle Hidden Files',
+    'top.palette': '⌘ Palette', 'top.settings': '⚙ Settings', 'top.updates': '🔄 Updates', 'top.about': 'ℹ About',
+    'opt.undo': '↶ Undo', 'opt.new_file': '+ File', 'opt.new_folder': '+ Folder',
+    'opt.copy': '➔ Copy', 'opt.move': '➔ Move', 'opt.delete': '🗑 Delete',
+    'opt.deep_search': '🔍 Deep Search', 'opt.duplicates': '🧹 Duplicates', 'opt.archive': '📦 Archive',
+    'opt.console': '>_ Console',
+    'fav.label': '★ Favorites:', 'fav.pin_current': '+ Pin Current Folder',
+    'pane.addr_placeholder': 'Enter path or > for Command Palette…',
+    'pane.filter_placeholder': 'Filter (tag:red, *.rs)…',
+    'pane.parent_dir': '[..] Parent Directory',
+    'pane.items': 'items', 'pane.marked': 'selected',
+    'col.name': 'Name', 'col.size': 'Size', 'col.modified': 'Modified', 'col.type': 'Type',
+    'dock.preview': '👁 Preview', 'dock.basket': '🧺 Basket', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Details',
+    'dock.select_hint': 'Select an item for live preview & details.',
+    'dock.analyze_treemap': 'Analyze Folder in Storage Treemap',
+    'dock.minimize_tip': 'Minimize / Collapse Right Dock (Ctrl+Q)',
+    'dock.expand_tip': 'Expand Right Dock (Ctrl+Q)',
+    'basket.empty_count': '0 items', 'basket.add_sel': 'Add Selected', 'basket.copy_here': 'Copy Here',
+    'basket.move_here': 'Move Here', 'basket.clear': 'Clear', 'basket.empty': 'File basket is empty.',
+    'git.no_repo': 'No Git repository in current directory.', 'git.open_full': 'Open Full Git Panel',
+    'git.changed_files': 'Changed Files', 'git.clean': 'Working tree clean ✓',
+    'fn.help': 'Help', 'fn.rename': 'Rename', 'fn.view': 'View', 'fn.editor': 'Editor',
+    'fn.copy': 'Copy', 'fn.move': 'Move', 'fn.new_file': '+File', 'fn.new_folder': '+Folder',
+    'fn.delete': 'Delete', 'fn.terminal': 'Terminal',
+    'status.ready': 'Ready',
+    'prefs.title': '⚙ Settings — ModernExplorer Studio',
+    'prefs.cat.appearance': '🎨 Appearance & Design', 'prefs.cat.colors': '🖌️ Colors & Highlighting',
+    'prefs.cat.behavior': '📁 File List & Behavior', 'prefs.cat.preview': '🖼️ Image Hover Preview',
+    'prefs.cat.fonts': '🔤 Font Sizes', 'prefs.cat.session': '💾 Session, Updates & Windows',
+    'prefs.cat.shortcuts': '⌨️ Keyboard Shortcuts',
+    'prefs.done': '✓ Done & Close',
+    'common.cancel': 'Cancel', 'common.close': 'Close',
+    'tm.title': 'Storage Analyzer & Squarified Treemap (Ctrl+Shift+W)',
+    'tm.explorer_tree': 'Explorer Tree', 'tm.scan_btn': 'Analyze / Scan',
+    'tm.zoom_up': 'Up One Level', 'tm.zoom_root': 'Zoom to Root',
+    'tm.hierarchy_hdr': 'Folder Hierarchy & Largest Space Consumers',
+    'tm.top100_hdr': 'Top 100 Largest Individual Files (Recursive)',
+    'tm.top100_files': 'Top 100 Largest Files', 'tm.subfolders': 'Subfolders',
+    'tm.ext_stats_hdr': 'File Extension Statistics & Color Legend',
+    'tm.show_all_types': 'Show All Types',
+    'tm.map_hdr': 'Visual Squarified Treemap (Double-click = Zoom in, Right-click = Actions, Ctrl+Click = Multi-select)',
+    'tm.mode_category': 'Color Mode: File Category', 'tm.mode_age': 'Color Mode: File Age (Heatmap)',
+    'tm.export_report': 'Export Report',
+    'tm.footer_hint': 'Click = Select • Ctrl+Click = Multi-select • Double-click = Zoom into folder • Right-click = Context menu',
+    'tm.reveal_in_tab': 'Reveal in Explorer Tab', 'tm.open_as_tab': 'Open Folder as Tab',
+    'tm.delete_sel': 'Delete Selected File(s) (Del)', 'tm.delete_confirm': 'Yes, Delete Now!',
+    'tm.scanning': 'Scanning', 'tm.files_in': 'files in', 'tm.folders': 'folders',
+    'tm.select_drive_or_folder': 'Select drive or folder in tree:'
+  },
+  es: {
+    'menu.file': 'Archivo', 'menu.edit': 'Editar', 'menu.view': 'Ver', 'menu.tools': 'Herramientas',
+    'menu.tabs': 'Pestañas y Favoritos', 'menu.settings': 'Ajustes', 'menu.help': 'Ayuda',
+    'top.palette': '⌘ Paleta', 'top.settings': '⚙ Ajustes', 'top.updates': '🔄 Actualizar', 'top.about': 'ℹ Acerca de',
+    'opt.undo': '↶ Deshacer', 'opt.new_file': '+ Archivo', 'opt.new_folder': '+ Carpeta',
+    'opt.copy': '➔ Copiar', 'opt.move': '➔ Mover', 'opt.delete': '🗑 Eliminar',
+    'opt.deep_search': '🔍 Búsqueda', 'opt.duplicates': '🧹 Duplicados', 'opt.archive': '📦 Archivo',
+    'opt.console': '>_ Consola',
+    'fav.label': '★ Favoritos:', 'fav.pin_current': '+ Fijar carpeta actual',
+    'pane.addr_placeholder': 'Introducir ruta o > para paleta de comandos…',
+    'pane.filter_placeholder': 'Filtrar (tag:red, *.rs)…',
+    'pane.parent_dir': '[..] Carpeta superior',
+    'pane.items': 'elementos', 'pane.marked': 'marcados',
+    'col.name': 'Nombre', 'col.size': 'Tamaño', 'col.modified': 'Modificado', 'col.type': 'Tipo',
+    'dock.preview': '👁 Vista previa', 'dock.basket': '🧺 Cesta', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Detalles',
+    'dock.select_hint': 'Seleccione un elemento para vista previa y detalles.',
+    'fn.help': 'Ayuda', 'fn.rename': 'Renombrar', 'fn.view': 'Ver', 'fn.editor': 'Editor',
+    'fn.copy': 'Copiar', 'fn.move': 'Mover', 'fn.new_file': '+Archivo', 'fn.new_folder': '+Carpeta',
+    'fn.delete': 'Eliminar', 'fn.terminal': 'Terminal',
+    'status.ready': 'Listo',
+    'prefs.title': '⚙ Ajustes — ModernExplorer Studio',
+    'prefs.cat.appearance': '🎨 Apariencia y Diseño', 'prefs.cat.colors': '🖌️ Colores y Resaltado',
+    'prefs.cat.behavior': '📁 Lista de archivos y Comportamiento', 'prefs.cat.preview': '🖼️ Vista previa de imágenes',
+    'prefs.cat.fonts': '🔤 Tamaños de fuente', 'prefs.cat.session': '💾 Sesión, Actualizaciones y Ventanas',
+    'prefs.cat.shortcuts': '⌨️ Atajos de teclado',
+    'prefs.done': '✓ Listo y Cerrar', 'common.cancel': 'Cancelar', 'common.close': 'Cerrar'
+  },
+  fr: {
+    'menu.file': 'Fichier', 'menu.edit': 'Édition', 'menu.view': 'Affichage', 'menu.tools': 'Outils',
+    'menu.tabs': 'Onglets & Favoris', 'menu.settings': 'Paramètres', 'menu.help': 'Aide',
+    'top.palette': '⌘ Palette', 'top.settings': '⚙ Paramètres', 'top.updates': '🔄 Mises à jour', 'top.about': 'ℹ À propos',
+    'opt.undo': '↶ Annuler', 'opt.new_file': '+ Fichier', 'opt.new_folder': '+ Dossier',
+    'opt.copy': '➔ Copier', 'opt.move': '➔ Déplacer', 'opt.delete': '🗑 Supprimer',
+    'opt.deep_search': '🔍 Recherche', 'opt.duplicates': '🧹 Doublons', 'opt.archive': '📦 Archive',
+    'opt.console': '>_ Console',
+    'fav.label': '★ Favoris :', 'fav.pin_current': '+ Épingler le dossier actuel',
+    'pane.addr_placeholder': 'Entrer le chemin ou > pour la palette…',
+    'pane.filter_placeholder': 'Filtrer (tag:red, *.rs)…',
+    'pane.parent_dir': '[..] Dossier parent',
+    'pane.items': 'éléments', 'pane.marked': 'sélectionnés',
+    'col.name': 'Nom', 'col.size': 'Taille', 'col.modified': 'Modifié', 'col.type': 'Type',
+    'dock.preview': '👁 Aperçu', 'dock.basket': '🧺 Panier', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Détails',
+    'dock.select_hint': 'Sélectionnez un élément pour l’aperçu et les détails.',
+    'fn.help': 'Aide', 'fn.rename': 'Renommer', 'fn.view': 'Aperçu', 'fn.editor': 'Éditeur',
+    'fn.copy': 'Copier', 'fn.move': 'Déplacer', 'fn.new_file': '+Fichier', 'fn.new_folder': '+Dossier',
+    'fn.delete': 'Supprimer', 'fn.terminal': 'Terminal',
+    'status.ready': 'Prêt',
+    'prefs.title': '⚙ Paramètres — ModernExplorer Studio',
+    'prefs.cat.appearance': '🎨 Apparence & Design', 'prefs.cat.colors': '🖌️ Couleurs & Surbrillance',
+    'prefs.cat.behavior': '📁 Liste de fichiers & Comportement', 'prefs.cat.preview': '🖼️ Aperçu d’image',
+    'prefs.cat.fonts': '🔤 Tailles de police', 'prefs.cat.session': '💾 Session, Mises à jour & Fenêtres',
+    'prefs.cat.shortcuts': '⌨️ Raccourcis clavier',
+    'prefs.done': '✓ Terminé & Fermer', 'common.cancel': 'Annuler', 'common.close': 'Fermer'
+  },
+  it: {
+    'menu.file': 'File', 'menu.edit': 'Modifica', 'menu.view': 'Visualizza', 'menu.tools': 'Strumenti',
+    'menu.tabs': 'Schede & Preferiti', 'menu.settings': 'Impostazioni', 'menu.help': 'Aiuto',
+    'top.palette': '⌘ Comandi', 'top.settings': '⚙ Impostazioni', 'top.updates': '🔄 Aggiornamenti', 'top.about': 'ℹ Info',
+    'opt.undo': '↶ Annulla', 'opt.new_file': '+ File', 'opt.new_folder': '+ Cartella',
+    'opt.copy': '➔ Copia', 'opt.move': '➔ Sposta', 'opt.delete': '🗑 Elimina',
+    'opt.deep_search': '🔍 Ricerca', 'opt.duplicates': '🧹 Duplicati', 'opt.archive': '📦 Archivio',
+    'opt.console': '>_ Console',
+    'fav.label': '★ Preferiti:', 'fav.pin_current': '+ Fissa cartella corrente',
+    'pane.parent_dir': '[..] Cartella superiore',
+    'pane.items': 'elementi', 'pane.marked': 'selezionati',
+    'col.name': 'Nome', 'col.size': 'Dimensione', 'col.modified': 'Modificato', 'col.type': 'Tipo',
+    'dock.preview': '👁 Anteprima', 'dock.basket': '🧺 Cestino', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Dettagli',
+    'fn.help': 'Aiuto', 'fn.rename': 'Rinomina', 'fn.view': 'Vista', 'fn.editor': 'Editor',
+    'fn.copy': 'Copia', 'fn.move': 'Sposta', 'fn.new_file': '+File', 'fn.new_folder': '+Cartella',
+    'fn.delete': 'Elimina', 'fn.terminal': 'Terminale',
+    'status.ready': 'Pronto',
+    'prefs.title': '⚙ Impostazioni — ModernExplorer Studio',
+    'prefs.done': '✓ Fatto e Chiudi', 'common.cancel': 'Annulla', 'common.close': 'Chiudi'
+  },
+  nl: {
+    'menu.file': 'Bestand', 'menu.edit': 'Bewerken', 'menu.view': 'Beeld', 'menu.tools': 'Extra',
+    'menu.tabs': 'Tabbladen & Favorieten', 'menu.settings': 'Instellingen', 'menu.help': 'Help',
+    'top.palette': '⌘ Palet', 'top.settings': '⚙ Instellingen', 'top.updates': '🔄 Updates', 'top.about': 'ℹ Over',
+    'opt.undo': '↶ Ongedaan', 'opt.new_file': '+ Bestand', 'opt.new_folder': '+ Map',
+    'opt.copy': '➔ Kopiëren', 'opt.move': '➔ Verplaatsen', 'opt.delete': '🗑 Verwijderen',
+    'opt.deep_search': '🔍 Zoeken', 'opt.duplicates': '🧹 Duplicaten', 'opt.archive': '📦 Archief',
+    'opt.console': '>_ Console',
+    'fav.label': '★ Favorieten:', 'fav.pin_current': '+ Huidige map vastmaken',
+    'pane.parent_dir': '[..] Bovenliggende map',
+    'pane.items': 'items', 'pane.marked': 'gemarkeerd',
+    'col.name': 'Naam', 'col.size': 'Grootte', 'col.modified': 'Gewijzigd', 'col.type': 'Type',
+    'dock.preview': '👁 Voorbeeld', 'dock.basket': '🧺 Mandje', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Details',
+    'fn.help': 'Help', 'fn.rename': 'Hernoemen', 'fn.view': 'Beeld', 'fn.editor': 'Editor',
+    'fn.copy': 'Kopiëren', 'fn.move': 'Verplaatsen', 'fn.new_file': '+Bestand', 'fn.new_folder': '+Map',
+    'fn.delete': 'Verwijderen', 'fn.terminal': 'Terminal',
+    'status.ready': 'Gereed',
+    'prefs.title': '⚙ Instellingen — ModernExplorer Studio',
+    'prefs.done': '✓ Gereed & Sluiten', 'common.cancel': 'Annuleren', 'common.close': 'Sluiten'
+  },
+  pl: {
+    'menu.file': 'Plik', 'menu.edit': 'Edycja', 'menu.view': 'Widok', 'menu.tools': 'Narzędzia',
+    'menu.tabs': 'Karty i Ulubione', 'menu.settings': 'Ustawienia', 'menu.help': 'Pomoc',
+    'top.palette': '⌘ Paleta', 'top.settings': '⚙ Ustawienia', 'top.updates': '🔄 Aktualizacje', 'top.about': 'ℹ O programie',
+    'opt.undo': '↶ Cofnij', 'opt.new_file': '+ Plik', 'opt.new_folder': '+ Folder',
+    'opt.copy': '➔ Kopiuj', 'opt.move': '➔ Przenieś', 'opt.delete': '🗑 Usuń',
+    'opt.deep_search': '🔍 Szukaj', 'opt.duplicates': '🧹 Duplikaty', 'opt.archive': '📦 Archiwum',
+    'opt.console': '>_ Konsola',
+    'fav.label': '★ Ulubione:', 'fav.pin_current': '+ Przypnij bieżący folder',
+    'pane.parent_dir': '[..] Folder nadrzędny',
+    'pane.items': 'elementów', 'pane.marked': 'zaznaczono',
+    'col.name': 'Nazwa', 'col.size': 'Rozmiar', 'col.modified': 'Zmodyfikowano', 'col.type': 'Typ',
+    'dock.preview': '👁 Podgląd', 'dock.basket': '🧺 Koszyk', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Szczegóły',
+    'fn.help': 'Pomoc', 'fn.rename': 'Zmień nazwę', 'fn.view': 'Podgląd', 'fn.editor': 'Edytor',
+    'fn.copy': 'Kopiuj', 'fn.move': 'Przenieś', 'fn.new_file': '+Plik', 'fn.new_folder': '+Folder',
+    'fn.delete': 'Usuń', 'fn.terminal': 'Terminal',
+    'status.ready': 'Gotowy',
+    'prefs.title': '⚙ Ustawienia — ModernExplorer Studio',
+    'prefs.done': '✓ Gotowe i Zamknij', 'common.cancel': 'Anuluj', 'common.close': 'Zamknij'
+  },
+  pt: {
+    'menu.file': 'Arquivo', 'menu.edit': 'Editar', 'menu.view': 'Exibir', 'menu.tools': 'Ferramentas',
+    'menu.tabs': 'Abas e Favoritos', 'menu.settings': 'Configurações', 'menu.help': 'Ajuda',
+    'top.palette': '⌘ Paleta', 'top.settings': '⚙ Configurações', 'top.updates': '🔄 Atualizações', 'top.about': 'ℹ Sobre',
+    'opt.undo': '↶ Desfazer', 'opt.new_file': '+ Arquivo', 'opt.new_folder': '+ Pasta',
+    'opt.copy': '➔ Copiar', 'opt.move': '➔ Mover', 'opt.delete': '🗑 Excluir',
+    'opt.deep_search': '🔍 Pesquisa', 'opt.duplicates': '🧹 Duplicados', 'opt.archive': '📦 Arquivo',
+    'opt.console': '>_ Console',
+    'fav.label': '★ Favoritos:', 'fav.pin_current': '+ Fixar pasta atual',
+    'pane.parent_dir': '[..] Pasta superior',
+    'pane.items': 'itens', 'pane.marked': 'marcados',
+    'col.name': 'Nome', 'col.size': 'Tamanho', 'col.modified': 'Modificado', 'col.type': 'Tipo',
+    'dock.preview': '👁 Prévia', 'dock.basket': '🧺 Cesta', 'dock.git': '⎇ Git', 'dock.info': 'ℹ Detalhes',
+    'fn.help': 'Ajuda', 'fn.rename': 'Renomear', 'fn.view': 'Ver', 'fn.editor': 'Editor',
+    'fn.copy': 'Copiar', 'fn.move': 'Mover', 'fn.new_file': '+Arquivo', 'fn.new_folder': '+Pasta',
+    'fn.delete': 'Excluir', 'fn.terminal': 'Terminal',
+    'status.ready': 'Pronto',
+    'prefs.title': '⚙ Configurações — ModernExplorer Studio',
+    'prefs.done': '✓ Concluir e Fechar', 'common.cancel': 'Cancelar', 'common.close': 'Fechar'
+  },
+  ja: {
+    'menu.file': 'ファイル', 'menu.edit': '編集', 'menu.view': '表示', 'menu.tools': 'ツール',
+    'menu.tabs': 'タブ＆お気に入り', 'menu.settings': '設定', 'menu.help': 'ヘルプ',
+    'top.palette': '⌘ パレット', 'top.settings': '⚙ 設定', 'top.updates': '🔄 更新確認', 'top.about': 'ℹ 情報',
+    'opt.undo': '↶ 元に戻す', 'opt.new_file': '+ ファイル', 'opt.new_folder': '+ フォルダ',
+    'opt.copy': '➔ コピー', 'opt.move': '➔ 移動', 'opt.delete': '🗑 削除',
+    'opt.deep_search': '🔍 詳細検索', 'opt.duplicates': '🧹 重複検索', 'opt.archive': '📦 アーカイブ',
+    'opt.console': '>_ コンソール',
+    'fav.label': '★ お気に入り:', 'fav.pin_current': '+ 現在のフォルダをピン留め',
+    'pane.parent_dir': '[..] 上のフォルダへ',
+    'pane.items': '項目', 'pane.marked': '選択中',
+    'col.name': '名前', 'col.size': 'サイズ', 'col.modified': '更新日時', 'col.type': '種類',
+    'dock.preview': '👁 プレビュー', 'dock.basket': '🧺 バスケット', 'dock.git': '⎇ Git', 'dock.info': 'ℹ 詳細',
+    'fn.help': 'ヘルプ', 'fn.rename': '名前変更', 'fn.view': '表示', 'fn.editor': '編集',
+    'fn.copy': 'コピー', 'fn.move': '移動', 'fn.new_file': '+ファイル', 'fn.new_folder': '+フォルダ',
+    'fn.delete': '削除', 'fn.terminal': '端末',
+    'status.ready': '準備完了',
+    'prefs.title': '⚙ 設定 — ModernExplorer Studio',
+    'prefs.done': '✓ 完了して閉じる', 'common.cancel': 'キャンセル', 'common.close': '閉じる'
+  },
+  zh: {
+    'menu.file': '文件', 'menu.edit': '编辑', 'menu.view': '视图', 'menu.tools': '工具',
+    'menu.tabs': '标签页与收藏', 'menu.settings': '设置', 'menu.help': '帮助',
+    'top.palette': '⌘ 命令面板', 'top.settings': '⚙ 设置', 'top.updates': '🔄 检查更新', 'top.about': 'ℹ 关于',
+    'opt.undo': '↶ 撤销', 'opt.new_file': '+ 新建文件', 'opt.new_folder': '+ 新建文件夹',
+    'opt.copy': '➔ 复制', 'opt.move': '➔ 移动', 'opt.delete': '🗑 删除',
+    'opt.deep_search': '🔍 深度搜索', 'opt.duplicates': '🧹 重复文件', 'opt.archive': '📦 压缩包',
+    'opt.console': '>_ 控制台',
+    'fav.label': '★ 收藏夹:', 'fav.pin_current': '+ 固定当前文件夹',
+    'pane.parent_dir': '[..] 上级目录',
+    'pane.items': '项', 'pane.marked': '已选',
+    'col.name': '名称', 'col.size': '大小', 'col.modified': '修改日期', 'col.type': '类型',
+    'dock.preview': '👁 预览', 'dock.basket': '🧺 收集篮', 'dock.git': '⎇ Git', 'dock.info': 'ℹ 详情',
+    'fn.help': '帮助', 'fn.rename': '重命名', 'fn.view': '查看', 'fn.editor': '编辑',
+    'fn.copy': '复制', 'fn.move': '移动', 'fn.new_file': '+文件', 'fn.new_folder': '+文件夹',
+    'fn.delete': '删除', 'fn.terminal': '终端',
+    'status.ready': '就绪',
+    'prefs.title': '⚙ 设置 — ModernExplorer Studio',
+    'prefs.done': '✓ 完成并关闭', 'common.cancel': '取消', 'common.close': '关闭'
+  }
+};
+
+function getEffectiveLang() {
+  const raw = String(STATE.settings?.language || 'de').toLowerCase();
+  if (raw === 'system' || !raw) {
+    const nav = String(navigator.language || 'de').slice(0, 2).toLowerCase();
+    return I18N[nav] ? nav : 'de';
+  }
+  return I18N[raw] ? raw : 'en';
+}
+
+function t(key) {
+  const lang = getEffectiveLang();
+  return (I18N[lang] && I18N[lang][key]) || (lang !== 'de' && I18N.en[key]) || I18N.de[key] || key;
+}
+
 /* ==================== STUDIO MENU BAR (.menubar) ==================== */
-const MENUS = [
-  { label: 'Datei', items: [
-    { label: 'Neue Datei aus Vorlage…', kbd: 'F7', run: () => openCreateModal(false) },
-    { label: 'Neuer Ordner…', kbd: 'Umschalt+F7', run: () => openCreateModal(true) },
-    'sep',
-    { label: 'Neuer Tab im aktiven Panel', kbd: 'Strg+T', run: () => addTab(STATE.activeSide) },
-    { label: 'Aktuellen Tab schließen', kbd: 'Strg+W', run: () => closeTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
-    'sep',
-    { label: 'Schnellansicht (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
-    { label: 'Interner Text- & Code-Editor', kbd: 'F4', run: () => openViewerModal(true) },
-    { label: 'Externes Terminal hier öffnen', kbd: 'F9', run: () => openExternalTerminal() },
-    'sep',
-    { label: 'Aktuelle Session jetzt speichern', kbd: 'Strg+S', run: () => saveCurrentSessionNow(true) }
-  ]},
-  { label: 'Bearbeiten', items: [
-    { label: 'Rückgängig (Undo)', kbd: 'Strg+Z', run: () => doUndo() },
-    'sep',
-    { label: 'Kopieren in anderes Panel', kbd: 'F5', run: () => copyOrMoveActive(false) },
-    { label: 'Verschieben in anderes Panel', kbd: 'F6', run: () => copyOrMoveActive(true) },
-    { label: 'Umbenennen', kbd: 'F2', run: () => renameSelected() },
-    { label: 'Mehrfach-Umbenennen (Batch Rename)', kbd: 'Strg+M', run: () => openBatchRenameModal() },
-    { label: 'Löschen', kbd: 'F8 / Entf', run: () => deleteSelected() },
-    'sep',
-    { label: 'Alle Elemente markieren / demarkieren', kbd: 'Strg+A', run: () => toggleMarkAll(STATE.activeSide) },
-    { label: 'Smart Copy / Pfad & Tabellen-Export…', kbd: 'Strg+Shift+E', run: () => openSmartExportModal() }
-  ]},
-  { label: 'Ansicht', items: [
-    { label: 'Dual-Pane / Single-Pane umschalten', kbd: 'F12', run: () => setDualPaneMode(!STATE.isDualPane) },
-    { label: 'Rechtes Inspector-Dock ein-/ausblenden', kbd: 'Strg+Q', run: () => toggleDock() },
-    { label: 'Eingebettete Schnell-Konsole (>_)', kbd: 'Strg+Shift+J', run: () => toggleQuickConsole() },
-    { label: 'Branch-View (Flache Unterordner-Ansicht)', kbd: 'Strg+B', run: () => toggleBranchView(STATE.activeSide) },
-    { label: 'Versteckte Dateien ein-/ausblenden', kbd: 'Strg+H', run: () => toggleBoolSetting('show_hidden_files') },
-    'sep',
-    { label: 'Ansicht: Details (Tabelle)', kbd: '1', run: () => changePaneViewMode(STATE.activeSide, 'Details') },
-    { label: 'Ansicht: Liste', kbd: '2', run: () => changePaneViewMode(STATE.activeSide, 'List') },
-    { label: 'Ansicht: Kacheln (Tiles)', kbd: '3', run: () => changePaneViewMode(STATE.activeSide, 'Tiles') },
-    { label: 'Ansicht: Große Symbole', kbd: '4', run: () => changePaneViewMode(STATE.activeSide, 'LargeIcons') },
-    { label: 'Ansicht: Extra große Symbole', kbd: '5', run: () => changePaneViewMode(STATE.activeSide, 'ExtraLargeIcons') },
-    'sep',
-    { label: 'Theme: Studio Dark', run: () => updateSetting('theme','dark') },
-    { label: 'Theme: Studio Light', run: () => updateSetting('theme','light') },
-    { label: 'Theme: GitHub Light', run: () => updateSetting('theme','github') },
-    { label: 'Theme: GitHub Dark', run: () => updateSetting('theme','github-dark') }
-  ]},
-  { label: 'Werkzeuge', items: [
-    { label: '🏷 Mehrfach-Umbenennungstool (Batch Rename)', kbd: 'Strg+M', run: () => openBatchRenameModal() },
-    { label: '⚖ Visueller Side-by-Side Datei-Diff', kbd: 'Strg+Shift+U', run: () => openDiffModal() },
-    { label: '⇄ Verzeichnisse vergleichen & synchronisieren', kbd: 'Strg+Shift+S', run: () => openSyncModal() },
-    { label: '🔍 Rekursive Tiefensuche', kbd: 'Alt+F7', run: () => openDeepSearchModal() },
-    { label: '🧹 3-Phasen Duplikat-Finder', kbd: 'Strg+Shift+D', run: () => openDuplicatesModal() },
-    { label: '📊 Speicherplatz-Analysator & Squarified Treemap', kbd: 'Strg+Shift+W', run: () => openTreemapModal() },
-    'sep',
-    { label: '🔐 Prüfsummen-Generator & Manifest-Verifizierer', kbd: 'Strg+Shift+K', run: () => openChecksumsModal() },
-    { label: '✂ Datei-Splitter, Joiner (.001) & Datei-Shredder', kbd: 'Strg+Shift+X', run: () => openSplitShredModal() },
-    { label: '🎨 Farbige Datei-Tags & Notizen', kbd: 'Strg+Shift+L', run: () => openTagModal() },
-    { label: '🛠 Attribute, Zeitstempel & EXIF-Editor', kbd: 'Strg+Shift+A', run: () => openAttrExifModal() },
-    { label: '📦 Archiv-Browser & Packer (.zip / .tar.gz)', kbd: 'Alt+F5', run: () => openArchiveModal() },
-    { label: '🌐 Eingebauter FTP / FTPS / SFTP Client', kbd: 'Strg+Shift+C', run: () => openRemoteModal() },
-    { label: '⎇ Erweitertes Git-Panel (Branches, Stage, Commit)', kbd: 'Strg+Shift+G', run: () => openGitModal() },
-    { label: '🗂 Arbeitsbereiche (Workspace-Profile)', kbd: 'Strg+Shift+O', run: () => openWorkspacesModal() }
-  ]},
-  { label: 'Tabs & Favoriten', items: [
-    { label: 'Neuer Tab', kbd: 'Strg+T', run: () => addTab(STATE.activeSide) },
-    { label: 'Aktuellen Tab duplizieren', run: () => duplicateTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
-    { label: 'Aktuellen Tab anheften / lösen (📌)', run: () => togglePinTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
-    { label: 'Aktuellen Tab sperren / entsperren (🔒)', run: () => toggleLockTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
-    'sep',
-    { label: '★ Aktuellen Ordner zu Favoriten hinzufügen/entfernen', kbd: 'Strg+D', run: () => toggleCurrentFavorite() },
-    { label: '🗂 Arbeitsbereiche verwalten…', kbd: 'Strg+Shift+O', run: () => openWorkspacesModal() }
-  ]},
-  { label: 'Einstellungen', items: [
-    { label: '🎨 Darstellung & Design…', kbd: 'Strg+,', run: () => openSettingsModal('Appearance') },
-    { label: '🖌️ Farben & Hervorhebung (inkl. Treemap-Farben)…', run: () => openSettingsModal('Colors') },
-    { label: '📁 Dateiliste & Verhalten…', run: () => openSettingsModal('Behavior') },
-    { label: '🖼️ Bildvorschau (Hover-Preview)…', run: () => openSettingsModal('Preview') },
-    { label: '🔤 Schriftgrößen (Hauptfenster & 10 Dialoge)…', run: () => openSettingsModal('Fonts') },
-    { label: '💾 Sitzung, Updates & Fenstergrößen…', run: () => openSettingsModal('Session') },
-    { label: '⌨️ Tastenkürzel-Übersicht…', kbd: 'F1', run: () => openSettingsModal('Shortcuts') }
-  ]},
-  { label: 'Hilfe', items: [
-    { label: '⌘ Befehlspalette öffnen', kbd: 'F10', run: () => openCommandPalette() },
-    { label: '⌨️ Tastenkombinationen', kbd: 'F1', run: () => openSettingsModal('Shortcuts') },
-    'sep',
-    { label: '🔄 Auf Updates prüfen…', run: () => openAboutModal(true) },
-    { label: '🌐 GitHub Releases im Browser öffnen ↗', run: () => openReleaseUrl() },
-    { label: 'ℹ Über ModernExplorer Studio & Release Notes', run: () => openAboutModal(false) }
-  ]}
-];
+function getLocalizedMenus() {
+  return [
+    { label: t('menu.file'), items: [
+      { label: t('menu.file.new_file'), kbd: 'F7', run: () => openCreateModal(false) },
+      { label: t('menu.file.new_folder'), kbd: 'Shift+F7', run: () => openCreateModal(true) },
+      'sep',
+      { label: t('menu.file.new_tab'), kbd: 'Ctrl+T', run: () => addTab(STATE.activeSide) },
+      { label: t('menu.file.close_tab'), kbd: 'Ctrl+W', run: () => closeTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+      'sep',
+      { label: t('menu.file.quick_viewer'), kbd: 'F3', run: () => openViewerModal(false) },
+      { label: t('menu.file.editor'), kbd: 'F4', run: () => openViewerModal(true) },
+      { label: t('menu.file.terminal'), kbd: 'F9', run: () => openExternalTerminal() },
+      'sep',
+      { label: t('menu.file.save_session'), kbd: 'Ctrl+S', run: () => saveCurrentSessionNow(true) }
+    ]},
+    { label: t('menu.edit'), items: [
+      { label: t('menu.edit.undo'), kbd: 'Ctrl+Z', run: () => doUndo() },
+      'sep',
+      { label: t('menu.edit.copy'), kbd: 'F5', run: () => copyOrMoveActive(false) },
+      { label: t('menu.edit.move'), kbd: 'F6', run: () => copyOrMoveActive(true) },
+      { label: t('menu.edit.rename'), kbd: 'F2', run: () => renameSelected() },
+      { label: t('menu.edit.batch_rename'), kbd: 'Ctrl+M', run: () => openBatchRenameModal() },
+      { label: t('menu.edit.delete'), kbd: 'F8 / Del', run: () => deleteSelected() },
+      'sep',
+      { label: t('menu.edit.mark_all'), kbd: 'Ctrl+A', run: () => toggleMarkAll(STATE.activeSide) },
+      { label: t('menu.edit.export'), kbd: 'Ctrl+Shift+E', run: () => openSmartExportModal() }
+    ]},
+    { label: t('menu.view'), items: [
+      { label: t('menu.view.dual_pane'), kbd: 'F12', run: () => setDualPaneMode(!STATE.isDualPane) },
+      { label: t('menu.view.dock'), kbd: 'Ctrl+Q', run: () => toggleDock() },
+      { label: t('menu.view.console'), kbd: 'Ctrl+Shift+J', run: () => toggleQuickConsole() },
+      { label: t('menu.view.branch'), kbd: 'Ctrl+B', run: () => toggleBranchView(STATE.activeSide) },
+      { label: t('menu.view.hidden'), kbd: 'Ctrl+H', run: () => toggleBoolSetting('show_hidden_files') },
+      'sep',
+      { label: 'Details (Table)', kbd: '1', run: () => changePaneViewMode(STATE.activeSide, 'Details') },
+      { label: 'List', kbd: '2', run: () => changePaneViewMode(STATE.activeSide, 'List') },
+      { label: 'Tiles', kbd: '3', run: () => changePaneViewMode(STATE.activeSide, 'Tiles') },
+      { label: 'Large Icons', kbd: '4', run: () => changePaneViewMode(STATE.activeSide, 'LargeIcons') },
+      { label: 'Extra Large Icons', kbd: '5', run: () => changePaneViewMode(STATE.activeSide, 'ExtraLargeIcons') },
+      'sep',
+      { label: 'Theme: Studio Dark', run: () => updateSetting('theme','dark') },
+      { label: 'Theme: Studio Light', run: () => updateSetting('theme','light') },
+      { label: 'Theme: GitHub Light', run: () => updateSetting('theme','github') },
+      { label: 'Theme: GitHub Dark', run: () => updateSetting('theme','github-dark') }
+    ]},
+    { label: t('menu.tools'), items: [
+      { label: '🏷 Batch Rename', kbd: 'Ctrl+M', run: () => openBatchRenameModal() },
+      { label: '⚖ Side-by-Side Diff', kbd: 'Ctrl+Shift+U', run: () => openDiffModal() },
+      { label: '⇄ Folder Sync', kbd: 'Ctrl+Shift+S', run: () => openSyncModal() },
+      { label: '🔍 ' + t('opt.deep_search').replace(/^🔍\s*/, ''), kbd: 'Alt+F7', run: () => openDeepSearchModal() },
+      { label: '🧹 ' + t('opt.duplicates').replace(/^🧹\s*/, ''), kbd: 'Ctrl+Shift+D', run: () => openDuplicatesModal() },
+      { label: '📊 Storage Treemap', kbd: 'Ctrl+Shift+W', run: () => openTreemapModal() },
+      'sep',
+      { label: '🔐 Checksums (SHA-256 / MD5 / CRC32)', kbd: 'Ctrl+Shift+K', run: () => openChecksumsModal() },
+      { label: '✂ Split / Join / Shred', kbd: 'Ctrl+Shift+X', run: () => openSplitShredModal() },
+      { label: '🎨 Color Tags & Notes', kbd: 'Ctrl+Shift+L', run: () => openTagModal() },
+      { label: '🛠 Attributes, Timestamps & EXIF', kbd: 'Ctrl+Shift+A', run: () => openAttrExifModal() },
+      { label: '📦 ' + t('opt.archive').replace(/^📦\s*/, ''), kbd: 'Alt+F5', run: () => openArchiveModal() },
+      { label: '🌐 FTP / FTPS / SFTP Client', kbd: 'Ctrl+Shift+C', run: () => openRemoteModal() },
+      { label: '⎇ Git Panel', kbd: 'Ctrl+Shift+G', run: () => openGitModal() },
+      { label: '🗂 Workspaces', kbd: 'Ctrl+Shift+O', run: () => openWorkspacesModal() }
+    ]},
+    { label: t('menu.tabs'), items: [
+      { label: t('menu.file.new_tab'), kbd: 'Ctrl+T', run: () => addTab(STATE.activeSide) },
+      { label: 'Duplicate Active Tab', run: () => duplicateTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+      { label: 'Pin / Unpin Active Tab (📌)', run: () => togglePinTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+      { label: 'Lock / Unlock Active Tab (🔒)', run: () => toggleLockTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
+      'sep',
+      { label: '★ ' + t('fav.pin_current'), kbd: 'Ctrl+D', run: () => toggleCurrentFavorite() },
+      { label: '🗂 Workspaces…', kbd: 'Ctrl+Shift+O', run: () => openWorkspacesModal() }
+    ]},
+    { label: t('menu.settings'), items: [
+      { label: t('prefs.cat.appearance'), kbd: 'Ctrl+,', run: () => openSettingsModal('Appearance') },
+      { label: t('prefs.cat.colors'), run: () => openSettingsModal('Colors') },
+      { label: t('prefs.cat.behavior'), run: () => openSettingsModal('Behavior') },
+      { label: t('prefs.cat.preview'), run: () => openSettingsModal('Preview') },
+      { label: t('prefs.cat.fonts'), run: () => openSettingsModal('Fonts') },
+      { label: t('prefs.cat.session'), run: () => openSettingsModal('Session') },
+      { label: t('prefs.cat.shortcuts'), kbd: 'F1', run: () => openSettingsModal('Shortcuts') }
+    ]},
+    { label: t('menu.help'), items: [
+      { label: '⌘ Command Palette', kbd: 'F10', run: () => openCommandPalette() },
+      { label: t('prefs.cat.shortcuts'), kbd: 'F1', run: () => openSettingsModal('Shortcuts') },
+      'sep',
+      { label: '🔄 Check for Updates…', run: () => openAboutModal(true) },
+      { label: '🌐 GitHub Releases ↗', run: () => openReleaseUrl() },
+      { label: 'ℹ About ModernExplorer Studio', run: () => openAboutModal(false) }
+    ]}
+  ];
+}
 
 function buildMenus() {
   const host = document.getElementById('menuItems');
+  if (!host) return;
   host.innerHTML = '';
-  MENUS.forEach(m => {
+  getLocalizedMenus().forEach(m => {
     const mi = document.createElement('div');
     mi.className = 'menu-item';
     mi.textContent = m.label;
@@ -1578,7 +2033,113 @@ document.addEventListener('click', () => {
   closeAllMenus();
   document.getElementById('ac-left').classList.remove('open');
   document.getElementById('ac-right').classList.remove('open');
+  const fly = document.getElementById('tm-tree-flyout');
+  if (fly) fly.classList.remove('open');
 });
+
+function applyLocalizationToDom() {
+  document.documentElement.lang = getEffectiveLang();
+  buildMenus();
+
+  // Top menubar right buttons
+  const mrBtns = document.querySelectorAll('.menubar-right > button.ibtn');
+  if (mrBtns.length >= 4) {
+    mrBtns[0].textContent = t('top.palette');
+    mrBtns[1].textContent = t('top.settings');
+    mrBtns[2].textContent = t('top.updates');
+    mrBtns[3].textContent = t('top.about');
+  }
+
+  // Options bar (.optbar) buttons
+  const optGroups = document.querySelectorAll('.optbar .opt-group');
+  if (optGroups.length >= 4) {
+    const g0 = optGroups[0].querySelectorAll('button.ibtn');
+    if (g0.length >= 3) { g0[0].textContent = t('opt.undo'); g0[1].textContent = t('opt.new_file'); g0[2].textContent = t('opt.new_folder'); }
+    const g1 = optGroups[1].querySelectorAll('button.ibtn');
+    if (g1.length >= 3) { g1[0].textContent = t('opt.copy'); g1[1].textContent = t('opt.move'); g1[2].textContent = t('opt.delete'); }
+    const g2 = optGroups[2].querySelectorAll('button.ibtn');
+    if (g2.length >= 6) { g2[3].textContent = t('opt.deep_search'); g2[4].textContent = t('opt.duplicates'); }
+    const g3 = optGroups[3].querySelectorAll('button.ibtn');
+    if (g3.length >= 9) { g3[5].textContent = t('opt.archive'); }
+  }
+  const segCon = document.getElementById('segConsole');
+  if (segCon) segCon.textContent = t('opt.console');
+
+  // Favorites bar
+  const favLbl = document.querySelector('#favBar .fav-label');
+  if (favLbl) favLbl.textContent = t('fav.label');
+  const favBtn = document.querySelector('#favBar > button.ibtn');
+  if (favBtn) favBtn.textContent = t('fav.pin_current');
+
+  // Explorer Panes (placeholders & column headers)
+  ['left', 'right'].forEach(side => {
+    const addr = document.getElementById('addr-' + side);
+    if (addr) addr.placeholder = t('pane.addr_placeholder');
+    const flt = document.getElementById('filter-' + side);
+    if (flt) flt.placeholder = t('pane.filter_placeholder');
+    const ch = document.querySelectorAll(`#colhead-${side} .col-cell`);
+    if (ch.length >= 4) {
+      const sName = document.getElementById(`sort-${side}-Name`)?.textContent || '';
+      const sSize = document.getElementById(`sort-${side}-Size`)?.textContent || '';
+      const sMod = document.getElementById(`sort-${side}-Modified`)?.textContent || '';
+      const sExt = document.getElementById(`sort-${side}-Extension`)?.textContent || '';
+      ch[0].innerHTML = `${esc(t('col.name'))} <span id="sort-${side}-Name">${esc(sName)}</span>`;
+      ch[1].innerHTML = `${esc(t('col.size'))} <span id="sort-${side}-Size">${esc(sSize)}</span>`;
+      ch[2].innerHTML = `${esc(t('col.modified'))} <span id="sort-${side}-Modified">${esc(sMod)}</span>`;
+      ch[3].innerHTML = `${esc(t('col.type'))} <span id="sort-${side}-Extension">${esc(sExt)}</span>`;
+    }
+  });
+
+  // Right Inspector Dock
+  const lp = document.getElementById('lblDockPreview');
+  if (lp) lp.textContent = t('dock.preview');
+  const lb = document.getElementById('lblDockBasket');
+  if (lb) lb.textContent = t('dock.basket');
+  const lg = document.getElementById('lblDockGit');
+  if (lg) lg.textContent = t('dock.git');
+  const li = document.getElementById('lblDockInfo');
+  if (li) li.textContent = t('dock.info');
+  const bMin = document.getElementById('btnDockMinimize');
+  if (bMin) bMin.title = t('dock.minimize_tip');
+  const bExp = document.getElementById('btnDockExpand');
+  if (bExp) bExp.title = t('dock.expand_tip');
+  const dh = document.getElementById('dockEmptyHint');
+  if (dh) dh.textContent = t('dock.select_hint');
+
+  // Function Key Bar (F1-F12)
+  const fnBtns = document.querySelectorAll('#fnKeyBar .fn-btn');
+  if (fnBtns.length >= 11) {
+    fnBtns[0].innerHTML = `<kbd>F1</kbd> ${esc(t('fn.help'))}`;
+    fnBtns[1].innerHTML = `<kbd>F2</kbd> ${esc(t('fn.rename'))}`;
+    fnBtns[2].innerHTML = `<kbd>F3</kbd> ${esc(t('fn.view'))}`;
+    fnBtns[3].innerHTML = `<kbd>F4</kbd> ${esc(t('fn.editor'))}`;
+    fnBtns[4].innerHTML = `<kbd>F5</kbd> ${esc(t('fn.copy'))}`;
+    fnBtns[5].innerHTML = `<kbd>F6</kbd> ${esc(t('fn.move'))}`;
+    fnBtns[6].innerHTML = `<kbd>F7</kbd> ${esc(t('fn.new_file'))}`;
+    fnBtns[7].innerHTML = `<kbd>⇧F7</kbd> ${esc(t('fn.new_folder'))}`;
+    fnBtns[8].innerHTML = `<kbd>F8</kbd> ${esc(t('fn.delete'))}`;
+    fnBtns[9].innerHTML = `<kbd>F9</kbd> ${esc(t('fn.terminal'))}`;
+  }
+
+  // Settings Modal Categories & Header
+  const stHead = document.querySelector('#modalSettings .modal-head > span');
+  if (stHead) stHead.textContent = t('prefs.title');
+  const navMap = {
+    Appearance: 'prefs.cat.appearance',
+    Colors: 'prefs.cat.colors',
+    Behavior: 'prefs.cat.behavior',
+    Preview: 'prefs.cat.preview',
+    Fonts: 'prefs.cat.fonts',
+    Session: 'prefs.cat.session',
+    Shortcuts: 'prefs.cat.shortcuts'
+  };
+  document.querySelectorAll('#prefsNav .prefs-nav-item').forEach(el => {
+    const k = navMap[el.dataset.cat];
+    if (k) el.textContent = t(k);
+  });
+  const stDone = document.querySelector('#modalSettings .modal-foot button.btn.primary');
+  if (stDone) stDone.textContent = t('prefs.done');
+}
 
 /* ==================== APPLY SETTINGS TO CSS & DOM ==================== */
 function applySettingsToDom() {
@@ -1608,19 +2169,25 @@ function applySettingsToDom() {
 
   document.getElementById('drives-left').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
   document.getElementById('drives-right').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
+  const multilineDrives = s.multiline_drive_bar !== false;
+  document.getElementById('drives-left').classList.toggle('multiline', multilineDrives);
+  document.getElementById('drives-right').classList.toggle('multiline', multilineDrives);
   document.getElementById('fnKeyBar').classList.toggle('hidden', s.show_function_key_bar === false);
+
+  applyLocalizationToDom();
 }
 
 /* ==================== INITIALIZATION ==================== */
 async function initApp() {
   buildMenus();
   initSplitter();
+  initResizableModals();
   const data = await rpc('init');
   if (!data || data.error) {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.8.1';
+  STATE.version = data.version || '1.9.0';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   STATE.settings = data.settings || {};
@@ -1639,7 +2206,7 @@ async function initApp() {
   applySettingsToDom();
   renderFavorites();
   updateUndoStatus();
-  document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+  syncBasketBadge(STATE.basketCount);
 
   const cwd = data.cwd || '.';
   const defView = STATE.settings.default_view_mode || 'Details';
@@ -1665,6 +2232,9 @@ async function initApp() {
     STATE.panes.left.activeTab = Math.min(sess.active_left_tab || 0, STATE.panes.left.tabs.length - 1);
     STATE.panes.right.activeTab = Math.min(sess.active_right_tab || 0, STATE.panes.right.tabs.length - 1);
     setDualPaneMode(sess.is_dual_pane !== false);
+    if (typeof sess.show_preview_pane === 'boolean') {
+      toggleDock(sess.show_preview_pane);
+    }
   } else {
     STATE.panes.left.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
     STATE.panes.right.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
@@ -1719,12 +2289,12 @@ function renderTabs(side) {
   const p = STATE.panes[side];
   const host = document.getElementById('tabs-' + side);
   host.innerHTML = '';
-  p.tabs.forEach((t, idx) => {
+  p.tabs.forEach((tabItem, idx) => {
     const el = document.createElement('div');
     el.className = 'tab' + (idx === p.activeTab ? ' active' : '');
-    const lockIcon = t.lockState === 'Pinned' ? '📌 ' : (t.lockState === 'Locked' ? '🔒 ' : '');
-    el.innerHTML = `<span class="name">${lockIcon}${esc(t.title || 'Tab')}</span>` +
-      (t.lockState === 'Normal' && p.tabs.length > 1 ? `<span class="close" title="Tab schließen">×</span>` : '');
+    const lockIcon = tabItem.lockState === 'Pinned' ? '📌 ' : (tabItem.lockState === 'Locked' ? '🔒 ' : '');
+    el.innerHTML = `<span class="name">${lockIcon}${esc(tabItem.title || 'Tab')}</span>` +
+      (tabItem.lockState === 'Normal' && p.tabs.length > 1 ? `<span class="close" title="Tab schließen">×</span>` : '');
     el.onclick = (e) => {
       e.stopPropagation();
       if (e.target.classList.contains('close')) {
@@ -1772,31 +2342,31 @@ function addTab(side, customPath) {
 }
 
 function duplicateTab(side, idx) {
-  const t = STATE.panes[side].tabs[idx];
-  if (t) addTab(side, t.path);
+  const tabItem = STATE.panes[side].tabs[idx];
+  if (tabItem) addTab(side, tabItem.path);
 }
 
 function togglePinTab(side, idx) {
-  const t = STATE.panes[side].tabs[idx];
-  if (!t) return;
-  t.lockState = t.lockState === 'Pinned' ? 'Normal' : 'Pinned';
+  const tabItem = STATE.panes[side].tabs[idx];
+  if (!tabItem) return;
+  tabItem.lockState = tabItem.lockState === 'Pinned' ? 'Normal' : 'Pinned';
   renderTabs(side);
   saveCurrentSessionNow(false);
 }
 
 function toggleLockTab(side, idx) {
-  const t = STATE.panes[side].tabs[idx];
-  if (!t) return;
-  t.lockState = t.lockState === 'Locked' ? 'Normal' : 'Locked';
+  const tabItem = STATE.panes[side].tabs[idx];
+  if (!tabItem) return;
+  tabItem.lockState = tabItem.lockState === 'Locked' ? 'Normal' : 'Locked';
   renderTabs(side);
   saveCurrentSessionNow(false);
 }
 
 function closeTab(side, idx) {
   const p = STATE.panes[side];
-  const t = p.tabs[idx];
-  if (!t) return;
-  if (t.lockState !== 'Normal') {
+  const tabItem = p.tabs[idx];
+  if (!tabItem) return;
+  if (tabItem.lockState !== 'Normal') {
     toast('Angeheftete oder gesperrte Tabs können nicht geschlossen werden.');
     return;
   }
@@ -1807,61 +2377,60 @@ function closeTab(side, idx) {
 }
 
 async function navigateTo(side, newPath) {
-  const p = STATE.panes[side];
-  const t = getTab(side);
-  if (t.lockState === 'Locked' && newPath !== t.path) {
+  const tab = getTab(side);
+  if (tab.lockState === 'Locked' && newPath !== tab.path) {
     // Open in a new tab when current tab is locked
     addTab(side, newPath);
     return;
   }
-  t.path = newPath;
+  tab.path = newPath;
   await loadPane(side, true);
 }
 
 async function loadPane(side, recordHistory = false) {
   const p = STATE.panes[side];
-  const t = getTab(side);
+  const tab = getTab(side);
   const filter = document.getElementById('filter-' + side).value || '';
   const data = await rpc('list_dir', {
-    path: t.path,
-    branch_view: t.branchView,
-    show_tree_sizes: t.treeSizes,
+    path: tab.path,
+    branch_view: tab.branchView,
+    show_tree_sizes: tab.treeSizes,
     filter,
-    sort_col: t.sortCol,
-    sort_asc: t.sortAsc
+    sort_col: tab.sortCol,
+    sort_asc: tab.sortAsc
   });
   if (!data || data.error) return;
 
-  t.path = data.path;
-  t.title = data.title;
+  tab.path = data.path;
+  tab.title = data.title;
   p.items = data.items || [];
   p.selected.clear();
   p.marked.clear();
 
   if (recordHistory) {
     p.history = p.history.slice(0, p.historyPos + 1);
-    p.history.push(t.path);
+    p.history.push(tab.path);
     p.historyPos = p.history.length - 1;
   }
 
-  document.getElementById('addr-' + side).value = t.path;
-  document.getElementById('viewmode-' + side).value = t.viewMode || 'Details';
-  document.getElementById('branch-' + side).classList.toggle('active', !!t.branchView);
-  document.getElementById('treesize-' + side).classList.toggle('active', !!t.treeSizes);
+  document.getElementById('addr-' + side).value = tab.path;
+  document.getElementById('viewmode-' + side).value = tab.viewMode || 'Details';
+  document.getElementById('branch-' + side).classList.toggle('active', !!tab.branchView);
+  document.getElementById('treesize-' + side).classList.toggle('active', !!tab.treeSizes);
 
   const star = document.getElementById('star-' + side);
   star.textContent = data.is_favorite ? '★' : '☆';
   star.classList.toggle('fav', !!data.is_favorite);
 
-  renderDrives(side, t.path);
+  renderDrives(side, tab.path);
   renderTabs(side);
   renderBreadcrumbs(side, data.breadcrumbs || [], data.git_badge);
   renderFileList(side);
   updatePaneFooter(side, data.total_bytes_text);
 
   if (STATE.activeSide === side) {
-    document.getElementById('headerActivePath').textContent = t.path;
-    document.getElementById('qcPrompt').textContent = `PS ${t.path}>`;
+    document.getElementById('headerActivePath').textContent = tab.path;
+    document.getElementById('qcPrompt').textContent = `PS ${tab.path}>`;
   }
   if (STATE.settings.restore_previous_session) {
     saveCurrentSessionNow(false);
@@ -1895,19 +2464,19 @@ function renderBreadcrumbs(side, crumbs, gitBadge) {
 
 function renderFileList(side) {
   const p = STATE.panes[side];
-  const t = getTab(side);
-  const mode = t.viewMode || 'Details';
+  const tab = getTab(side);
+  const mode = tab.viewMode || 'Details';
   const host = document.getElementById('list-' + side);
   host.className = 'file-list mode-' + mode;
   document.getElementById('colhead-' + side).style.display = mode === 'Details' ? 'grid' : 'none';
   host.innerHTML = '';
 
   // Parent directory [..] entry if not at root
-  const hasParent = t.path.length > 3 && (t.path.includes('\\') || t.path.includes('/'));
+  const hasParent = tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/'));
   if (hasParent && mode === 'Details') {
     const upRow = document.createElement('div');
     upRow.className = 'file-row';
-    upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name" style="font-weight:600;color:var(--fg-dim)">[..] Übergeordneter Ordner</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
+    upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name" style="font-weight:600;color:var(--fg-dim)">${esc(t('pane.parent_dir'))}</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
     upRow.ondblclick = () => navUp(side);
     host.appendChild(upRow);
   }
@@ -2029,8 +2598,8 @@ function toggleMarkAll(side) {
 
 function updatePaneFooter(side, totalBytesText) {
   const p = STATE.panes[side];
-  document.getElementById(`foot-${side}-count`).textContent = `${p.items.length} Elemente`;
-  document.getElementById(`foot-${side}-marked`).textContent = p.marked.size > 0 ? `✓ ${p.marked.size} markiert` : '';
+  document.getElementById(`foot-${side}-count`).textContent = `${p.items.length} ${t('pane.items')}`;
+  document.getElementById(`foot-${side}-marked`).textContent = p.marked.size > 0 ? `✓ ${p.marked.size} ${t('pane.marked')}` : '';
   if (totalBytesText) document.getElementById(`foot-${side}-size`).textContent = totalBytesText;
 }
 
@@ -2393,16 +2962,53 @@ async function executeCreateItem() {
 }
 
 /* ==================== RIGHT COLLAPSIBLE INSPECTOR DOCK (.dock) ==================== */
-function toggleDock() {
-  STATE.dockOpen = !STATE.dockOpen;
-  document.getElementById('rightDock').classList.toggle('collapsed', !STATE.dockOpen);
-  document.getElementById('segDock').classList.toggle('active', STATE.dockOpen);
+function syncBasketBadge(count) {
+  STATE.basketCount = count || 0;
+  const b1 = document.getElementById('dockBasketCount');
+  if (b1) b1.textContent = STATE.basketCount;
+  const b2 = document.getElementById('dockRailBasketCount');
+  if (b2) {
+    b2.textContent = STATE.basketCount;
+    b2.style.display = STATE.basketCount > 0 ? 'inline-block' : 'none';
+  }
+}
+
+function toggleDock(forceOpen) {
+  STATE.dockOpen = typeof forceOpen === 'boolean' ? forceOpen : !STATE.dockOpen;
+  const dock = document.getElementById('rightDock');
+  const sp = document.getElementById('dockSplitter');
+  if (dock) dock.classList.toggle('collapsed', !STATE.dockOpen);
+  if (sp) sp.style.display = STATE.dockOpen ? 'block' : 'none';
+  const seg = document.getElementById('segDock');
+  if (seg) seg.classList.toggle('active', STATE.dockOpen);
+  if (STATE.dockOpen) {
+    updateDockInspector(getSelectedSingleItem());
+  }
+}
+
+function onDockTabClick(tab) {
+  if (STATE.dockOpen && STATE.dockTab === tab) {
+    // Clicking the already-active tab minimizes the dock
+    toggleDock(false);
+    return;
+  }
+  if (!STATE.dockOpen) toggleDock(true);
+  switchDockTab(tab);
+}
+
+function expandDockToTab(tab) {
+  STATE.dockTab = tab;
+  toggleDock(true);
+  switchDockTab(tab);
 }
 
 function switchDockTab(tab) {
   STATE.dockTab = tab;
   ['preview','basket','git','info'].forEach(t => {
-    document.getElementById('dtab-' + t).classList.toggle('active', t === tab);
+    const dt = document.getElementById('dtab-' + t);
+    if (dt) dt.classList.toggle('active', t === tab);
+    const dr = document.getElementById('drail-' + t);
+    if (dr) dr.classList.toggle('active', t === tab);
   });
   const item = getSelectedSingleItem();
   updateDockInspector(item);
@@ -2413,24 +3019,23 @@ async function updateDockInspector(item) {
   const body = document.getElementById('dockBody');
   if (STATE.dockTab === 'basket') {
     const res = await rpc('basket', { sub: 'list' });
-    STATE.basketCount = res.count || 0;
-    document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+    syncBasketBadge(res.count || 0);
     const items = res.items || [];
     body.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <strong>${esc(res.summary || '0 Elemente')}</strong>
-        <button class="btn" onclick="addSelectedToBasket()">+ Auswahl</button>
+        <strong>${esc(res.summary || t('basket.empty_count'))}</strong>
+        <button class="btn" onclick="addSelectedToBasket()">+ ${esc(t('basket.add_sel'))}</button>
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
-        <button class="btn primary" onclick="basketAction('copy_here')">Hierher kopieren</button>
-        <button class="btn" onclick="basketAction('move_here')">Hierher verschieben</button>
-        <button class="btn" onclick="basketAction('clear')">Leeren</button>
+        <button class="btn primary" onclick="basketAction('copy_here')">${esc(t('basket.copy_here'))}</button>
+        <button class="btn" onclick="basketAction('move_here')">${esc(t('basket.move_here'))}</button>
+        <button class="btn" onclick="basketAction('clear')">${esc(t('basket.clear'))}</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         ${items.map(i => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:var(--bg-elev);border-radius:4px;">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(i.full_path)}">${esc(i.name)}</span>
           <button class="ibtn" style="height:20px;min-width:20px;" onclick="basketRemove('${esc(i.full_path).replace(/\\/g,'\\\\')}')">✕</button>
-        </div>`).join('') || '<div style="color:var(--fg-muted)">Sammelkorb ist leer.</div>'}
+        </div>`).join('') || `<div style="color:var(--fg-muted)">${esc(t('basket.empty'))}</div>`}
       </div>
     `;
     return;
@@ -2439,19 +3044,19 @@ async function updateDockInspector(item) {
     const dir = getTab(STATE.activeSide).path;
     const g = await rpc('git_panel', { dir, sub: 'status' });
     if (!g.is_repo) {
-      body.innerHTML = `<div style="color:var(--fg-muted)">Kein Git-Repository im aktuellen Pfad.</div>`;
+      body.innerHTML = `<div style="color:var(--fg-muted)">${esc(t('git.no_repo'))}</div>`;
       return;
     }
     body.innerHTML = `
       <div style="margin-bottom:8px;">Branch: <strong style="color:var(--accent)">⎇ ${esc(g.current_branch)}</strong></div>
-      <button class="btn primary" style="width:100%;margin-bottom:10px;" onclick="openGitModal()">⎇ Vollständiges Git-Panel öffnen</button>
-      <div style="font-weight:600;margin-bottom:4px;">Geänderte Dateien (${(g.changed_files||[]).length}):</div>
-      ${(g.changed_files||[]).map(f => `<div style="font-family:var(--font-mono);font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><strong style="color:var(--warn)">${esc(f.status_code)}</strong> ${esc(f.relative_path)}</div>`).join('') || '<div style="color:var(--ok)">Working Tree sauber ✓</div>'}
+      <button class="btn primary" style="width:100%;margin-bottom:10px;" onclick="openGitModal()">⎇ ${esc(t('git.open_full'))}</button>
+      <div style="font-weight:600;margin-bottom:4px;">${esc(t('git.changed_files'))} (${(g.changed_files||[]).length}):</div>
+      ${(g.changed_files||[]).map(f => `<div style="font-family:var(--font-mono);font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);"><strong style="color:var(--warn)">${esc(f.status_code)}</strong> ${esc(f.relative_path)}</div>`).join('') || `<div style="color:var(--ok)">${esc(t('git.clean'))}</div>`}
     `;
     return;
   }
   if (!item) {
-    body.innerHTML = `<div style="color:var(--fg-muted)">Element auswählen für Details & Vorschau.</div>`;
+    body.innerHTML = `<div style="color:var(--fg-muted)">${esc(t('dock.select_hint'))}</div>`;
     return;
   }
   if (item.is_directory) {
@@ -2459,8 +3064,8 @@ async function updateDockInspector(item) {
       <div style="font-size:28px;margin-bottom:6px;">📁</div>
       <div style="font-weight:700;font-size:14px;word-break:break-all;">${esc(item.name)}</div>
       <div style="color:var(--fg-muted);margin:6px 0;">${esc(item.full_path)}</div>
-      <div style="margin-top:8px;">Geändert: <strong>${esc(item.modified_text)}</strong></div>
-      <button class="btn primary" style="margin-top:12px;width:100%;" onclick="openTreemapModal()">📊 Ordner in Treemap analysieren</button>
+      <div style="margin-top:8px;">${esc(t('col.modified'))}: <strong>${esc(item.modified_text)}</strong></div>
+      <button class="btn primary" style="margin-top:12px;width:100%;" onclick="openTreemapModal('${esc(item.full_path).replace(/\\/g,'\\\\')}')">📊 ${esc(t('dock.analyze_treemap'))}</button>
     `;
     return;
   }
@@ -2469,10 +3074,10 @@ async function updateDockInspector(item) {
     body.innerHTML = `
       <div style="font-weight:700;font-size:13.5px;word-break:break-all;margin-bottom:8px;">${esc(item.name)}</div>
       <div class="prefs-card" style="padding:8px 10px;font-size:11.5px;">
-        <div><strong>Größe:</strong> ${esc(item.size_text)} (${item.size_bytes} Bytes)</div>
-        <div><strong>Typ:</strong> ${esc(item.type_text)}</div>
-        <div><strong>Geändert:</strong> ${esc(item.modified_text)}</div>
-        ${prev.resolution ? `<div><strong>Auflösung:</strong> ${esc(prev.resolution)} (${esc(prev.media_format)})</div>` : ''}
+        <div><strong>${esc(t('col.size'))}:</strong> ${esc(item.size_text)} (${item.size_bytes} Bytes)</div>
+        <div><strong>${esc(t('col.type'))}:</strong> ${esc(item.type_text)}</div>
+        <div><strong>${esc(t('col.modified'))}:</strong> ${esc(item.modified_text)}</div>
+        ${prev.resolution ? `<div><strong>Resolution:</strong> ${esc(prev.resolution)} (${esc(prev.media_format)})</div>` : ''}
         ${prev.checksum ? `<div style="margin-top:6px;word-break:break-all;font-family:var(--font-mono);font-size:10.5px;"><strong>SHA-256:</strong><br>${esc(prev.checksum.sha256)}<br><strong>CRC32:</strong> ${esc(prev.checksum.crc32)}</div>` : ''}
       </div>
     `;
@@ -2502,8 +3107,7 @@ async function addSelectedToBasket() {
   const paths = getActionPaths();
   if (!paths.length) return;
   const res = await rpc('basket', { sub: 'add', paths });
-  STATE.basketCount = res.count || 0;
-  document.getElementById('dockBasketCount').textContent = STATE.basketCount;
+  syncBasketBadge(res.count || 0);
   toast(`${paths.length} Element(e) zum Sammelkorb hinzugefügt.`);
   if (STATE.dockTab === 'basket') updateDockInspector(null);
 }
@@ -2639,7 +3243,7 @@ function populateSettingsUi() {
 
   // Switches
   const boolKeys = [
-    'show_drive_bar','show_function_key_bar','show_tooltips',
+    'show_drive_bar','multiline_drive_bar','show_function_key_bar','show_tooltips',
     'sort_folders_first','show_file_extensions','show_hidden_files','show_system_files',
     'auto_calculate_folder_size_on_mark','confirm_delete','single_click_open',
     'enable_image_hover_preview','use_global_font_size',
@@ -2647,7 +3251,7 @@ function populateSettingsUi() {
   ];
   boolKeys.forEach(k => {
     const sw = document.getElementById('sw-' + k);
-    if (sw) sw.classList.toggle('on', !!s[k]);
+    if (sw) sw.classList.toggle('on', s[k] !== false && !!s[k]);
   });
 
   // Sliders & Selects
@@ -2664,6 +3268,18 @@ function populateSettingsUi() {
   const gf = s.global_font_size ?? 13;
   document.getElementById('rng-global_font_size').value = gf;
   document.getElementById('lbl-global_font_size').textContent = gf + ' px';
+
+  const wbEl = document.getElementById('lblWindowBoundsInfo');
+  if (wbEl) {
+    const mw = Math.round(s.main_window_width ?? 1520);
+    const mh = Math.round(s.main_window_height ?? 920);
+    const sw = Math.round(s.settings_window_width ?? 980);
+    const sh = Math.round(s.settings_window_height ?? 680);
+    const cw = Math.round(s.child_window_width ?? 960);
+    const ch = Math.round(s.child_window_height ?? 680);
+    const customCnt = Object.keys(s.dialog_sizes || {}).length;
+    wbEl.textContent = `Hauptfenster: ${mw} × ${mh} px | Einstellungen: ${sw} × ${sh} px | Dialoge: ${cw} × ${ch} px (${customCnt} individuell gespeichert)`;
+  }
 
   renderColorsSettings();
   renderFontsSettings();
@@ -2729,9 +3345,10 @@ async function updateSetting(key, val) {
   const res = await rpc('save_settings', { settings: STATE.settings });
   if (res && res.settings) STATE.settings = res.settings;
   populateSettingsUi();
-  if (['show_hidden_files','show_file_extensions','sort_folders_first'].includes(key)) {
+  if (['show_hidden_files','show_file_extensions','sort_folders_first','language'].includes(key)) {
     loadPane('left');
     loadPane('right');
+    updateDockInspector(getSelectedSingleItem());
   }
 }
 
@@ -2774,7 +3391,8 @@ async function resetWindowBounds() {
   if (res && res.settings) {
     STATE.settings = res.settings;
     populateSettingsUi();
-    toast('Fenstergrößen auf Standardwerte zurückgesetzt.');
+    applyModalSavedBounds('modalSettings', 'modalSettings');
+    toast('Alle Fenstergrößen auf Standardwerte zurückgesetzt.');
   }
 }
 
@@ -2956,11 +3574,33 @@ async function saveViewerFile() {
 }
 
 /* ==================== ALL POWER-TOOLS IN #modalTool ==================== */
-function showToolModal(title, bodyHtml, footHtml) {
+function deriveToolKey(title, explicitKey) {
+  if (explicitKey) return explicitKey;
+  const t = (title || '').toLowerCase();
+  if (t.includes('batch rename') || t.includes('umbenennung')) return 'tool:BatchRename';
+  if (t.includes('diff')) return 'tool:Diff';
+  if (t.includes('synchronisieren')) return 'tool:Sync';
+  if (t.includes('tiefensuche')) return 'tool:DeepSearch';
+  if (t.includes('duplikat')) return 'tool:Duplicates';
+  if (t.includes('treemap')) return 'tool:Treemap';
+  if (t.includes('prüfsummen') || t.includes('manifest')) return 'tool:Checksums';
+  if (t.includes('splitter') || t.includes('shredder')) return 'tool:SplitShred';
+  if (t.includes('tags')) return 'tool:Tags';
+  if (t.includes('exif') || t.includes('zeitstempel')) return 'tool:AttrExif';
+  if (t.includes('smart copy') || t.includes('exporter')) return 'tool:SmartExport';
+  if (t.includes('archiv')) return 'tool:Archive';
+  if (t.includes('ftp') || t.includes('sftp')) return 'tool:Remote';
+  if (t.includes('git-panel')) return 'tool:Git';
+  if (t.includes('arbeitsbereiche') || t.includes('workspace')) return 'tool:Workspaces';
+  return 'modalTool';
+}
+
+function showToolModal(title, bodyHtml, footHtml, toolKey) {
+  const key = deriveToolKey(title, toolKey);
   document.getElementById('toolModalTitle').innerHTML = title;
   document.getElementById('toolModalBody').innerHTML = bodyHtml;
   document.getElementById('toolModalFoot').innerHTML = footHtml || `<button class="btn primary" onclick="closeModal('modalTool')">Schließen</button>`;
-  openModal('modalTool');
+  openModal('modalTool', key);
 }
 
 /* 1. Batch Rename (Ctrl+M) */
@@ -2968,7 +3608,7 @@ async function openBatchRenameModal() {
   const paths = getActionPaths();
   if (!paths.length) { toast('Bitte Dateien für Mehrfach-Umbenennung auswählen.'); return; }
   showToolModal('🏷 Mehrfach-Umbenennungstool (Batch Rename — Strg+M)', `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;flex-shrink:0;">
       <div><label>Namensmaske ([N], [C], [Y][M][D], [Resolution]):</label><input class="input" id="br-name" value="[N]_[C]" style="width:100%" oninput="refreshBatchRename()"></div>
       <div><label>Erweiterung ([E]):</label><input class="input" id="br-ext" value="[E]" style="width:100%" oninput="refreshBatchRename()"></div>
       <div><label>Groß-/Kleinschreibung:</label>
@@ -2987,10 +3627,10 @@ async function openBatchRenameModal() {
         <label>Stellen: <input class="input" type="number" id="br-digits" value="3" style="width:50px" oninput="refreshBatchRename()"></label>
       </div>
     </div>
-    <div style="max-height:310px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
-      <table class="data-tbl"><thead ><tr><th>Originalname</th><th>Neuer Name (Live-Vorschau)</th><th>Status</th></tr></thead><tbody id="br-tbody"></tbody></table>
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Originalname</th><th>Neuer Name (Live-Vorschau)</th><th>Status</th></tr></thead><tbody id="br-tbody"></tbody></table>
     </div>
-  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="executeBatchRename()">✓ Umbenennung jetzt ausführen</button>`);
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="executeBatchRename()">✓ Umbenennung jetzt ausführen</button>`, 'tool:BatchRename');
   refreshBatchRename();
 }
 
@@ -3042,16 +3682,16 @@ async function openDiffModal() {
   const lp = lItem && !lItem.is_directory ? lItem.full_path : '';
   const rp = rItem && !rItem.is_directory ? rItem.full_path : '';
   showToolModal('⚖ Visueller Side-by-Side Datei-Diff-Viewer (Strg+Shift+U)', `
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="diff-left" value="${esc(lp)}" placeholder="Linke Datei…">
       <input class="input" id="diff-right" value="${esc(rp)}" placeholder="Rechte Datei…">
       <button class="btn primary" onclick="runDiffCompare()">Vergleichen</button>
     </div>
-    <div id="diff-summary" style="margin-bottom:8px;font-weight:600;"></div>
-    <div style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;">
-      <table class="data-tbl"><thead ><tr><th>#L</th><th>Links</th><th>#R</th><th>Rechts</th><th>Status</th></tr></thead><tbody id="diff-tbody"></tbody></table>
+    <div id="diff-summary" style="margin-bottom:8px;font-weight:600;flex-shrink:0;"></div>
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;">
+      <table class="data-tbl"><thead><tr><th>#L</th><th>Links</th><th>#R</th><th>Rechts</th><th>Status</th></tr></thead><tbody id="diff-tbody"></tbody></table>
     </div>
-  `);
+  `, null, 'tool:Diff');
   if (lp && rp) runDiffCompare();
 }
 
@@ -3077,17 +3717,17 @@ function openSyncModal() {
   const lDir = getTab('left').path;
   const rDir = getTab('right').path;
   showToolModal('⇄ Verzeichnisse vergleichen & synchronisieren (Strg+Shift+S)', `
-    <div style="display:grid;grid-template-columns:1fr 1fr 160px 160px auto;gap:8px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 160px 160px auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="sync-left" value="${esc(lDir)}">
       <input class="input" id="sync-right" value="${esc(rDir)}">
       <select class="select" id="sync-comp"><option value="SizeAndTimestamp">Größe &amp; Zeit</option><option value="SizeOnly">Nur Größe</option><option value="Sha256Content">SHA-256 Inhalt</option></select>
       <select class="select" id="sync-dir"><option value="Bidirectional">⇄ Bidirektional</option><option value="LeftToRight">➔ Links nach Rechts</option><option value="RightToLeft">⬅ Rechts nach Links</option></select>
       <button class="btn" onclick="runDirSync(false)">🔍 Vergleichen</button>
     </div>
-    <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
       <table class="data-tbl"><thead><tr><th>Relativer Pfad</th><th>Größe Links</th><th>Aktion</th><th>Größe Rechts</th></tr></thead><tbody id="sync-tbody"></tbody></table>
     </div>
-  `, `<button class="btn" onclick="closeModal('modalTool')">Schließen</button><button class="btn primary" onclick="runDirSync(true)">⚡ Synchronisierung jetzt ausführen</button>`);
+  `, `<button class="btn" onclick="closeModal('modalTool')">Schließen</button><button class="btn primary" onclick="runDirSync(true)">⚡ Synchronisierung jetzt ausführen</button>`, 'tool:Sync');
   runDirSync(false);
 }
 
@@ -3115,16 +3755,16 @@ async function runDirSync(execute) {
 function openDeepSearchModal() {
   const root = getTab(STATE.activeSide).path;
   showToolModal('🔍 Rekursive Tiefensuche (Alt+F7)', `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="ds-root" value="${esc(root)}" placeholder="Suchpfad…">
       <input class="input" id="ds-pat" placeholder="Dateiname (*.rs; *.cs oder Regex)…">
       <input class="input" id="ds-txt" placeholder="Volltext-Inhaltssuche…">
       <button class="btn primary" onclick="runDeepSearch()">🔍 Suchen</button>
     </div>
-    <div style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
       <table class="data-tbl"><thead><tr><th>Name</th><th>Ordner</th><th>Größe</th><th>Geändert</th></tr></thead><tbody id="ds-tbody"></tbody></table>
     </div>
-  `);
+  `, null, 'tool:DeepSearch');
 }
 
 async function runDeepSearch() {
@@ -3146,13 +3786,13 @@ async function runDeepSearch() {
 function openDuplicatesModal() {
   const dir = getTab(STATE.activeSide).path;
   showToolModal('🧹 3-Phasen Duplikat-Finder (Größe → 4KB Hash → Voll-SHA256)', `
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="dup-dir" value="${esc(dir)}" style="flex:1">
       <button class="btn primary" onclick="runDuplicatesScan()">🧹 Scan starten</button>
     </div>
-    <div id="dup-summary" style="margin-bottom:8px;font-weight:600;"></div>
-    <div id="dup-list" style="max-height:350px;overflow:auto;display:flex;flex-direction:column;gap:8px;"></div>
-  `);
+    <div id="dup-summary" style="margin-bottom:8px;font-weight:600;flex-shrink:0;"></div>
+    <div id="dup-list" style="flex:1;min-height:180px;overflow:auto;display:flex;flex-direction:column;gap:8px;"></div>
+  `, null, 'tool:Duplicates');
   runDuplicatesScan();
 }
 
@@ -3173,36 +3813,699 @@ async function runDuplicatesScan() {
   `).join('') || '<div style="color:var(--ok)">✓ Keine Duplikate im gewählten Ordner gefunden.</div>';
 }
 
-/* 6. Squarified Storage Treemap (Ctrl+Shift+W) */
-async function openTreemapModal() {
-  const dir = getTab(STATE.activeSide).path;
-  showToolModal('📊 Speicherplatz-Analysator & Squarified Treemap (Strg+Shift+W)', `
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-      <input class="input" id="tm-dir" value="${esc(dir)}" style="flex:1">
-      <select class="select" id="tm-mode" onchange="renderTreemapView(false)">
-        <option value="Category">Farbmodus: Dateityp-Kategorien (aus Einstellungen)</option>
-        <option value="FileAgeHeatmap">Farbmodus: Dateialter-Heatmap</option>
-      </select>
-      <button class="btn primary" onclick="renderTreemapView(true)">↻ Neu scannen</button>
+/* 6. Squarified Storage Treemap (Ctrl+Shift+W) — Full .NET Feature Parity */
+const TM_STATE = {
+  scannedRootPath: '',
+  zoomPath: '',
+  parentPath: '',
+  isZoomed: false,
+  colorMode: 'Category',
+  showTopFilesMode: false,
+  highlightedExtension: null,
+  selectedPaths: new Set(),
+  nodeByPath: new Map(),
+  lastData: null,
+  confirmDeletePending: false,
+  upperRatio: 0.58,
+  topHeight: 230,
+  treeExpanded: new Set()
+};
+
+function tmNormPath(p) {
+  return String(p || '').replace(/[\\/]+$/, '').toLowerCase();
+}
+
+async function openTreemapModal(customDir) {
+  const dir = customDir || getTab(STATE.activeSide).path;
+  TM_STATE.scannedRootPath = dir;
+  TM_STATE.zoomPath = '';
+  TM_STATE.parentPath = '';
+  TM_STATE.isZoomed = false;
+  TM_STATE.selectedPaths.clear();
+  TM_STATE.highlightedExtension = null;
+  TM_STATE.confirmDeletePending = false;
+
+  const footHtml = `
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;flex-wrap:wrap;">
+      <div id="tm-sel-info" style="font-size:12px;color:var(--fg-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:220px;">
+        ${esc(t('tm.footer_hint'))}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <button class="btn" id="tm-btn-reveal" disabled onclick="tmShowSelectedInExplorer(false)">🎯 ${esc(t('tm.reveal_in_tab'))}</button>
+        <button class="btn" id="tm-btn-opentab" disabled onclick="tmShowSelectedInExplorer(true)">📂 ${esc(t('tm.open_as_tab'))}</button>
+        <button class="btn danger" id="tm-btn-delete" disabled onclick="tmPromptDeleteSelected()">🗑 ${esc(t('tm.delete_sel'))}</button>
+        <button class="btn danger" id="tm-btn-del-yes" style="display:none;background:#dc2626;color:#fff;font-weight:700;" onclick="tmExecuteDeleteSelected()">⚠ ${esc(t('tm.delete_confirm'))}</button>
+        <button class="btn" id="tm-btn-del-cancel" style="display:none;" onclick="tmCancelDeletePrompt()">${esc(t('common.cancel'))}</button>
+        <button class="btn" onclick="closeModal('modalTool')">${esc(t('common.close'))}</button>
+      </div>
     </div>
-    <div id="tm-stats" style="margin-bottom:8px;font-weight:600;"></div>
-    <div id="tm-canvas" style="position:relative;width:960px;max-width:100%;height:330px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;overflow:hidden;"></div>
-  `);
+  `;
+
+  showToolModal('📊 ' + t('tm.title'), `
+    <!-- Top Controls Row -->
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;">
+      <input class="input" id="tm-dir" value="${esc(dir)}" style="flex:1;min-width:220px;font-family:var(--font-mono);"
+        onkeydown="if(event.key==='Enter'){TM_STATE.zoomPath='';renderTreemapView(true);}">
+      <div class="tm-tree-wrap">
+        <button class="btn" id="tm-btn-tree" onclick="tmToggleTreeFlyout(event)">🌳 ${esc(t('tm.explorer_tree'))} ▾</button>
+        <div class="tm-tree-flyout" id="tm-tree-flyout" onclick="event.stopPropagation()"></div>
+      </div>
+      <button class="btn primary" onclick="TM_STATE.zoomPath='';renderTreemapView(true)">🔍 ${esc(t('tm.scan_btn'))}</button>
+      <button class="btn" id="tm-btn-up" disabled onclick="tmZoomUp()">⬆ ${esc(t('tm.zoom_up'))}</button>
+      <button class="btn" id="tm-btn-root" disabled onclick="tmZoomRoot()">🏠 ${esc(t('tm.zoom_root'))}</button>
+    </div>
+
+    <!-- Status & Current Zoom Path Row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;flex-shrink:0;font-size:12px;">
+      <div id="tm-stats" style="font-weight:600;color:var(--fg);"></div>
+      <div id="tm-zoom-lbl" style="font-family:var(--font-mono);font-size:11.5px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    </div>
+
+    <!-- Upper Split Area: Left (Folder Hierarchy / Top 100 Files) + Right (File Extension Stats) -->
+    <div id="tm-upper-pane" style="display:flex;height:${TM_STATE.topHeight}px;min-height:120px;max-height:520px;flex-shrink:0;gap:0;">
+      <!-- Left Card: Hierarchy / Top 100 -->
+      <div id="tm-left-card" style="flex:0 0 calc(${TM_STATE.upperRatio * 100}% - 3px);display:flex;flex-direction:column;background:var(--bg-elev);border:1px solid var(--border);border-radius:6px;overflow:hidden;min-width:220px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-sunken);border-bottom:1px solid var(--border);flex-shrink:0;">
+          <span style="font-weight:700;font-size:11.5px;" id="tm-left-hdr">📁 ${esc(t('tm.hierarchy_hdr'))}</span>
+          <button class="btn" id="tm-btn-topmode" style="padding:2px 8px;font-size:11px;" onclick="tmToggleTopFilesMode()">🔥 ${esc(t('tm.top100_files'))}</button>
+        </div>
+        <div id="tm-hierarchy-list" style="flex:1;overflow-y:auto;padding:3px 0;"></div>
+      </div>
+
+      <!-- Horizontal Draggable Splitter -->
+      <div class="tm-split-h" id="tm-split-h" title="Breite anpassen"></div>
+
+      <!-- Right Card: Extension Statistics -->
+      <div id="tm-right-card" style="flex:1 1 0;display:flex;flex-direction:column;background:var(--bg-elev);border:1px solid var(--border);border-radius:6px;overflow:hidden;min-width:200px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg-sunken);border-bottom:1px solid var(--border);flex-shrink:0;">
+          <span style="font-weight:700;font-size:11.5px;">📊 ${esc(t('tm.ext_stats_hdr'))}</span>
+          <button class="btn" id="tm-btn-clearext" style="padding:2px 8px;font-size:11px;display:none;" onclick="tmClearExtFilter()">✕ ${esc(t('tm.show_all_types'))}</button>
+        </div>
+        <div id="tm-ext-list" style="flex:1;overflow-y:auto;padding:3px 0;"></div>
+      </div>
+    </div>
+
+    <!-- Vertical Draggable Splitter -->
+    <div class="tm-split-v" id="tm-split-v" title="Höhe anpassen"></div>
+
+    <!-- Lower Main Card: Visual Squarified Treemap -->
+    <div style="flex:1;min-height:190px;display:flex;flex-direction:column;background:var(--bg-elev);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-sunken);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-weight:700;font-size:11.5px;">🗺 ${esc(t('tm.map_hdr'))}</span>
+          <div id="tm-legend-pills" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="btn" id="tm-btn-colormode" style="padding:2px 8px;font-size:11px;" onclick="tmToggleColorMode()">🎨 ${esc(t('tm.mode_category'))}</button>
+          <button class="btn" style="padding:2px 8px;font-size:11px;" onclick="tmExportReport()">📋 ${esc(t('tm.export_report'))}</button>
+        </div>
+      </div>
+      <div id="tm-canvas" style="position:relative;width:100%;flex:1;min-height:170px;background:var(--bg-sunken);overflow:hidden;user-select:none;"></div>
+    </div>
+  `, footHtml, 'tool:Treemap');
+
+  tmInitInternalSplitters();
+  setTimeout(() => renderTreemapView(true), 25);
+}
+
+function tmInitInternalSplitters() {
+  const splitH = document.getElementById('tm-split-h');
+  const upperPane = document.getElementById('tm-upper-pane');
+  const leftCard = document.getElementById('tm-left-card');
+  if (splitH && upperPane && leftCard) {
+    splitH.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const onMove = (me) => {
+        const rect = upperPane.getBoundingClientRect();
+        const pct = Math.min(0.78, Math.max(0.25, (me.clientX - rect.left) / Math.max(1, rect.width)));
+        TM_STATE.upperRatio = pct;
+        leftCard.style.flex = `0 0 calc(${pct * 100}% - 3px)`;
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  }
+
+  const splitV = document.getElementById('tm-split-v');
+  if (splitV && upperPane) {
+    splitV.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = upperPane.getBoundingClientRect().height;
+      let raf = null;
+      const onMove = (me) => {
+        const newH = Math.min(520, Math.max(120, startH + (me.clientY - startY)));
+        TM_STATE.topHeight = Math.round(newH);
+        upperPane.style.height = TM_STATE.topHeight + 'px';
+        if (!raf) {
+          raf = requestAnimationFrame(() => {
+            raf = null;
+            renderTreemapView(false);
+          });
+        }
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        renderTreemapView(false);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  }
+}
+
+async function tmToggleTreeFlyout(e) {
+  if (e) e.stopPropagation();
+  const fly = document.getElementById('tm-tree-flyout');
+  if (!fly) return;
+  const isOpen = fly.classList.toggle('open');
+  if (isOpen) {
+    await tmRenderTreeFlyout();
+  }
+}
+
+async function tmRenderTreeFlyout() {
+  const fly = document.getElementById('tm-tree-flyout');
+  if (!fly) return;
+  const curDir = document.getElementById('tm-dir')?.value || '';
+  let html = `<div style="font-weight:700;font-size:11.5px;padding:4px 6px;color:var(--fg-dim);border-bottom:1px solid var(--border);margin-bottom:4px;">🌳 ${esc(t('tm.select_drive_or_folder'))}</div>`;
+  for (const d of STATE.drives) {
+    html += await tmBuildTreeBranchHtml(d.root_path, `💾 ${d.display_text}`, 0, curDir);
+  }
+  fly.innerHTML = html;
+}
+
+async function tmBuildTreeBranchHtml(path, label, depth, curDir) {
+  const norm = tmNormPath(path);
+  const isExp = TM_STATE.treeExpanded.has(norm);
+  const isSel = norm === tmNormPath(curDir);
+  const indent = depth * 14;
+  let html = `
+    <div style="display:flex;align-items:center;gap:4px;padding:3px 6px 3px ${6 + indent}px;border-radius:4px;cursor:pointer;background:${isSel ? 'var(--accent-soft)' : 'transparent'};">
+      <span style="width:16px;text-align:center;font-size:10px;color:var(--fg-dim);user-select:none;" onclick="tmToggleTreeNode(event, '${esc(path).replace(/\\/g,'\\\\')}')">${isExp ? '▼' : '▶'}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" onclick="tmPickTreeFolder('${esc(path).replace(/\\/g,'\\\\')}')">${esc(label)}</span>
+    </div>
+  `;
+  if (isExp) {
+    const res = await rpc('treemap', { sub: 'list_tree_subdirs', path });
+    const subs = res?.subdirs || [];
+    for (const s of subs) {
+      html += await tmBuildTreeBranchHtml(s.full_path, `📁 ${s.name}`, depth + 1, curDir);
+    }
+  }
+  return html;
+}
+
+async function tmToggleTreeNode(e, path) {
+  e.stopPropagation();
+  const norm = tmNormPath(path);
+  if (TM_STATE.treeExpanded.has(norm)) TM_STATE.treeExpanded.delete(norm);
+  else TM_STATE.treeExpanded.add(norm);
+  await tmRenderTreeFlyout();
+}
+
+function tmPickTreeFolder(path) {
+  const dirEl = document.getElementById('tm-dir');
+  if (dirEl) dirEl.value = path;
+  const fly = document.getElementById('tm-tree-flyout');
+  if (fly) fly.classList.remove('open');
+  TM_STATE.zoomPath = '';
   renderTreemapView(true);
 }
 
+function tmToggleColorMode() {
+  TM_STATE.colorMode = TM_STATE.colorMode === 'Category' ? 'FileAgeHeatmap' : 'Category';
+  renderTreemapView(false);
+}
+
+function tmToggleTopFilesMode() {
+  TM_STATE.showTopFilesMode = !TM_STATE.showTopFilesMode;
+  tmRenderUpperLists();
+}
+
+function tmClearExtFilter() {
+  TM_STATE.highlightedExtension = null;
+  const btn = document.getElementById('tm-btn-clearext');
+  if (btn) btn.style.display = 'none';
+  tmRenderUpperLists();
+  tmRenderCanvasRects();
+}
+
+function tmSelectExtensionFilter(ext) {
+  if (TM_STATE.highlightedExtension === ext) {
+    TM_STATE.highlightedExtension = null;
+  } else {
+    TM_STATE.highlightedExtension = ext;
+  }
+  const btn = document.getElementById('tm-btn-clearext');
+  if (btn) btn.style.display = TM_STATE.highlightedExtension ? 'inline-flex' : 'none';
+  tmRenderUpperLists();
+  tmRenderCanvasRects();
+}
+
+function tmZoomInto(path) {
+  if (!path) return;
+  TM_STATE.zoomPath = path;
+  TM_STATE.selectedPaths.clear();
+  tmCancelDeletePrompt();
+  renderTreemapView(false);
+}
+
+function tmZoomUp() {
+  if (!TM_STATE.isZoomed) return;
+  TM_STATE.zoomPath = TM_STATE.parentPath || TM_STATE.scannedRootPath;
+  if (tmNormPath(TM_STATE.zoomPath) === tmNormPath(TM_STATE.scannedRootPath)) {
+    TM_STATE.zoomPath = '';
+  }
+  TM_STATE.selectedPaths.clear();
+  tmCancelDeletePrompt();
+  renderTreemapView(false);
+}
+
+function tmZoomRoot() {
+  if (!TM_STATE.isZoomed) return;
+  TM_STATE.zoomPath = '';
+  TM_STATE.selectedPaths.clear();
+  tmCancelDeletePrompt();
+  renderTreemapView(false);
+}
+
 async function renderTreemapView(rescan) {
-  const dir = document.getElementById('tm-dir').value;
-  const color_mode = document.getElementById('tm-mode').value;
-  const res = await rpc('treemap', { dir, rescan, width: 960, height: 330, color_mode });
-  document.getElementById('tm-stats').textContent = `Gesamtgröße: ${res.total_size_text} • ${res.file_count} Dateien in ${res.folder_count} Ordnern`;
+  const dirEl = document.getElementById('tm-dir');
   const host = document.getElementById('tm-canvas');
-  host.innerHTML = (res.rects || []).map(r => `
-    <div title="${esc(r.name)} (${esc(r.size_text)} — ${esc(r.category)})"
-      style="position:absolute;left:${r.x}px;top:${r.y}px;width:${Math.max(0,r.width-1)}px;height:${Math.max(0,r.height-1)}px;background:${r.color_hex};border:1px solid rgba(0,0,0,0.35);padding:2px 4px;overflow:hidden;font-size:10.5px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.8);cursor:pointer;">
-      ${r.width > 48 && r.height > 20 ? `<strong>${esc(r.name)}</strong><br>${esc(r.size_text)}` : ''}
-    </div>
-  `).join('');
+  if (!dirEl || !host) return;
+  const dir = dirEl.value.trim();
+  if (rescan) {
+    TM_STATE.scannedRootPath = dir;
+    const st = document.getElementById('tm-stats');
+    if (st) st.textContent = `⏳ ${t('tm.scanning')} ${dir} …`;
+  }
+  const w = Math.max(320, Math.round(host.clientWidth || 980));
+  const h = Math.max(180, Math.round(host.clientHeight || 300));
+  const res = await rpc('treemap', {
+    dir: TM_STATE.scannedRootPath || dir,
+    zoom_path: TM_STATE.zoomPath,
+    rescan: !!rescan,
+    width: w,
+    height: h,
+    color_mode: TM_STATE.colorMode
+  });
+  if (!res || res.error) {
+    toast(res?.error || 'Treemap-Fehler');
+    return;
+  }
+
+  TM_STATE.lastData = res;
+  TM_STATE.scannedRootPath = res.scanned_root_path || dir;
+  TM_STATE.isZoomed = !!res.is_zoomed;
+  TM_STATE.parentPath = res.parent_path || '';
+
+  // Index all known nodes by path for quick lookup on selection/actions
+  TM_STATE.nodeByPath.clear();
+  (res.children || []).forEach(n => TM_STATE.nodeByPath.set(tmNormPath(n.full_path), n));
+  (res.top_files || []).forEach(n => TM_STATE.nodeByPath.set(tmNormPath(n.full_path), n));
+  (res.rects || []).forEach(r => {
+    const k = tmNormPath(r.full_path);
+    if (!TM_STATE.nodeByPath.has(k)) {
+      TM_STATE.nodeByPath.set(k, {
+        full_path: r.full_path,
+        name: r.name,
+        is_directory: r.is_directory,
+        size_bytes: r.size_bytes,
+        size_text: r.size_text,
+        file_count: r.file_count,
+        folder_count: 0,
+        percent_of_parent: r.percent_of_parent,
+        category: r.category,
+        extension: r.extension,
+        color_hex: r.color_hex
+      });
+    }
+  });
+
+  // Update Top Buttons & Status
+  const btnUp = document.getElementById('tm-btn-up');
+  const btnRoot = document.getElementById('tm-btn-root');
+  if (btnUp) btnUp.disabled = !TM_STATE.isZoomed;
+  if (btnRoot) btnRoot.disabled = !TM_STATE.isZoomed;
+
+  const statsEl = document.getElementById('tm-stats');
+  if (statsEl) {
+    statsEl.textContent = `${res.is_zoomed ? '🔍 Fokus: ' + res.root_name : '✓ Gescannt'}: ${res.total_size_text} • ${(res.file_count || 0).toLocaleString()} ${t('tm.files_in')} ${(res.folder_count || 0).toLocaleString()} ${t('tm.folders')}`;
+  }
+  const zoomLbl = document.getElementById('tm-zoom-lbl');
+  if (zoomLbl) {
+    zoomLbl.textContent = `📂 ${res.root_path || dir}`;
+    zoomLbl.title = res.root_path || dir;
+  }
+
+  // Update Color Mode button & Legend pills
+  const modeBtn = document.getElementById('tm-btn-colormode');
+  if (modeBtn) {
+    modeBtn.textContent = TM_STATE.colorMode === 'Category'
+      ? `🎨 ${t('tm.mode_category')}`
+      : `🕒 ${t('tm.mode_age')}`;
+  }
+  const legEl = document.getElementById('tm-legend-pills');
+  if (legEl) {
+    if (TM_STATE.colorMode === 'Category') {
+      legEl.innerHTML = (res.legend_categories || []).map(c =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:${c.color_hex};display:inline-block;"></span>${esc(c.label)}</span>`
+      ).join('');
+    } else {
+      const ageLegend = [
+        { c: '#EF4444', l: '🔥 < 7 Tage' },
+        { c: '#F97316', l: '⚡ < 30 Tage' },
+        { c: '#EAB308', l: '📅 < 6 Monate' },
+        { c: '#10B981', l: '🗂 < 2 Jahre' },
+        { c: '#3B82F6', l: '🧊 > 2 Jahre' }
+      ];
+      legEl.innerHTML = ageLegend.map(x =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:${x.c};display:inline-block;"></span>${esc(x.l)}</span>`
+      ).join('');
+    }
+  }
+
+  tmRenderUpperLists();
+  tmRenderCanvasRects();
+  tmUpdateFooterSelection();
+}
+
+function tmRenderUpperLists() {
+  const res = TM_STATE.lastData;
+  if (!res) return;
+
+  // 1. Left List: Subfolders OR Top 100 Largest Files
+  const topBtn = document.getElementById('tm-btn-topmode');
+  const leftHdr = document.getElementById('tm-left-hdr');
+  const hList = document.getElementById('tm-hierarchy-list');
+  if (topBtn) {
+    topBtn.textContent = TM_STATE.showTopFilesMode
+      ? `📁 ${t('tm.subfolders')} (${(res.children || []).length})`
+      : `🔥 ${t('tm.top100_files')}`;
+  }
+  if (leftHdr) {
+    leftHdr.textContent = TM_STATE.showTopFilesMode
+      ? `🔥 ${t('tm.top100_hdr')}`
+      : `📁 ${t('tm.hierarchy_hdr')}`;
+  }
+  if (hList) {
+    const items = TM_STATE.showTopFilesMode ? (res.top_files || []) : (res.children || []);
+    hList.innerHTML = items.map(item => {
+      const isSel = TM_STATE.selectedPaths.has(tmNormPath(item.full_path));
+      const pct = Math.min(100, Math.max(0, item.percent_of_parent || 0));
+      const ico = item.is_directory ? '📁' : '📄';
+      const meta = item.is_directory ? `${(item.file_count || 0).toLocaleString()} Dat.` : (item.category || '');
+      const safePath = esc(item.full_path).replace(/\\/g, '\\\\');
+      return `
+        <div class="tm-row ${isSel ? 'selected' : ''}"
+          title="${esc(item.full_path)} (${esc(item.size_text)} — ${pct.toFixed(1)}%)"
+          onclick="tmOnNodeClick(event, '${safePath}')"
+          ondblclick="tmOnNodeDblClick(event, '${safePath}', ${!!item.is_directory})"
+          oncontextmenu="tmOnNodeContextMenu(event, '${safePath}')">
+          <span style="width:18px;text-align:center;">${ico}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${item.is_directory ? '600' : '400'};">${esc(item.name)}</span>
+          <div class="tm-bar-bg"><div class="tm-bar-fill" style="width:${pct}%;background:${item.color_hex || '#3B82F6'};"></div></div>
+          <span style="min-width:68px;text-align:right;font-family:var(--font-mono);font-size:11px;font-weight:600;">${esc(item.size_text)}</span>
+          <span style="min-width:54px;text-align:right;font-size:10.5px;color:var(--fg-dim);">${esc(meta)}</span>
+          <span style="min-width:68px;text-align:right;font-size:11px;color:var(--fg-muted);">${esc(item.modified_text || '')}</span>
+        </div>
+      `;
+    }).join('') || `<div style="padding:12px;color:var(--fg-muted);text-align:center;">Keine Einträge vorhanden.</div>`;
+  }
+
+  // 2. Right List: File Extension Statistics
+  const eList = document.getElementById('tm-ext-list');
+  if (eList) {
+    const stats = res.ext_stats || [];
+    eList.innerHTML = stats.map(st => {
+      const isAct = TM_STATE.highlightedExtension && TM_STATE.highlightedExtension.toLowerCase() === st.extension.toLowerCase();
+      const pct = Math.min(100, Math.max(0, st.percent || 0));
+      const safeExt = esc(st.extension).replace(/'/g, "\\'");
+      return `
+        <div class="tm-row ${isAct ? 'selected' : ''}"
+          onclick="tmSelectExtensionFilter('${safeExt}')"
+          title="Klicken zum Hervorheben aller ${esc(st.extension)}-Dateien in der Treemap">
+          <span style="width:10px;height:10px;border-radius:2px;background:${st.color_hex};display:inline-block;flex-shrink:0;"></span>
+          <span style="min-width:64px;font-family:var(--font-mono);font-weight:700;">${esc(st.extension)}</span>
+          <span class="f-tag-badge" style="font-size:10px;">${esc(st.category)}</span>
+          <div class="tm-bar-bg" style="flex:1;width:auto;"><div class="tm-bar-fill" style="width:${pct}%;background:${st.color_hex};"></div></div>
+          <span style="min-width:66px;text-align:right;font-family:var(--font-mono);font-size:11px;font-weight:600;">${esc(st.total_size_text)}</span>
+          <span style="min-width:44px;text-align:right;font-family:var(--font-mono);font-size:10.5px;color:var(--fg-dim);">${pct.toFixed(1)}%</span>
+          <span style="min-width:58px;text-align:right;font-size:10.5px;color:var(--fg-muted);">${(st.file_count || 0).toLocaleString()} Dat.</span>
+        </div>
+      `;
+    }).join('') || `<div style="padding:12px;color:var(--fg-muted);text-align:center;">Keine Dateitypen.</div>`;
+  }
+}
+
+function tmRenderCanvasRects() {
+  const host = document.getElementById('tm-canvas');
+  const res = TM_STATE.lastData;
+  if (!host || !res) return;
+  const rects = res.rects || [];
+  const hlExt = TM_STATE.highlightedExtension ? TM_STATE.highlightedExtension.toLowerCase() : null;
+
+  host.innerHTML = rects.map(r => {
+    const norm = tmNormPath(r.full_path);
+    const isSel = TM_STATE.selectedPaths.has(norm);
+    const safePath = esc(r.full_path).replace(/\\/g, '\\\\');
+    const pct = (r.percent_of_parent || 0).toFixed(1);
+    const tip = `${r.name}\nPfad: ${r.full_path}\nGröße: ${r.size_text} (${pct}%)\nTyp: ${r.is_directory ? 'Ordner (' + r.file_count + ' Dateien)' : r.category + ' (' + (r.extension || 'ohne Endung') + ')'}${r.modified_text ? '\nGeändert: ' + r.modified_text : ''}`;
+
+    if (r.is_group_container) {
+      const borderCol = isSel ? '#FACC15' : 'rgba(255,255,255,0.22)';
+      const borderW = isSel ? 2 : 1;
+      return `
+        <div title="${esc(tip)}"
+          onclick="tmOnNodeClick(event, '${safePath}')"
+          ondblclick="tmOnNodeDblClick(event, '${safePath}', true)"
+          oncontextmenu="tmOnNodeContextMenu(event, '${safePath}')"
+          style="position:absolute;left:${r.x}px;top:${r.y}px;width:${Math.max(0,r.width)}px;height:${Math.max(0,r.height)}px;border:${borderW}px solid ${borderCol};background:rgba(15,23,42,0.45);border-radius:3px;overflow:hidden;cursor:pointer;box-sizing:border-box;">
+          <div style="height:17px;line-height:17px;padding:0 5px;background:rgba(0,0,0,0.55);color:#e2e8f0;font-size:10.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            📁 ${esc(r.name)} <span style="opacity:0.75;font-weight:400;">(${esc(r.size_text)})</span>
+          </div>
+        </div>
+      `;
+    }
+
+    const extMatch = !hlExt || (!r.is_directory && String(r.extension || '').toLowerCase() === hlExt);
+    const opacity = hlExt ? (extMatch ? '1' : '0.22') : '1';
+    const borderCol = isSel || (hlExt && extMatch) ? '#FACC15' : 'rgba(0,0,0,0.45)';
+    const borderW = isSel || (hlExt && extMatch) ? 2 : 1;
+    const zIdx = isSel || (hlExt && extMatch) ? 5 : 2;
+
+    let labelHtml = '';
+    if (r.width >= 46 && r.height >= 20) {
+      const ico = r.is_directory ? '📁 ' : '';
+      labelHtml = `<div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:${r.width > 95 && r.height > 40 ? '11.5px' : '10px'};">${ico}${esc(r.name)}</div>`;
+      if (r.height >= 34 && r.width >= 56) {
+        labelHtml += `<div style="font-size:9.5px;opacity:0.92;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.size_text)} (${pct}%)</div>`;
+      }
+      if (r.height >= 50 && r.width >= 90) {
+        labelHtml += `<div style="font-size:9px;opacity:0.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.category)}${r.modified_text ? ' • ' + esc(r.modified_text) : ''}</div>`;
+      }
+    }
+
+    return `
+      <div title="${esc(tip)}"
+        onclick="tmOnNodeClick(event, '${safePath}')"
+        ondblclick="tmOnNodeDblClick(event, '${safePath}', ${!!r.is_directory})"
+        oncontextmenu="tmOnNodeContextMenu(event, '${safePath}')"
+        style="position:absolute;left:${r.x}px;top:${r.y}px;width:${Math.max(0,r.width-1)}px;height:${Math.max(0,r.height-1)}px;background:linear-gradient(145deg, ${r.color_hex}, color-mix(in srgb, ${r.color_hex} 68%, #000));border:${borderW}px solid ${borderCol};border-radius:2px;padding:2px 4px;overflow:hidden;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.85);cursor:pointer;opacity:${opacity};z-index:${zIdx};box-sizing:border-box;transition:opacity 0.12s;">
+        ${labelHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+function tmOnNodeClick(e, path) {
+  e.stopPropagation();
+  tmCancelDeletePrompt();
+  const norm = tmNormPath(path);
+  if (e.ctrlKey || e.metaKey) {
+    if (TM_STATE.selectedPaths.has(norm)) TM_STATE.selectedPaths.delete(norm);
+    else TM_STATE.selectedPaths.add(norm);
+  } else {
+    TM_STATE.selectedPaths.clear();
+    TM_STATE.selectedPaths.add(norm);
+  }
+  tmRenderUpperLists();
+  tmRenderCanvasRects();
+  tmUpdateFooterSelection();
+}
+
+function tmOnNodeDblClick(e, path, isDir) {
+  e.stopPropagation();
+  if (isDir) {
+    tmZoomInto(path);
+  } else {
+    tmShowPathInExplorer(path, false);
+  }
+}
+
+function tmOnNodeContextMenu(e, path) {
+  e.preventDefault();
+  e.stopPropagation();
+  const norm = tmNormPath(path);
+  if (!TM_STATE.selectedPaths.has(norm)) {
+    TM_STATE.selectedPaths.clear();
+    TM_STATE.selectedPaths.add(norm);
+    tmRenderUpperLists();
+    tmRenderCanvasRects();
+    tmUpdateFooterSelection();
+  }
+  const node = TM_STATE.nodeByPath.get(norm);
+  const count = TM_STATE.selectedPaths.size;
+  const items = [
+    {
+      label: count > 1 ? `🗑 ${count} ausgewählte Elemente löschen [Entf]` : `🗑 „${node?.name || path}“ löschen [Entf]`,
+      kbd: 'Entf',
+      run: () => tmPromptDeleteSelected()
+    },
+    'sep'
+  ];
+  if (node && node.is_directory) {
+    items.push({ label: '🔍 In diesen Ordner hineinzoomen', run: () => tmZoomInto(node.full_path) });
+  }
+  items.push(
+    { label: '🎯 Im aktiven Explorer-Tab zeigen', run: () => tmShowSelectedInExplorer(false) },
+    { label: '📂 Ordner als neuen Tab öffnen', run: () => tmShowSelectedInExplorer(true) },
+    'sep',
+    { label: '📋 Pfad in Zwischenablage kopieren', run: () => copyText(node?.full_path || path) }
+  );
+  showContextMenuAt(e, items);
+}
+
+function tmGetSelectedNodes() {
+  const out = [];
+  TM_STATE.selectedPaths.forEach(k => {
+    const n = TM_STATE.nodeByPath.get(k);
+    if (n) out.push(n);
+  });
+  return out;
+}
+
+function tmUpdateFooterSelection() {
+  const nodes = tmGetSelectedNodes();
+  const infoEl = document.getElementById('tm-sel-info');
+  const btnRev = document.getElementById('tm-btn-reveal');
+  const btnTab = document.getElementById('tm-btn-opentab');
+  const btnDel = document.getElementById('tm-btn-delete');
+
+  if (btnRev) btnRev.disabled = nodes.length === 0;
+  if (btnTab) btnTab.disabled = nodes.length === 0;
+  if (btnDel) btnDel.disabled = nodes.length === 0;
+
+  if (!infoEl) return;
+  if (nodes.length === 0) {
+    infoEl.textContent = t('tm.footer_hint');
+  } else if (nodes.length === 1) {
+    const n = nodes[0];
+    const ico = n.is_directory ? '📁' : '📄';
+    infoEl.textContent = `${ico} ${n.full_path} — ${n.size_text} (${(n.percent_of_parent || 0).toFixed(1)}%)`;
+    infoEl.title = n.full_path;
+  } else {
+    const totalBytes = nodes.reduce((acc, n) => acc + (n.size_bytes || 0), 0);
+    infoEl.textContent = `✓ ${nodes.length} Elemente ausgewählt — ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+}
+
+function tmShowPathInExplorer(fullPath, openNewTab) {
+  const node = TM_STATE.nodeByPath.get(tmNormPath(fullPath));
+  const isDir = node ? node.is_directory : false;
+  const side = STATE.activeSide;
+  closeModal('modalTool');
+  if (openNewTab) {
+    const targetDir = isDir ? fullPath : fullPath.replace(/[\\/][^\\/]+$/, '');
+    addTab(side, targetDir);
+  } else {
+    const parentDir = isDir ? fullPath : fullPath.replace(/[\\/][^\\/]+$/, '');
+    navigateTo(side, parentDir).then(() => {
+      if (!isDir) {
+        const p = STATE.panes[side];
+        p.selected.clear();
+        p.selected.add(fullPath);
+        renderFileList(side);
+      }
+    });
+  }
+}
+
+function tmShowSelectedInExplorer(openNewTab) {
+  const nodes = tmGetSelectedNodes();
+  if (!nodes.length) return;
+  tmShowPathInExplorer(nodes[0].full_path, openNewTab);
+}
+
+function tmPromptDeleteSelected() {
+  const nodes = tmGetSelectedNodes();
+  if (!nodes.length) return;
+  TM_STATE.confirmDeletePending = true;
+  const btnDel = document.getElementById('tm-btn-delete');
+  const btnYes = document.getElementById('tm-btn-del-yes');
+  const btnCancel = document.getElementById('tm-btn-del-cancel');
+  if (btnDel) btnDel.style.display = 'none';
+  if (btnYes) {
+    btnYes.style.display = 'inline-flex';
+    btnYes.textContent = nodes.length === 1
+      ? `⚠ „${nodes[0].name}“ wirklich löschen!`
+      : `⚠ Ja, ${nodes.length} Elemente jetzt löschen!`;
+  }
+  if (btnCancel) btnCancel.style.display = 'inline-flex';
+}
+
+function tmCancelDeletePrompt() {
+  TM_STATE.confirmDeletePending = false;
+  const btnDel = document.getElementById('tm-btn-delete');
+  const btnYes = document.getElementById('tm-btn-del-yes');
+  const btnCancel = document.getElementById('tm-btn-del-cancel');
+  if (btnDel) btnDel.style.display = 'inline-flex';
+  if (btnYes) btnYes.style.display = 'none';
+  if (btnCancel) btnCancel.style.display = 'none';
+}
+
+async function tmExecuteDeleteSelected() {
+  const nodes = tmGetSelectedNodes();
+  if (!nodes.length) return;
+  const paths = nodes.map(n => n.full_path);
+  tmCancelDeletePrompt();
+  const res = await rpc('treemap', {
+    sub: 'delete_nodes',
+    dir: TM_STATE.scannedRootPath,
+    paths
+  });
+  if (res && res.ok) {
+    TM_STATE.selectedPaths.clear();
+    toast(`🗑 ${res.deleted_count} Element(e) gelöscht (${res.freed_text} freigegeben).`);
+    await renderTreemapView(false);
+    await loadPane('left');
+    await loadPane('right');
+  } else {
+    toast(res?.error || 'Fehler beim Löschen');
+  }
+}
+
+async function tmExportReport() {
+  const dir = TM_STATE.scannedRootPath || document.getElementById('tm-dir')?.value || '';
+  const res = await rpc('treemap', {
+    sub: 'export_report',
+    dir,
+    zoom_path: TM_STATE.zoomPath
+  });
+  if (!res || !res.ok) {
+    toast(res?.error || 'Bericht konnte nicht erstellt werden.');
+    return;
+  }
+  copyText(res.md_report || '');
+  toast(`📋 Bericht gespeichert (${res.saved_md_path}) & Markdown in Zwischenablage kopiert!`);
 }
 
 /* 7. Checksum Generator & Manifest Verifier (Ctrl+Shift+K) */
@@ -3211,7 +4514,7 @@ async function openChecksumsModal() {
   if (!paths.length) { toast('Bitte mindestens eine Datei auswählen.'); return; }
   const res = await rpc('checksums', { sub: 'compute', paths });
   showToolModal('🔐 Prüfsummen-Generator & Manifest-Verifizierer (SHA-256, SHA-512, MD5, CRC32)', `
-    <div style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">
+    <div style="flex:1;min-height:150px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">
       <table class="data-tbl"><thead><tr><th>Datei</th><th>SHA-256</th><th>MD5</th><th>CRC32</th></tr></thead><tbody>
         ${(res.entries || []).map(e => `<tr>
           <td><strong>${esc(e.file_name)}</strong></td>
@@ -3221,9 +4524,11 @@ async function openChecksumsModal() {
         </tr>`).join('')}
       </tbody></table>
     </div>
-    <div><label style="font-weight:600">Generiertes .sha256 / .sfv Manifest:</label>
-    <textarea class="textarea" style="width:100%;height:110px;font-family:var(--font-mono);margin-top:4px;">${esc(res.sha256_manifest || '')}</textarea></div>
-  `);
+    <div style="display:flex;flex-direction:column;flex:1;min-height:120px;">
+      <label style="font-weight:600;flex-shrink:0;">Generiertes .sha256 / .sfv Manifest:</label>
+      <textarea class="textarea" style="width:100%;flex:1;min-height:100px;font-family:var(--font-mono);margin-top:4px;resize:none;">${esc(res.sha256_manifest || '')}</textarea>
+    </div>
+  `, null, 'tool:Checksums');
 }
 
 /* 8. Split / Join / Secure Shred (Ctrl+Shift+X) */
@@ -3249,7 +4554,7 @@ function openSplitShredModal() {
       </div>
     </div>
     <div id="ss-msg" style="margin-top:10px;font-weight:600;"></div>
-  `);
+  `, null, 'tool:SplitShred');
 }
 
 async function runSplitShred(mode) {
@@ -3279,7 +4584,7 @@ function openTagModal() {
       <div><label>Optionale Notiz (durchsuchbar mit <code>note:...</code> im Filter):</label>
       <input class="input" id="tag-note" style="width:100%;margin-top:4px;" placeholder="Notiz eingeben…"></div>
     </div>
-  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="applyTagModal()">✓ Speichern</button>`);
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="applyTagModal()">✓ Speichern</button>`, 'tool:Tags');
 }
 
 async function applyTagModal() {
@@ -3299,15 +4604,17 @@ async function openAttrExifModal() {
   if (!paths.length) { toast('Bitte Elemente auswählen.'); return; }
   const res = await rpc('attr_exif', { sub: 'inspect', paths });
   showToolModal('🛠 Attribute, Zeitstempel & EXIF-Metadaten (Strg+Shift+A)', `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-shrink:0;">
       <label>Zeitstempel verschieben (Stunden): <input class="input" type="number" id="ae-shift" value="0" style="width:70px"></label>
       <label><input type="checkbox" id="ae-touch"> Auf aktuelle Uhrzeit setzen (Touch)</label>
       <button class="btn primary" onclick="applyAttrExif()">Anwenden</button>
     </div>
-    <table class="data-tbl"><thead><tr><th>Name</th><th>Geändert</th><th>Format / Auflösung</th><th>ReadOnly</th></tr></thead><tbody>
-      ${(res.details || []).map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.modified)}</td><td>${esc(d.format_name)} ${esc(d.resolution)}</td><td>${d.is_readonly?'Ja':'Nein'}</td></tr>`).join('')}
-    </tbody></table>
-  `);
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Name</th><th>Geändert</th><th>Format / Auflösung</th><th>ReadOnly</th></tr></thead><tbody>
+        ${(res.details || []).map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.modified)}</td><td>${esc(d.format_name)} ${esc(d.resolution)}</td><td>${d.is_readonly?'Ja':'Nein'}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+  `, null, 'tool:AttrExif');
 }
 
 async function applyAttrExif() {
@@ -3327,7 +4634,7 @@ async function openSmartExportModal() {
   const paths = getActionPaths();
   if (!paths.length) { toast('Bitte Elemente auswählen.'); return; }
   showToolModal('📋 Smart Copy & Tabellen-Exporter (Strg+Shift+E)', `
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <select class="select" id="se-fmt" onchange="refreshSmartExport()" style="flex:1">
         <option value="FullPaths">Vollständige Pfade</option>
         <option value="FileNamesOnly">Nur Dateinamen</option>
@@ -3340,8 +4647,8 @@ async function openSmartExportModal() {
       </select>
       <button class="btn primary" onclick="copyText(document.getElementById('se-out').value)">📋 In Zwischenablage kopieren</button>
     </div>
-    <textarea class="textarea" id="se-out" style="width:100%;height:320px;font-family:var(--font-mono);"></textarea>
-  `);
+    <textarea class="textarea" id="se-out" style="width:100%;flex:1;min-height:200px;resize:none;font-family:var(--font-mono);"></textarea>
+  `, null, 'tool:SmartExport');
   refreshSmartExport();
 }
 
@@ -3362,17 +4669,17 @@ async function openArchiveModal(archivePath) {
   let entriesHtml = '';
   if (archivePath) {
     const lres = await rpc('archive', { sub: 'list', archive_path: archivePath });
-    entriesHtml = `<div style="margin-top:12px;"><strong>Inhalt von ${esc(archivePath)}:</strong>
-      <div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+    entriesHtml = `<div style="margin-top:12px;display:flex;flex-direction:column;flex:1;min-height:160px;"><strong>Inhalt von ${esc(archivePath)}:</strong>
+      <div style="flex:1;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
         <table class="data-tbl"><thead><tr><th>Eintrag</th><th>Größe</th><th>Komprimiert</th></tr></thead><tbody>
           ${(lres.entries||[]).map(e => `<tr><td>${esc(e.full_name)}</td><td>${esc(e.size_text)}</td><td>${esc(e.compressed_text)}</td></tr>`).join('')}
         </tbody></table>
       </div>
-      <button class="btn primary" style="margin-top:8px;" onclick="rpc('archive',{sub:'extract',archive_path:'${esc(archivePath).replace(/\\/g,'\\\\')}',dest_dir:'${esc(dir).replace(/\\/g,'\\\\')}'}).then(()=>{closeModal('modalTool');loadPane(STATE.activeSide);toast('Archiv entpackt!');})">📂 Komplettes Archiv hierher entpacken</button>
+      <button class="btn primary" style="margin-top:8px;align-self:flex-start;" onclick="rpc('archive',{sub:'extract',archive_path:'${esc(archivePath).replace(/\\/g,'\\\\')}',dest_dir:'${esc(dir).replace(/\\/g,'\\\\')}'}).then(()=>{closeModal('modalTool');loadPane(STATE.activeSide);toast('Archiv entpackt!');})">📂 Komplettes Archiv hierher entpacken</button>
     </div>`;
   }
   showToolModal('📦 Archiv-Browser & Packer (.zip / .tar.gz — Alt+F5)', `
-    <div class="prefs-card">
+    <div class="prefs-card" style="flex-shrink:0;">
       <div style="margin-bottom:6px;">Ausgewählte Elemente (${paths.length}) in neues Archiv packen:</div>
       <div style="display:flex;gap:8px;">
         <input class="input" id="arch-dest" value="${esc(defaultDest)}" style="flex:1">
@@ -3380,7 +4687,7 @@ async function openArchiveModal(archivePath) {
       </div>
     </div>
     ${entriesHtml}
-  `);
+  `, null, 'tool:Archive');
 }
 
 async function packNewArchive() {
@@ -3398,7 +4705,7 @@ async function packNewArchive() {
 /* 13. Built-in FTP / FTPS / SFTP Client (Ctrl+Shift+C) */
 function openRemoteModal() {
   showToolModal('🌐 FTP / FTPS / SFTP Verbindungsmanager (Strg+Shift+C)', `
-    <div style="display:grid;grid-template-columns:1fr 110px 1fr 80px 1fr 1fr auto;gap:6px;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:1fr 110px 1fr 80px 1fr 1fr auto;gap:6px;margin-bottom:12px;flex-shrink:0;">
       <input class="input" id="rm-name" placeholder="Profilname">
       <select class="select" id="rm-proto"><option value="Sftp">SFTP (SSH)</option><option value="Ftps">FTPS (TLS)</option><option value="Ftp">FTP</option></select>
       <input class="input" id="rm-host" placeholder="Host (z.B. sftp.example.com)">
@@ -3407,8 +4714,10 @@ function openRemoteModal() {
       <input class="input" id="rm-path" value="/var/www">
       <button class="btn primary" onclick="saveRemoteProfile()">+ Speichern</button>
     </div>
-    <table class="data-tbl"><thead><tr><th>Name</th><th>Protokoll</th><th>Host</th><th>Benutzer</th><th>Pfad</th><th>Aktion</th></tr></thead><tbody id="rm-tbody"></tbody></table>
-  `);
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Name</th><th>Protokoll</th><th>Host</th><th>Benutzer</th><th>Pfad</th><th>Aktion</th></tr></thead><tbody id="rm-tbody"></tbody></table>
+    </div>
+  `, null, 'tool:Remote');
   renderRemoteTable();
 }
 
@@ -3451,7 +4760,7 @@ async function openGitModal() {
     return;
   }
   showToolModal(`⎇ Erweitertes Git-Panel — ${esc(g.repo_root)}`, `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-shrink:0;">
       <span>Aktueller Branch:</span>
       <select class="select" onchange="gitCheckoutBranch(this.value)">
         ${(g.branches||[]).map(b => `<option value="${esc(b)}" ${b===g.current_branch?'selected':''}>⎇ ${esc(b)}</option>`).join('')}
@@ -3459,10 +4768,10 @@ async function openGitModal() {
       <input class="input" id="git-commit-msg" placeholder="Commit-Nachricht eingeben…" style="flex:1">
       <button class="btn primary" onclick="gitCommitNow()">✓ Commit</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>
-        <strong>Geänderte Dateien (${(g.changed_files||[]).length}):</strong>
-        <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:180px;">
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <strong style="flex-shrink:0;">Geänderte Dateien (${(g.changed_files||[]).length}):</strong>
+        <div style="flex:1;min-height:150px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
           <table class="data-tbl"><thead><tr><th>Status</th><th>Datei</th><th>Aktionen</th></tr></thead><tbody>
             ${(g.changed_files||[]).map(f => `<tr>
               <td><strong style="color:var(--warn)">${esc(f.status_code)}</strong></td>
@@ -3475,9 +4784,9 @@ async function openGitModal() {
           </tbody></table>
         </div>
       </div>
-      <div>
-        <strong>Letzte Commits:</strong>
-        <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <strong style="flex-shrink:0;">Letzte Commits:</strong>
+        <div style="flex:1;min-height:150px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px;">
           <table class="data-tbl"><thead><tr><th>Hash</th><th>Datum</th><th>Autor</th><th>Betreff</th></tr></thead><tbody>
             ${(g.recent_commits||[]).map(c => `<tr>
               <td style="font-family:var(--font-mono);color:var(--accent)">${esc(c.short_hash)}</td>
@@ -3487,7 +4796,7 @@ async function openGitModal() {
         </div>
       </div>
     </div>
-  `);
+  `, null, 'tool:Git');
 }
 
 async function gitCheckoutBranch(branch) {
@@ -3518,12 +4827,14 @@ async function gitCommitNow() {
 /* 15. Workspaces Manager (Ctrl+Shift+O) */
 function openWorkspacesModal() {
   showToolModal('🗂 Arbeitsbereiche / Workspace-Profile (Strg+Shift+O)', `
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-shrink:0;">
       <input class="input" id="ws-name" placeholder="Name des Arbeitsbereichs (z.B. Rust-Entwicklung)…" style="flex:1">
       <button class="btn primary" onclick="saveWorkspaceProfile()">💾 Aktuelle Tabs als Profil speichern</button>
     </div>
-    <table class="data-tbl"><thead><tr><th>Name</th><th>Tabs (Links / Rechts)</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody id="ws-tbody"></tbody></table>
-  `);
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Name</th><th>Tabs (Links / Rechts)</th><th>Erstellt</th><th>Aktion</th></tr></thead><tbody id="ws-tbody"></tbody></table>
+    </div>
+  `, null, 'tool:Workspaces');
   renderWorkspacesTable();
 }
 
@@ -3580,9 +4891,293 @@ async function deleteWorkspaceProfile(name) {
   renderWorkspacesTable();
 }
 
+/* ==================== RESIZABLE, DRAGGABLE & PERSISTENT CHILD WINDOWS ==================== */
+const MODAL_FONT_KEY_MAP = {
+  'modalSettings': 'settings_window_font_size',
+  'modalPalette': 'command_palette_font_size',
+  'tool:BatchRename': 'batch_rename_font_size',
+  'tool:Diff': 'diff_viewer_font_size',
+  'tool:Sync': 'sync_window_font_size',
+  'tool:DeepSearch': 'search_window_font_size',
+  'tool:Duplicates': 'duplicate_finder_font_size',
+  'tool:Treemap': 'treemap_window_font_size',
+  'tool:Checksums': 'checksum_window_font_size',
+  'tool:Git': 'git_panel_font_size'
+};
+
+function getModalSpecificFontSize(key) {
+  const s = STATE.settings || {};
+  if (s.use_global_font_size) return (s.global_font_size ?? 13) + 'px';
+  const fontProp = MODAL_FONT_KEY_MAP[key] || 'child_window_font_size';
+  return (s[fontProp] ?? s.child_window_font_size ?? 13) + 'px';
+}
+
+function applyModalSavedBounds(modalBgId, customKey) {
+  const bg = document.getElementById(modalBgId);
+  if (!bg) return;
+  const modal = bg.querySelector('.modal');
+  if (!modal) return;
+
+  const key = customKey || modal.dataset.boundsKey || modalBgId;
+  modal.dataset.boundsKey = key;
+  modal.style.fontSize = getModalSpecificFontSize(key);
+
+  const s = STATE.settings || {};
+  const sizes = s.dialog_sizes || {};
+  const saved = sizes[key];
+
+  const defW = parseFloat(modal.dataset.defaultW) || (modal.classList.contains('xl') ? 1040 : 680);
+  const defH = parseFloat(modal.dataset.defaultH) || (modal.classList.contains('xl') ? 680 : 520);
+
+  let targetW = defW;
+  let targetH = defH;
+  let isMax = false;
+
+  if (saved && saved.width >= 380 && saved.height >= 240) {
+    targetW = saved.width;
+    targetH = saved.height;
+    isMax = !!saved.maximized;
+  } else if (modalBgId === 'modalSettings' && s.settings_window_width >= 380 && s.settings_window_height >= 240) {
+    targetW = s.settings_window_width;
+    targetH = s.settings_window_height;
+  }
+
+  const maxW = Math.max(420, window.innerWidth - 28);
+  const maxH = Math.max(280, window.innerHeight - 28);
+  targetW = Math.min(maxW, Math.max(380, Math.round(targetW)));
+  targetH = Math.min(maxH, Math.max(240, Math.round(targetH)));
+
+  modal.style.width = targetW + 'px';
+  modal.style.height = targetH + 'px';
+  modal.dataset.tx = '0';
+  modal.dataset.ty = '0';
+  modal.style.transform = 'translate(0px, 0px)';
+  modal.classList.toggle('maximized', isMax);
+
+  const maxBtn = modal.querySelector('.modal-max-btn');
+  if (maxBtn) {
+    maxBtn.textContent = isMax ? '🗗' : '🗖';
+    maxBtn.title = isMax ? 'Wiederherstellen (Doppelklick auf Titelleiste)' : 'Maximieren (Doppelklick auf Titelleiste)';
+  }
+}
+
+async function persistModalBounds(modal) {
+  if (!modal) return;
+  const key = modal.dataset.boundsKey || modal.closest('.modal-bg')?.id || 'modalTool';
+  const isMax = modal.classList.contains('maximized');
+  const w = Math.round(parseFloat(modal.style.width) || modal.offsetWidth || 860);
+  const h = Math.round(parseFloat(modal.style.height) || modal.offsetHeight || 600);
+
+  if (!STATE.settings.dialog_sizes) STATE.settings.dialog_sizes = {};
+  STATE.settings.dialog_sizes[key] = { width: w, height: h, maximized: isMax };
+  if (key === 'modalSettings') {
+    STATE.settings.settings_window_width = w;
+    STATE.settings.settings_window_height = h;
+  } else {
+    STATE.settings.child_window_width = w;
+    STATE.settings.child_window_height = h;
+  }
+
+  const res = await rpc('update_window_bounds', { key, width: w, height: h, maximized: isMax });
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+  }
+  if (document.getElementById('modalSettings')?.classList.contains('open')) {
+    populateSettingsUi();
+  }
+}
+
+function toggleMaximizeModal(modalBgId) {
+  const bg = document.getElementById(modalBgId);
+  if (!bg) return;
+  const modal = bg.querySelector('.modal');
+  if (!modal) return;
+  const isMax = modal.classList.toggle('maximized');
+  const maxBtn = modal.querySelector('.modal-max-btn');
+  if (maxBtn) {
+    maxBtn.textContent = isMax ? '🗗' : '🗖';
+    maxBtn.title = isMax ? 'Wiederherstellen (Doppelklick auf Titelleiste)' : 'Maximieren (Doppelklick auf Titelleiste)';
+  }
+  persistModalBounds(modal);
+  if (modal.dataset.boundsKey === 'tool:Treemap') {
+    setTimeout(() => renderTreemapView(false), 30);
+  }
+}
+
+function initResizableModals() {
+  const dirs = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'];
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    const modal = bg.querySelector('.modal');
+    if (!modal || modal.dataset.rzInit === '1') return;
+    modal.dataset.rzInit = '1';
+
+    // Inject Maximize/Restore button into .modal-head right before close button
+    const head = modal.querySelector('.modal-head');
+    if (head) {
+      const closeBtn = head.querySelector('button.ibtn:last-of-type');
+      const maxBtn = document.createElement('button');
+      maxBtn.className = 'ibtn modal-max-btn';
+      maxBtn.type = 'button';
+      maxBtn.textContent = '🗖';
+      maxBtn.title = 'Maximieren / Wiederherstellen (Doppelklick auf Titelleiste)';
+      maxBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleMaximizeModal(bg.id);
+      };
+      if (closeBtn && closeBtn.parentElement === head) {
+        const rightWrap = document.createElement('div');
+        rightWrap.style.cssText = 'display:flex;align-items:center;gap:4px;';
+        head.insertBefore(rightWrap, closeBtn);
+        rightWrap.appendChild(maxBtn);
+        rightWrap.appendChild(closeBtn);
+      } else if (closeBtn && closeBtn.parentElement) {
+        closeBtn.parentElement.insertBefore(maxBtn, closeBtn);
+      } else {
+        head.appendChild(maxBtn);
+      }
+
+      // Double-click header to toggle Maximize / Restore
+      head.addEventListener('dblclick', (e) => {
+        if (e.target.closest('button, .seg, input, select')) return;
+        toggleMaximizeModal(bg.id);
+      });
+
+      // Drag header to move Child-Fenster
+      head.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || e.target.closest('button, .seg, input, select')) return;
+        if (modal.classList.contains('maximized')) return;
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startTx = parseFloat(modal.dataset.tx || '0') || 0;
+        const startTy = parseFloat(modal.dataset.ty || '0') || 0;
+
+        const onMove = (me) => {
+          const nx = startTx + (me.clientX - startX);
+          const ny = startTy + (me.clientY - startY);
+          modal.dataset.tx = String(nx);
+          modal.dataset.ty = String(ny);
+          modal.style.transform = `translate(${nx}px, ${ny}px)`;
+        };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+    }
+
+    // Inject live size badge
+    const badge = document.createElement('div');
+    badge.className = 'modal-size-badge';
+    modal.appendChild(badge);
+
+    // Inject 8 directional resize handles (edges + corners)
+    dirs.forEach(dir => {
+      const h = document.createElement('div');
+      h.className = `modal-rz ${dir}`;
+      if (dir === 'se') {
+        h.title = 'Ziehen zum Ändern der Fenstergröße (wird automatisch für nächste Sitzung gespeichert)';
+        h.textContent = '◢';
+      }
+      h.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (modal.classList.contains('maximized')) {
+          modal.classList.remove('maximized');
+        }
+        const rect = modal.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = rect.width;
+        const startH = rect.height;
+        const startTx = parseFloat(modal.dataset.tx || '0') || 0;
+        const startTy = parseFloat(modal.dataset.ty || '0') || 0;
+        const minW = 380;
+        const minH = 240;
+        const maxW = Math.max(420, window.innerWidth - 16);
+        const maxH = Math.max(280, window.innerHeight - 16);
+
+        modal.classList.add('resizing');
+        badge.textContent = `${Math.round(startW)} × ${Math.round(startH)} px`;
+
+        let treemapRaf = null;
+        const onMove = (me) => {
+          const dx = me.clientX - startX;
+          const dy = me.clientY - startY;
+          let newW = startW;
+          let newH = startH;
+          let newTx = startTx;
+          let newTy = startTy;
+
+          if (dir.includes('e')) {
+            newW = Math.min(maxW, Math.max(minW, startW + dx));
+            newTx = startTx + (newW - startW) / 2;
+          } else if (dir.includes('w')) {
+            newW = Math.min(maxW, Math.max(minW, startW - dx));
+            newTx = startTx - (newW - startW) / 2;
+          }
+
+          if (dir.includes('s')) {
+            newH = Math.min(maxH, Math.max(minH, startH + dy));
+            newTy = startTy + (newH - startH) / 2;
+          } else if (dir.includes('n')) {
+            newH = Math.min(maxH, Math.max(minH, startH - dy));
+            newTy = startTy - (newH - startH) / 2;
+          }
+
+          modal.style.width = Math.round(newW) + 'px';
+          modal.style.height = Math.round(newH) + 'px';
+          modal.dataset.tx = String(newTx);
+          modal.dataset.ty = String(newTy);
+          modal.style.transform = `translate(${newTx}px, ${newTy}px)`;
+          badge.textContent = `${Math.round(newW)} × ${Math.round(newH)} px`;
+
+          if (modal.dataset.boundsKey === 'tool:Treemap' && !treemapRaf) {
+            treemapRaf = requestAnimationFrame(() => {
+              treemapRaf = null;
+              renderTreemapView(false);
+            });
+          }
+        };
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          modal.classList.remove('resizing');
+          persistModalBounds(modal);
+          if (modal.dataset.boundsKey === 'tool:Treemap') {
+            renderTreemapView(false);
+          }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+      modal.appendChild(h);
+    });
+  });
+}
+
 /* ==================== UTILITIES, MODALS, SPLITTER, ZOOM & SHORTCUTS ==================== */
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id, customKey) {
+  const bg = document.getElementById(id);
+  if (!bg) return;
+  applyModalSavedBounds(id, customKey || id);
+  bg.classList.add('open');
+}
+
+function closeModal(id) {
+  const bg = document.getElementById(id);
+  if (!bg) return;
+  const modal = bg.querySelector('.modal');
+  if (modal && bg.classList.contains('open')) {
+    persistModalBounds(modal);
+  }
+  bg.classList.remove('open');
+}
 
 function copyText(txt) {
   navigator.clipboard.writeText(txt || '');
@@ -3619,26 +5214,71 @@ function initSplitter() {
       sp.classList.remove('dragging');
     }
   });
+
+  // Right Inspector Dock Splitter (#dockSplitter)
+  const dsp = document.getElementById('dockSplitter');
+  const dock = document.getElementById('rightDock');
+  if (dsp && dock) {
+    let dockDragging = false;
+    dsp.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || !STATE.dockOpen) return;
+      e.preventDefault();
+      dockDragging = true;
+      dsp.classList.add('dragging');
+    });
+    dsp.addEventListener('dblclick', () => toggleDock());
+    window.addEventListener('mousemove', (e) => {
+      if (!dockDragging) return;
+      const newW = Math.min(640, Math.max(210, window.innerWidth - e.clientX));
+      dock.style.width = Math.round(newW) + 'px';
+    });
+    window.addEventListener('mouseup', () => {
+      if (dockDragging) {
+        dockDragging = false;
+        dsp.classList.remove('dragging');
+      }
+    });
+  }
 }
 
 window.addEventListener('keydown', (e) => {
   const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+    const fly = document.getElementById('tm-tree-flyout');
+    if (fly && fly.classList.contains('open')) {
+      fly.classList.remove('open');
+      return;
+    }
+    document.querySelectorAll('.modal-bg.open').forEach(m => closeModal(m.id));
     closeAllMenus();
     return;
   }
-  if (e.key === 'F1') { e.preventDefault(); openSettingsModal('Shortcuts'); return; }
-  if (e.key === 'F2' && !inInput) { e.preventDefault(); renameSelected(); return; }
-  if (e.key === 'F3') { e.preventDefault(); openViewerModal(false); return; }
-  if (e.key === 'F4') { e.preventDefault(); openViewerModal(true); return; }
-  if (e.key === 'F5' && !inInput) { e.preventDefault(); copyOrMoveActive(false); return; }
-  if (e.key === 'F6' && !inInput) { e.preventDefault(); copyOrMoveActive(true); return; }
-  if (e.key === 'F7') { e.preventDefault(); openCreateModal(e.shiftKey); return; }
-  if ((e.key === 'F8' || (e.key === 'Delete' && !inInput))) { e.preventDefault(); deleteSelected(); return; }
-  if (e.key === 'F9') { e.preventDefault(); openExternalTerminal(); return; }
-  if (e.key === 'F10' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p')) { e.preventDefault(); openCommandPalette(); return; }
-  if (e.key === 'F12') { e.preventDefault(); setDualPaneMode(!STATE.isDualPane); return; }
+  const toolModal = document.querySelector('#modalTool.open .modal');
+  if (toolModal && toolModal.dataset.boundsKey === 'tool:Treemap' && e.key === 'Delete' && !inInput) {
+    e.preventDefault();
+    tmPromptDeleteSelected();
+    return;
+  }
+  if (e.altKey && !e.ctrlKey) {
+    if (e.key === 'F7') { e.preventDefault(); openDeepSearchModal(); return; }
+    if (e.key === 'F5') { e.preventDefault(); openArchiveModal(); return; }
+    if (e.key === 'ArrowLeft' && !inInput) { e.preventDefault(); navHistory(STATE.activeSide, -1); return; }
+    if (e.key === 'ArrowRight' && !inInput) { e.preventDefault(); navHistory(STATE.activeSide, 1); return; }
+  }
+  if (!e.altKey && !e.ctrlKey) {
+    if (e.key === 'F1') { e.preventDefault(); openSettingsModal('Shortcuts'); return; }
+    if (e.key === 'F2' && !inInput) { e.preventDefault(); renameSelected(); return; }
+    if (e.key === 'F3') { e.preventDefault(); openViewerModal(false); return; }
+    if (e.key === 'F4') { e.preventDefault(); openViewerModal(true); return; }
+    if (e.key === 'F5' && !inInput) { e.preventDefault(); copyOrMoveActive(false); return; }
+    if (e.key === 'F6' && !inInput) { e.preventDefault(); copyOrMoveActive(true); return; }
+    if (e.key === 'F7') { e.preventDefault(); openCreateModal(e.shiftKey); return; }
+    if ((e.key === 'F8' || (e.key === 'Delete' && !inInput))) { e.preventDefault(); deleteSelected(); return; }
+    if (e.key === 'F9') { e.preventDefault(); openExternalTerminal(); return; }
+    if (e.key === 'F10') { e.preventDefault(); openCommandPalette(); return; }
+    if (e.key === 'F12') { e.preventDefault(); setDualPaneMode(!STATE.isDualPane); return; }
+  }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openCommandPalette(); return; }
 
   if (e.ctrlKey && !e.shiftKey) {
     const k = e.key.toLowerCase();
@@ -3662,6 +5302,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'l') { e.preventDefault(); openTagModal(); return; }
     if (k === 'o') { e.preventDefault(); openWorkspacesModal(); return; }
     if (k === 'e') { e.preventDefault(); openSmartExportModal(); return; }
+    if (k === 'b') { e.preventDefault(); openBasketModal(); return; }
     if (k === 'a') { e.preventDefault(); openAttrExifModal(); return; }
     if (k === 'j') { e.preventDefault(); toggleQuickConsole(); return; }
     if (k === 'g') { e.preventDefault(); openGitModal(); return; }

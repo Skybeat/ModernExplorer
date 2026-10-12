@@ -35,10 +35,12 @@ impl ColorSettingTarget {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct WindowBounds {
     pub width: f32,
     pub height: f32,
+    #[serde(default)]
+    pub maximized: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,6 +50,7 @@ pub struct AppSettings {
     pub theme: String,
     pub language: String,
     pub show_drive_bar: bool,
+    pub multiline_drive_bar: bool,
     pub show_function_key_bar: bool,
     pub show_tooltips: bool,
     pub file_list_row_height: f32,
@@ -113,6 +116,9 @@ pub struct AppSettings {
     pub check_updates_on_startup: bool,
     pub main_window_width: f32,
     pub main_window_height: f32,
+    pub main_window_x: Option<i32>,
+    pub main_window_y: Option<i32>,
+    pub main_window_maximized: bool,
     pub settings_window_width: f32,
     pub settings_window_height: f32,
     pub child_window_width: f32,
@@ -129,6 +135,7 @@ impl Default for AppSettings {
             theme: "dark".to_string(),
             language: "system".to_string(),
             show_drive_bar: true,
+            multiline_drive_bar: true,
             show_function_key_bar: true,
             show_tooltips: true,
             file_list_row_height: 26.0,
@@ -188,6 +195,9 @@ impl Default for AppSettings {
             check_updates_on_startup: true,
             main_window_width: 1520.0,
             main_window_height: 920.0,
+            main_window_x: None,
+            main_window_y: None,
+            main_window_maximized: false,
             settings_window_width: 860.0,
             settings_window_height: 660.0,
             child_window_width: 960.0,
@@ -277,11 +287,34 @@ impl AppSettings {
         let def = Self::default();
         self.main_window_width = def.main_window_width;
         self.main_window_height = def.main_window_height;
+        self.main_window_x = None;
+        self.main_window_y = None;
+        self.main_window_maximized = false;
         self.settings_window_width = def.settings_window_width;
         self.settings_window_height = def.settings_window_height;
         self.child_window_width = def.child_window_width;
         self.child_window_height = def.child_window_height;
         self.dialog_sizes.clear();
+    }
+
+    pub fn update_dialog_bounds(&mut self, key: &str, width: f32, height: f32, maximized: bool) {
+        let w = width.clamp(380.0, 3840.0);
+        let h = height.clamp(240.0, 2160.0);
+        self.dialog_sizes.insert(
+            key.to_string(),
+            WindowBounds {
+                width: w,
+                height: h,
+                maximized,
+            },
+        );
+        if key == "modalSettings" {
+            self.settings_window_width = w;
+            self.settings_window_height = h;
+        } else if key != "modalCreate" && key != "modalPalette" {
+            self.child_window_width = w;
+            self.child_window_height = h;
+        }
     }
 
     pub fn normalize_hex(input: &str) -> Option<String> {
@@ -347,6 +380,39 @@ impl SettingsStore {
         if let Ok(json) = serde_json::to_string_pretty(settings) {
             let _ = fs::write(path, json);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dialog_bounds_persistence_roundtrip() {
+        let mut settings = AppSettings::default();
+        settings.update_dialog_bounds("modalSettings", 1120.0, 760.0, false);
+        settings.update_dialog_bounds("tool:BatchRename", 1240.0, 810.0, true);
+
+        assert_eq!(settings.settings_window_width, 1120.0);
+        assert_eq!(settings.settings_window_height, 760.0);
+        assert_eq!(settings.child_window_width, 1240.0);
+        assert_eq!(settings.child_window_height, 810.0);
+
+        let temp_file = std::env::temp_dir().join("modern_explorer_test_settings_bounds.json");
+        SettingsStore::save_to(&temp_file, &settings);
+
+        let loaded = SettingsStore::load_from(&temp_file);
+        let _ = fs::remove_file(&temp_file);
+
+        let s_bounds = loaded.dialog_sizes.get("modalSettings").expect("modalSettings bounds saved");
+        assert_eq!(s_bounds.width, 1120.0);
+        assert_eq!(s_bounds.height, 760.0);
+        assert!(!s_bounds.maximized);
+
+        let br_bounds = loaded.dialog_sizes.get("tool:BatchRename").expect("tool:BatchRename bounds saved");
+        assert_eq!(br_bounds.width, 1240.0);
+        assert_eq!(br_bounds.height, 810.0);
+        assert!(br_bounds.maximized);
     }
 }
 

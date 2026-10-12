@@ -66,17 +66,17 @@ impl LanguageCode {
 
     pub fn all_options() -> &'static [(&'static str, &'static str)] {
         &[
-            ("system", "System (Auto)"),
-            ("de", "Deutsch"),
+            ("system", "System Default (Auto)"),
+            ("de", "Deutsch (German)"),
             ("en", "English"),
-            ("es", "Español"),
-            ("fr", "Français"),
-            ("it", "Italiano"),
-            ("nl", "Nederlands"),
-            ("pl", "Polski"),
-            ("pt", "Português"),
-            ("ja", "日本語"),
-            ("zh", "中文"),
+            ("es", "Español (Spanish)"),
+            ("fr", "Français (French)"),
+            ("it", "Italiano (Italian)"),
+            ("nl", "Nederlands (Dutch)"),
+            ("pl", "Polski (Polish)"),
+            ("pt", "Português (Portuguese)"),
+            ("ja", "日本語 (Japanese)"),
+            ("zh", "中文 (Chinese)"),
         ]
     }
 }

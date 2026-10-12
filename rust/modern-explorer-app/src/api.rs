@@ -21,7 +21,7 @@ use modern_explorer_core::{
     remote::{RemoteConnectionProfile, RemoteFileSystemService, RemoteProtocol},
     session::{CommandRegistry, FavoritesStore, SessionState, SessionStore},
     settings::{AppSettings, ColorSettingTarget, SettingsStore},
-    treemap::{StorageTreemapService, TreemapNode},
+    treemap::{StorageTreemapService, TreemapFileCategory, TreemapNode},
     update::GitHubUpdateService,
     viewer::FileContentService,
 };
@@ -101,6 +101,7 @@ impl BackendState {
             "reset_treemap_colors" => self.rpc_reset_treemap_colors(),
             "reset_font_sizes" => self.rpc_reset_font_sizes(),
             "reset_window_bounds" => self.rpc_reset_window_bounds(),
+            "update_window_bounds" => self.rpc_update_window_bounds(params),
             "reset_all_settings" => self.rpc_reset_all_settings(),
             "calc_folder_size" => self.rpc_calc_folder_size(params),
             "autocomplete_path" => self.rpc_autocomplete_path(params),
@@ -344,14 +345,28 @@ impl BackendState {
                     (None, None, None)
                 };
 
+                let lang = LanguageCode::from_setting(&self.settings.language);
+                let (folder_word, file_word) = match lang {
+                    LanguageCode::De => ("Dateiordner", "Datei"),
+                    LanguageCode::Es => ("Carpeta", "Archivo"),
+                    LanguageCode::Fr => ("Dossier", "Fichier"),
+                    LanguageCode::It => ("Cartella", "File"),
+                    LanguageCode::Nl => ("Map", "Bestand"),
+                    LanguageCode::Pl => ("Folder", "Plik"),
+                    LanguageCode::Pt => ("Pasta", "Arquivo"),
+                    LanguageCode::Ja => ("フォルダ", "ファイル"),
+                    LanguageCode::Zh => ("文件夹", "文件"),
+                    LanguageCode::En => ("Folder", "File"),
+                };
                 let type_text = if e.is_directory {
-                    "Dateiordner".to_string()
+                    folder_word.to_string()
                 } else if e.extension.is_empty() {
-                    "Datei".to_string()
+                    file_word.to_string()
                 } else {
                     format!(
-                        "{}-Datei",
-                        e.extension.trim_start_matches('.').to_ascii_uppercase()
+                        "{} {}",
+                        e.extension.trim_start_matches('.').to_ascii_uppercase(),
+                        file_word
                     )
                 };
 
@@ -606,7 +621,10 @@ impl BackendState {
 
     fn rpc_save_settings(&mut self, params: &Value) -> Value {
         if let Some(s_val) = params.get("settings") {
-            if let Ok(updated) = serde_json::from_value::<AppSettings>(s_val.clone()) {
+            if let Ok(mut updated) = serde_json::from_value::<AppSettings>(s_val.clone()) {
+                updated.main_window_x = self.settings.main_window_x;
+                updated.main_window_y = self.settings.main_window_y;
+                updated.main_window_maximized = self.settings.main_window_maximized;
                 self.settings = updated;
                 SettingsStore::save(&self.settings);
                 return json!({ "ok": true, "settings": self.settings });
@@ -658,6 +676,29 @@ impl BackendState {
 
     fn rpc_reset_window_bounds(&mut self) -> Value {
         self.settings.reset_window_bounds_to_default();
+        SettingsStore::save(&self.settings);
+        json!({ "ok": true, "settings": self.settings })
+    }
+
+    fn rpc_update_window_bounds(&mut self, params: &Value) -> Value {
+        let key = params
+            .get("key")
+            .and_then(|v| v.as_str())
+            .unwrap_or("modalTool");
+        let width = params
+            .get("width")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(960.0) as f32;
+        let height = params
+            .get("height")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(680.0) as f32;
+        let maximized = params
+            .get("maximized")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        self.settings
+            .update_dialog_bounds(key, width, height, maximized);
         SettingsStore::save(&self.settings);
         json!({ "ok": true, "settings": self.settings })
     }
@@ -1439,11 +1480,71 @@ impl BackendState {
     }
 
     fn rpc_treemap(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("view");
+        let is_de = LanguageCode::from_setting(&self.settings.language) == LanguageCode::De;
+
+        if sub == "list_tree_subdirs" {
+            let target = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+            let mut subdirs = Vec::new();
+            if let Ok(rd) = fs::read_dir(target) {
+                for entry in rd.flatten() {
+                    if let Ok(ft) = entry.file_type() {
+                        if ft.is_dir() && !ft.is_symlink() {
+                            let p = entry.path();
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            let full_path = p.to_string_lossy().to_string();
+                            subdirs.push((name, full_path));
+                        }
+                    }
+                }
+            }
+            subdirs.sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
+            subdirs.truncate(200);
+            let list: Vec<Value> = subdirs
+                .into_iter()
+                .map(|(name, full_path)| json!({ "name": name, "full_path": full_path }))
+                .collect();
+            return json!({ "ok": true, "subdirs": list });
+        }
+
+        let mut deleted_count = 0usize;
+        let mut freed_bytes = 0u64;
+        if sub == "delete_nodes" {
+            let paths: Vec<String> = params
+                .get("paths")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut deleted_set = HashSet::new();
+            for p in &paths {
+                let size_before = self
+                    .cached_treemap
+                    .as_ref()
+                    .and_then(|r| StorageTreemapService::find_node_by_path(r, p))
+                    .map(|n| n.size_bytes)
+                    .unwrap_or(0);
+                if FileOperationExecutor::delete_entry(Path::new(p)).is_ok()
+                    || !Path::new(p).exists()
+                {
+                    deleted_count += 1;
+                    freed_bytes = freed_bytes.saturating_add(size_before);
+                    deleted_set.insert(p.clone());
+                }
+            }
+            if let Some(root) = &mut self.cached_treemap {
+                StorageTreemapService::remove_paths_from_tree(root, &deleted_set);
+            }
+        }
+
         let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
         let rescan = params
             .get("rescan")
             .and_then(|v| v.as_bool())
-            .unwrap_or(true);
+            .unwrap_or(false);
         let width = params
             .get("width")
             .and_then(|v| v.as_f64())
@@ -1458,73 +1559,217 @@ impl BackendState {
             .unwrap_or("Category");
 
         if rescan || self.cached_treemap.is_none() {
-            self.cached_treemap = Some(StorageTreemapService::scan_directory_tree(dir, 4));
+            self.cached_treemap = Some(StorageTreemapService::scan_directory_tree(dir, 6));
         }
-        let root = self.cached_treemap.as_ref().unwrap();
-        let rects: Vec<Value> =
-            StorageTreemapService::compute_squarified_layout(root, width, height, 160)
-                .into_iter()
-                .map(|r| {
-                    let color_hex = if color_mode == "FileAgeHeatmap" {
-                        StorageTreemapService::get_age_heatmap_color_hex(r.node.modified)
-                            .to_string()
-                    } else {
-                        r.node.category.color_hex(&self.settings)
-                    };
-                    json!({
-                        "x": r.x,
-                        "y": r.y,
-                        "width": r.width,
-                        "height": r.height,
-                        "name": r.node.name,
-                        "full_path": r.node.full_path,
-                        "size_bytes": r.node.size_bytes,
-                        "size_text": format_bytes(r.node.size_bytes),
-                        "category": format!("{:?}", r.node.category),
-                        "color_hex": color_hex,
-                    })
-                })
-                .collect();
 
-        let top_files: Vec<Value> = StorageTreemapService::get_top_largest_files(root, 100)
+        let scanned_root = self.cached_treemap.as_ref().unwrap();
+        let zoom_req = params
+            .get("zoom_path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let current_root = if !zoom_req.is_empty() {
+            StorageTreemapService::find_node_by_path(scanned_root, zoom_req)
+                .unwrap_or(scanned_root)
+        } else {
+            scanned_root
+        };
+
+        if sub == "export_report" {
+            let md_report = StorageTreemapService::export_storage_report(current_root, true);
+            let csv_report = StorageTreemapService::export_storage_report(current_root, false);
+            let stamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+            let target_dir = Path::new(&current_root.full_path);
+            let out_dir = if target_dir.is_dir() {
+                target_dir.to_path_buf()
+            } else {
+                std::env::temp_dir()
+            };
+            let mut md_path = out_dir.join(format!("StorageReport_{}.md", stamp));
+            let mut csv_path = out_dir.join(format!("StorageReport_{}.csv", stamp));
+            if fs::write(&md_path, &md_report).is_err() || fs::write(&csv_path, &csv_report).is_err() {
+                let fallback = std::env::temp_dir();
+                md_path = fallback.join(format!("StorageReport_{}.md", stamp));
+                csv_path = fallback.join(format!("StorageReport_{}.csv", stamp));
+                let _ = fs::write(&md_path, &md_report);
+                let _ = fs::write(&csv_path, &csv_report);
+            }
+            return json!({
+                "ok": true,
+                "md_report": md_report,
+                "csv_report": csv_report,
+                "saved_md_path": md_path.to_string_lossy().to_string(),
+                "saved_csv_path": csv_path.to_string_lossy().to_string(),
+            });
+        }
+
+        let is_zoomed = !current_root
+            .full_path
+            .trim_end_matches(&['\\', '/'][..])
+            .eq_ignore_ascii_case(scanned_root.full_path.trim_end_matches(&['\\', '/'][..]));
+        let parent_path = if is_zoomed {
+            StorageTreemapService::find_parent_path(scanned_root, &current_root.full_path)
+        } else {
+            None
+        };
+
+        let cur_total = current_root.size_bytes.max(1) as f64;
+        let scan_total = scanned_root.size_bytes.max(1) as f64;
+
+        let resolve_node_color = |node: &TreemapNode| -> String {
+            if node.is_directory {
+                "#475569".to_string()
+            } else if color_mode == "FileAgeHeatmap" {
+                StorageTreemapService::get_age_heatmap_color_hex(node.modified).to_string()
+            } else {
+                node.category.color_hex(&self.settings)
+            }
+        };
+
+        let rects: Vec<Value> = StorageTreemapService::build_squarified_treemap_layout(
+            current_root,
+            width,
+            height,
+            2,
+            420,
+            4.0,
+        )
+        .into_iter()
+        .map(|r| {
+            let color_hex = resolve_node_color(&r.node);
+            let pct_view = ((r.node.size_bytes as f64) * 100.0 / cur_total).clamp(0.0, 100.0);
+            let pct_root = ((r.node.size_bytes as f64) * 100.0 / scan_total).clamp(0.0, 100.0);
+            json!({
+                "x": r.x,
+                "y": r.y,
+                "width": r.width,
+                "height": r.height,
+                "depth": r.depth,
+                "is_group_container": r.is_group_container,
+                "name": r.node.name,
+                "full_path": r.node.full_path,
+                "relative_path": r.node.relative_path,
+                "extension": if r.node.extension.is_empty() {
+                    if is_de { "<keine Endung>".to_string() } else { "<no extension>".to_string() }
+                } else {
+                    r.node.extension.clone()
+                },
+                "is_directory": r.node.is_directory,
+                "size_bytes": r.node.size_bytes,
+                "size_text": format_bytes(r.node.size_bytes),
+                "file_count": r.node.file_count,
+                "folder_count": r.node.folder_count,
+                "percentage_view": pct_view,
+                "percentage_root": pct_root,
+                "category": format!("{:?}", r.node.category),
+                "category_label": r.node.category.display_name(is_de),
+                "category_short": r.node.category.short_name(is_de),
+                "color_hex": color_hex,
+                "modified_text": r.node.modified.format("%Y-%m-%d %H:%M:%S").to_string(),
+            })
+        })
+        .collect();
+
+        let top_files: Vec<Value> = StorageTreemapService::get_top_largest_files(current_root, 100)
             .into_iter()
             .map(|f| {
+                let pct_view = ((f.size_bytes as f64) * 100.0 / cur_total).clamp(0.0, 100.0);
+                let pct_root = ((f.size_bytes as f64) * 100.0 / scan_total).clamp(0.0, 100.0);
+                let color_hex = resolve_node_color(&f);
                 json!({
                     "name": f.name,
                     "full_path": f.full_path,
+                    "relative_path": f.relative_path,
+                    "extension": if f.extension.is_empty() {
+                        if is_de { "<keine Endung>".to_string() } else { "<no extension>".to_string() }
+                    } else {
+                        f.extension.clone()
+                    },
+                    "is_directory": false,
                     "size_bytes": f.size_bytes,
                     "size_text": format_bytes(f.size_bytes),
+                    "percentage": pct_view,
+                    "percentage_root": pct_root,
+                    "file_count": 1,
+                    "folder_count": 0,
                     "category": format!("{:?}", f.category),
-                    "color_hex": f.category.color_hex(&self.settings),
+                    "category_label": f.category.display_name(is_de),
+                    "category_short": f.category.short_name(is_de),
+                    "color_hex": color_hex,
+                    "modified_text": f.modified.format("%Y-%m-%d %H:%M:%S").to_string(),
                 })
             })
             .collect();
 
-        let children: Vec<Value> = root
+        let children: Vec<Value> = current_root
             .children
             .iter()
+            .take(250)
             .map(|c| {
+                let pct_view = ((c.size_bytes as f64) * 100.0 / cur_total).clamp(0.0, 100.0);
+                let pct_root = ((c.size_bytes as f64) * 100.0 / scan_total).clamp(0.0, 100.0);
+                let color_hex = resolve_node_color(c);
                 json!({
                     "name": c.name,
                     "full_path": c.full_path,
+                    "relative_path": c.relative_path,
+                    "extension": if c.extension.is_empty() {
+                        if is_de { "<keine Endung>".to_string() } else { "<no extension>".to_string() }
+                    } else {
+                        c.extension.clone()
+                    },
                     "is_directory": c.is_directory,
                     "size_bytes": c.size_bytes,
                     "size_text": format_bytes(c.size_bytes),
+                    "percentage": pct_view,
+                    "percentage_root": pct_root,
                     "file_count": c.file_count,
+                    "folder_count": c.folder_count,
+                    "category": format!("{:?}", c.category),
+                    "category_label": c.category.display_name(is_de),
+                    "category_short": c.category.short_name(is_de),
+                    "color_hex": color_hex,
+                    "modified_text": c.modified.format("%Y-%m-%d %H:%M:%S").to_string(),
+                })
+            })
+            .collect();
+
+        let ext_stats =
+            StorageTreemapService::compute_extension_stats(current_root, &self.settings, is_de, 60);
+
+        let legend_categories: Vec<Value> = TreemapFileCategory::all_categories()
+            .iter()
+            .map(|&cat| {
+                json!({
+                    "category": format!("{:?}", cat),
+                    "label": cat.display_name(is_de),
+                    "short_label": cat.short_name(is_de),
+                    "color_hex": cat.color_hex(&self.settings),
                 })
             })
             .collect();
 
         json!({
-            "root_path": root.full_path,
-            "total_size_text": format_bytes(root.size_bytes),
-            "file_count": root.file_count,
-            "folder_count": root.folder_count,
+            "scanned_root_path": scanned_root.full_path,
+            "scanned_total_bytes": scanned_root.size_bytes,
+            "scanned_total_size_text": format_bytes(scanned_root.size_bytes),
+            "root_path": current_root.full_path,
+            "root_name": current_root.name,
+            "parent_path": parent_path,
+            "is_zoomed": is_zoomed,
+            "total_bytes": current_root.size_bytes,
+            "total_size_text": format_bytes(current_root.size_bytes),
+            "file_count": current_root.file_count,
+            "folder_count": current_root.folder_count,
             "children": children,
             "top_files": top_files,
+            "ext_stats": ext_stats,
             "rects": rects,
-            "md_report": StorageTreemapService::export_storage_report(root, true),
-            "csv_report": StorageTreemapService::export_storage_report(root, false),
+            "legend_categories": legend_categories,
+            "deleted_count": deleted_count,
+            "freed_bytes": freed_bytes,
+            "freed_text": format_bytes(freed_bytes),
+            "md_report": StorageTreemapService::export_storage_report(current_root, true),
+            "csv_report": StorageTreemapService::export_storage_report(current_root, false),
         })
     }
 

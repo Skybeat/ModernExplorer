@@ -8,16 +8,22 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
+#[cfg(target_os = "windows")]
+use tao::platform::windows::WindowBuilderExtWindows;
 use tao::{
-    dpi::LogicalSize,
+    dpi::{LogicalSize, PhysicalPosition},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Icon, WindowBuilder},
 };
 use tiny_http::{Header, Method, Response, Server};
 use wry::{WebContext, WebViewBuilder};
 
 const INDEX_HTML: &str = include_str!("ui.html");
+const APP_ICON_ICO: &[u8] = include_bytes!("../assets/AppIcon.ico");
+const APP_ICON_PNG: &[u8] = include_bytes!("../assets/AppIcon.png");
+const APP_ICON_RGBA64: &[u8] = include_bytes!("../assets/AppIcon64.rgba");
 
 #[derive(Deserialize)]
 struct RpcRequest {
@@ -96,6 +102,26 @@ fn start_local_rpc_server(state: Arc<Mutex<BackendState>>) -> u16 {
                 continue;
             }
 
+            if method == Method::Get && (url == "/app-icon.png" || url.starts_with("/app-icon.png?")) {
+                let header = Header::from_bytes(&b"Content-Type"[..], &b"image/png"[..]).unwrap();
+                let cache = Header::from_bytes(&b"Cache-Control"[..], &b"max-age=3600"[..]).unwrap();
+                let response = Response::from_data(APP_ICON_PNG.to_vec())
+                    .with_header(header)
+                    .with_header(cache);
+                let _ = request.respond(response);
+                continue;
+            }
+
+            if method == Method::Get && (url == "/favicon.ico" || url.starts_with("/favicon.ico?")) {
+                let header = Header::from_bytes(&b"Content-Type"[..], &b"image/x-icon"[..]).unwrap();
+                let cache = Header::from_bytes(&b"Cache-Control"[..], &b"max-age=3600"[..]).unwrap();
+                let response = Response::from_data(APP_ICON_ICO.to_vec())
+                    .with_header(header)
+                    .with_header(cache);
+                let _ = request.respond(response);
+                continue;
+            }
+
             if method == Method::Get && url.starts_with("/file?") {
                 let query = &url["/file?".len()..];
                 let mut file_path = String::new();
@@ -163,23 +189,58 @@ fn main() {
     }
 
     let state = Arc::new(Mutex::new(BackendState::new()));
-    let (win_w, win_h) = {
+    let (win_w, win_h, win_x, win_y, win_max) = {
         let g = state.lock().unwrap();
         (
             g.settings.main_window_width.clamp(980.0, 3840.0) as f64,
             g.settings.main_window_height.clamp(620.0, 2160.0) as f64,
+            g.settings.main_window_x,
+            g.settings.main_window_y,
+            g.settings.main_window_maximized,
         )
     };
     let port = start_local_rpc_server(state.clone());
     let app_url = format!("http://127.0.0.1:{port}/");
 
+    let app_icon = Icon::from_rgba(APP_ICON_RGBA64.to_vec(), 64, 64).ok();
+
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("ModernExplorer Studio — Dual-Pane File Manager v1.9.0 (Rust Edition)")
+    let mut wb = WindowBuilder::new()
+        .with_title("ModernExplorer Studio — Dual-Pane File Manager v1.9.1 (Rust Edition)")
         .with_inner_size(LogicalSize::new(win_w, win_h))
         .with_min_inner_size(LogicalSize::new(980.0, 620.0))
+        .with_window_icon(app_icon.clone());
+
+    #[cfg(target_os = "windows")]
+    {
+        wb = wb.with_taskbar_icon(app_icon);
+    }
+
+    let window = wb
         .build(&event_loop)
         .expect("Failed to create native window");
+
+    if let (Some(x), Some(y)) = (win_x, win_y) {
+        if x > -10000 && y > -10000 {
+            let pos = PhysicalPosition::new(x, y);
+            window.set_outer_position(pos);
+            window.set_inner_size(LogicalSize::new(win_w, win_h));
+            window.set_outer_position(pos);
+        }
+    }
+
+    let mut saved_normal_pos = window
+        .outer_position()
+        .unwrap_or_else(|_| PhysicalPosition::new(40, 40));
+    let mut saved_normal_size = window.inner_size();
+    let mut was_maximized = false;
+    let mut pending_restore = false;
+    let mut restore_guard_until: Option<Instant> = None;
+
+    if win_max {
+        window.set_maximized(true);
+        was_maximized = true;
+    }
 
     let webview_data_dir = AppPaths::app_data_dir().join("WebView2");
     let mut web_context = WebContext::new(Some(webview_data_dir));
@@ -193,15 +254,123 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
-        if let Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } = event
-        {
-            if let Ok(guard) = state.lock() {
-                SettingsStore::save(&guard.settings);
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Moved(pos),
+                ..
+            } => {
+                let is_max = window.is_maximized();
+                let is_min = window.is_minimized();
+                let in_guard = restore_guard_until
+                    .map(|until| Instant::now() < until)
+                    .unwrap_or(false);
+
+                if is_max {
+                    was_maximized = true;
+                    if let Ok(mut guard) = state.lock() {
+                        guard.settings.main_window_maximized = true;
+                    }
+                } else if !is_min {
+                    if was_maximized {
+                        was_maximized = false;
+                        pending_restore = true;
+                        restore_guard_until = Some(Instant::now() + Duration::from_millis(250));
+                        window.set_outer_position(saved_normal_pos);
+                        window.set_inner_size(saved_normal_size);
+                        window.set_outer_position(saved_normal_pos);
+                        if let Ok(mut guard) = state.lock() {
+                            guard.settings.main_window_maximized = false;
+                        }
+                    } else if in_guard {
+                        if pos != saved_normal_pos {
+                            window.set_outer_position(saved_normal_pos);
+                        }
+                    } else if pos.x > -10000 && pos.y > -10000 {
+                        saved_normal_pos = pos;
+                        let cur_size = window.inner_size();
+                        if cur_size.width >= 600 && cur_size.height >= 400 {
+                            saved_normal_size = cur_size;
+                        }
+                        if let Ok(mut guard) = state.lock() {
+                            guard.settings.main_window_x = Some(pos.x);
+                            guard.settings.main_window_y = Some(pos.y);
+                            guard.settings.main_window_maximized = false;
+                        }
+                    }
+                }
             }
-            *control_flow = ControlFlow::Exit;
+            Event::WindowEvent {
+                event: WindowEvent::Resized(physical_size),
+                ..
+            } => {
+                let is_max = window.is_maximized();
+                let is_min = window.is_minimized();
+                let in_guard = restore_guard_until
+                    .map(|until| Instant::now() < until)
+                    .unwrap_or(false);
+
+                if is_max {
+                    was_maximized = true;
+                    if let Ok(mut guard) = state.lock() {
+                        guard.settings.main_window_maximized = true;
+                    }
+                } else if !is_min {
+                    if was_maximized {
+                        was_maximized = false;
+                        pending_restore = true;
+                        restore_guard_until = Some(Instant::now() + Duration::from_millis(250));
+                        window.set_outer_position(saved_normal_pos);
+                        window.set_inner_size(saved_normal_size);
+                        window.set_outer_position(saved_normal_pos);
+                        if let Ok(mut guard) = state.lock() {
+                            guard.settings.main_window_maximized = false;
+                        }
+                    } else if in_guard {
+                        if physical_size != saved_normal_size {
+                            window.set_inner_size(saved_normal_size);
+                        }
+                        if window.outer_position().ok() != Some(saved_normal_pos) {
+                            window.set_outer_position(saved_normal_pos);
+                        }
+                    } else {
+                        let scale = window.scale_factor();
+                        let logical = physical_size.to_logical::<f64>(scale);
+                        if logical.width >= 600.0 && logical.height >= 400.0 {
+                            saved_normal_size = physical_size;
+                            if let Ok(pos) = window.outer_position() {
+                                if pos.x > -10000 && pos.y > -10000 {
+                                    saved_normal_pos = pos;
+                                }
+                            }
+                            if let Ok(mut guard) = state.lock() {
+                                guard.settings.main_window_width = logical.width as f32;
+                                guard.settings.main_window_height = logical.height as f32;
+                                guard.settings.main_window_x = Some(saved_normal_pos.x);
+                                guard.settings.main_window_y = Some(saved_normal_pos.y);
+                                guard.settings.main_window_maximized = false;
+                            }
+                        }
+                    }
+                }
+            }
+            Event::MainEventsCleared => {
+                if pending_restore {
+                    pending_restore = false;
+                    window.set_outer_position(saved_normal_pos);
+                    window.set_inner_size(saved_normal_size);
+                    window.set_outer_position(saved_normal_pos);
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                if let Ok(guard) = state.lock() {
+                    SettingsStore::save(&guard.settings);
+                }
+                *control_flow = ControlFlow::Exit;
+            }
+            _ => {}
         }
     });
 }
