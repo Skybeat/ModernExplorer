@@ -206,7 +206,7 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let mut wb = WindowBuilder::new()
-        .with_title("ModernExplorer Studio — Dual-Pane File Manager v1.9.1 (Rust Edition)")
+        .with_title("ModernExplorer Studio — Dual-Pane File Manager v1.9.2 (Rust Edition)")
         .with_inner_size(LogicalSize::new(win_w, win_h))
         .with_min_inner_size(LogicalSize::new(980.0, 620.0))
         .with_window_icon(app_icon.clone());

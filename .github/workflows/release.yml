@@ -1,4 +1,4 @@
-name: Multi-OS Release & Installer Build
+name: Rust Multi-OS Release & Installer Build
 
 on:
   push:
@@ -7,184 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.1)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.2)'
         required: true
-        default: 'v1.9.1'
+        default: 'v1.9.2'
 
 permissions:
   contents: write
 
 jobs:
-  build-windows:
-    name: Build Windows (Zip + Setup.exe Installers)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Run unit tests
-        run: dotnet test tests/ModernExplorer.Core.Tests/ModernExplorer.Core.Tests.csproj -c Release
-
-      - name: Build Windows x64, ARM64, and x86 + Compile Inno Setup Installers
-        shell: pwsh
-        run: |
-          $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
-          $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.6.0" }
-
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $distFull = (Resolve-Path dist).Path
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-
-          # 1. Windows x64 (WinUI 3 - Self-Contained .NET 9 + Windows App SDK + VC++ CRT)
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$version
-          $x64Dir = (Resolve-Path "src/ModernExplorer.App/bin/x64/Release/net9.0-windows10.0.19041.0/win-x64").Path
-          Remove-Item "$x64Dir/Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
-          $vcDlls64 = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
-          foreach ($dll in $vcDlls64) {
-              $srcDll = Join-Path $env:SystemRoot "System32\$dll"
-              if (Test-Path $srcDll) { Copy-Item $srcDll -Destination $x64Dir -Force }
-          }
-          Compress-Archive -Path "$x64Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-x64.zip" -Force
-          & $iscc "/DAppVersion=$version" "/DTargetRid=win-x64" "/DSourceDir=$x64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
-
-          # 2. Windows ARM64 (WinUI 3 - Self-Contained .NET 9 + Windows App SDK)
-          dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$version
-          $arm64Dir = (Resolve-Path "src/ModernExplorer.App/bin/ARM64/Release/net9.0-windows10.0.19041.0/win-arm64").Path
-          Remove-Item "$arm64Dir/Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
-          Compress-Archive -Path "$arm64Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-arm64.zip" -Force
-          & $iscc "/DAppVersion=$version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
-
-          # 3. Windows x86 (CrossPlatform Desktop - Self-Contained .NET 9 + VC++ CRT)
-          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj -c Release -r win-x86 --self-contained true -p:SelfContained=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:Version=$version -o publish/win-x86
-          $x86Dir = (Resolve-Path "publish/win-x86").Path
-          $vcDlls86 = @("vcruntime140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
-          foreach ($dll in $vcDlls86) {
-              $srcDll86 = Join-Path $env:SystemRoot "SysWOW64\$dll"
-              if (Test-Path $srcDll86) { Copy-Item $srcDll86 -Destination $x86Dir -Force }
-          }
-          Compress-Archive -Path "$x86Dir/*" -DestinationPath "$distFull/ModernExplorer-windows-x86.zip" -Force
-          & $iscc "/DAppVersion=$version" "/DTargetRid=win-x86" "/DSourceDir=$x86Dir" "/DOutputDir=$distFull" "installers/windows/ModernExplorer.iss"
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-releases
-          path: |
-            dist/*.zip
-            dist/*.exe
-
-  build-linux:
-    name: Build Linux (${{ matrix.rid }} Zip + .deb + .sh Installer)
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rid: [linux-x64, linux-arm64]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Publish & Build Linux Installers (.deb & .sh)
-        run: |
-          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
-          VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.6.0"; fi
-
-          mkdir -p dist
-          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
-            -c Release \
-            -r ${{ matrix.rid }} \
-            --self-contained true \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:IncludeAllContentForSelfExtract=true \
-            -p:Version="${VERSION}" \
-            -o publish/${{ matrix.rid }}
-
-          (cd publish/${{ matrix.rid }} && zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .)
-
-          sed -i 's/\r$//' installers/linux/build-linux-installers.sh
-          chmod +x installers/linux/build-linux-installers.sh
-          ./installers/linux/build-linux-installers.sh \
-            "${{ matrix.rid }}" \
-            "${VERSION}" \
-            "$(pwd)/publish/${{ matrix.rid }}" \
-            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
-            "$(pwd)/dist"
-
-      - name: Upload Linux ${{ matrix.rid }} artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-releases-${{ matrix.rid }}
-          path: |
-            dist/*.zip
-            dist/*.deb
-            dist/*.sh
-
-  build-macos:
-    name: Build macOS (${{ matrix.rid }} Zip + .dmg + .pkg Installer)
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        rid: [osx-x64, osx-arm64]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Publish & Build macOS Installers (.dmg & .pkg)
-        run: |
-          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
-          VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.6.0"; fi
-
-          mkdir -p dist
-          dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj \
-            -c Release \
-            -r ${{ matrix.rid }} \
-            --self-contained true \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:IncludeAllContentForSelfExtract=true \
-            -p:Version="${VERSION}" \
-            -o publish/${{ matrix.rid }}
-
-          (cd publish/${{ matrix.rid }} && zip -r ../../dist/ModernExplorer-${{ matrix.rid }}.zip .)
-
-          sed -i '' 's/\r$//' installers/macos/build-macos-installers.sh || true
-          chmod +x installers/macos/build-macos-installers.sh
-          ./installers/macos/build-macos-installers.sh \
-            "${{ matrix.rid }}" \
-            "${VERSION}" \
-            "$(pwd)/publish/${{ matrix.rid }}" \
-            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
-            "$(pwd)/dist"
-
-      - name: Upload macOS ${{ matrix.rid }} artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-releases-${{ matrix.rid }}
-          path: |
-            dist/*.zip
-            dist/*.dmg
-            dist/*.pkg
-
   build-rust-windows:
     name: Build Rust Windows (x64 & ARM64 Portable + Setup.exe Installers)
     runs-on: windows-latest
@@ -205,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.0" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.2" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -227,8 +57,8 @@ jobs:
             $stageDir = Join-Path $distFull "stage-$($t.Rid)"
             New-Item -ItemType Directory -Force -Path "$stageDir/Assets" | Out-Null
             Copy-Item $exePath -Destination "$stageDir/ModernExplorer-Rust.exe" -Force
-            Copy-Item "src/ModernExplorer.App/Assets/AppIcon.ico" -Destination "$stageDir/Assets/AppIcon.ico" -Force
-            Copy-Item "src/ModernExplorer.App/Assets/AppIcon.png" -Destination "$stageDir/Assets/AppIcon.png" -Force
+            Copy-Item "rust/modern-explorer-app/assets/AppIcon.ico" -Destination "$stageDir/Assets/AppIcon.ico" -Force
+            Copy-Item "rust/modern-explorer-app/assets/AppIcon.png" -Destination "$stageDir/Assets/AppIcon.png" -Force
             Set-Content -Path "$stageDir/README-Portable.txt" -Value "ModernExplorer Studio v$version (Rust Edition - $($t.ArchLabel) Portable)`r`nStart ModernExplorer-Rust.exe directly without installation." -Encoding UTF8
             Compress-Archive -Path "$stageDir/*" -DestinationPath "$distFull/ModernExplorer-Rust-$($t.ArchLabel)-Portable.zip" -Force
 
@@ -287,7 +117,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.0"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.2"; fi
 
           cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
 
@@ -298,7 +128,7 @@ jobs:
             "${{ matrix.arch_id }}" \
             "${VERSION}" \
             "$(pwd)/rust/target/${{ matrix.target }}/release/ModernExplorer-Rust" \
-            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/rust/modern-explorer-app/assets/AppIcon.png" \
             "$(pwd)/dist-rust"
 
       - name: Upload Rust Linux ${{ matrix.arch_id }} artifacts
@@ -337,7 +167,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.0"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.2"; fi
 
           cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
 
@@ -348,7 +178,7 @@ jobs:
             "${{ matrix.arch_id }}" \
             "${VERSION}" \
             "$(pwd)/rust/target/${{ matrix.target }}/release/ModernExplorer-Rust" \
-            "$(pwd)/src/ModernExplorer.App/Assets/AppIcon.png" \
+            "$(pwd)/rust/modern-explorer-app/assets/AppIcon.png" \
             "$(pwd)/dist-rust"
 
       - name: Upload Rust macOS ${{ matrix.arch_id }} artifacts
@@ -362,52 +192,40 @@ jobs:
             dist-rust/*.pkg
 
   publish-github-release:
-    name: Publish GitHub Release
-    needs: [build-windows, build-linux, build-macos, build-rust-windows, build-rust-linux, build-rust-macos]
+    name: Publish GitHub Release (Rust Edition)
+    needs: [build-rust-windows, build-rust-linux, build-rust-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract latest release notes from CHANGELOG.md
+      - name: Generate Release Notes
         shell: pwsh
         run: |
           $tag = "${{ github.event.inputs.tag_name || github.ref_name }}"
-          $changelogSection = ""
-          if (Test-Path "CHANGELOG.md") {
-            $rawChangelog = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
-            $match = [regex]::Match($rawChangelog, '(?ms)^## \[[^\r\n]+\r?\n(.+?)(?=\r?\n---\r?\n|\z)')
-            if ($match.Success) {
-              $changelogSection = $match.Groups[1].Value.Trim()
-              $changelogSection = [regex]::Replace($changelogSection, '\[([^\]]+)\]\(file:///[^)]+\)', '$1')
-            }
-          }
-          if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
-            $notes = "## What's New in Modern Explorer $tag`n`n$changelogSection"
-          } else {
-            $lines = @(
-              "## What's New in Modern Explorer $tag (.NET & Rust Studio Editions)",
-              "",
-              "### ModernExplorer Studio (Rust Edition) Updates in $tag",
-              "- **Resizable, Draggable & Maximizable Child Windows with Session Persistence:** All child windows and tool dialogs feature 8-way resize handles, draggable headers, and maximize/restore controls, saving their exact bounds per dialog across sessions (`dialog_sizes` in `settings.json`).",
-              "- **Full 14-Language Live Localization (`I18N`):** Instant live switching across all 14 supported languages without restart across menus, toolbars, column headers, inspector dock, settings, context menus, and all 20 power tools.",
-              "- **Full .NET-Parity Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout, upper split view (`Folder Hierarchy` / `Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).",
-              "- **Minimizable & Resizable Right Inspector Dock (`Ctrl+Q`) & Multi-Line Drive Bar:** The right Inspector Dock can be minimized to a slim 28px vertical bar or resized (`210px-640px`), and the Drive Bar supports automatic multi-line wrapping (`multiline_drive_bar`).",
-              "- **Exact Main Window Restore from Maximize, Native App Icon & `Alt+F7` Deep Search Fix:**",
-              "  - Restoring from Maximize after manually stretching the main window to the full monitor work area restores the exact manual top position (`y = 0`) and height without losing a titlebar height at the top.",
-              "  - Embedded official `AppIcon.ico` / `AppIcon.png` into the native Windows executable (`rc.exe`), native window & taskbar icons (`WindowBuilder`), and Studio UI.",
-              "  - Fixed `Alt+F7` shortcut so it opens Recursive Deep Search instead of triggering the `F7` create dialog.",
-              "",
-              "### Available Multi-OS Packages (Rust & .NET Editions)",
-              "- **Windows (`x64` & `ARM64`):** Portable `.exe`, Portable `.zip`, and Inno Setup 6 Installer (`Setup-win-x64.exe`, `Setup-win-arm64.exe`)",
-              "- **macOS (`Intel x64` & `Apple Silicon arm64`):** Portable `.app` (`.zip` / `.tar.gz`), `.dmg` Disk Image, and `.pkg` Installer",
-              "- **Linux (`x64` & `ARM64`):** Portable `.tar.gz`, `.zip`, `.AppImage`, Debian/Ubuntu `.deb`, Fedora/RHEL/openSUSE `.rpm`, Arch Linux `.pkg.tar.zst`, and universal `.sh` Installer"
-            )
-            $notes = $lines -join "`n"
-          }
+          $lines = @(
+            "## What's New in Modern Explorer Studio $tag (Rust Edition)",
+            "",
+            "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            "- **Full Keyboard Navigation in Explorer Panes:** Navigate seamlessly through files and folders using Arrow keys (`Up`, `Down`, `Left`, `Right`), `Home`, `End`, `PageUp`, `PageDown`, `Shift+Arrow` range selection, `Insert` (mark & move down), `Space` (mark), `Ctrl+A` (mark all), and instant type-ahead character jump across all 8 view modes.",
+            "- **Resizable, Draggable & Maximizable Child Windows with Session Persistence:** All child windows and tool dialogs feature 8-way resize handles, draggable headers, and maximize/restore controls, saving their exact bounds per dialog across sessions (`dialog_sizes` in `settings.json`).",
+            "- **Full 14-Language Live Localization (`I18N`):** Instant live switching across all 14 supported languages without restart across menus, toolbars, column headers, inspector dock, settings, context menus, and all 20 power tools.",
+            "- **Full .NET-Parity Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout, upper split view (`Folder Hierarchy` / `Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).",
+            "- **Minimizable & Resizable Right Inspector Dock (`Ctrl+Q`) & Multi-Line Drive Bar:** The right Inspector Dock can be minimized to a slim 28px vertical bar or resized (`210px-640px`), and the Drive Bar supports automatic multi-line wrapping (`multiline_drive_bar`).",
+            "- **Exact Main Window Restore from Maximize, Native App Icon & `Alt+F7` Deep Search Fix:**",
+            "  - Restoring from Maximize after manually stretching the main window to the full monitor work area restores the exact manual top position (`y = 0`) and height without losing a titlebar height at the top.",
+            "  - Embedded official `AppIcon.ico` / `AppIcon.png` into the native Windows executable (`rc.exe`), native window & taskbar icons (`WindowBuilder`), and Studio UI.",
+            "  - Fixed `Alt+F7` shortcut so it opens Recursive Deep Search instead of triggering the `F7` create dialog.",
+            "",
+            "### Available Multi-OS Packages (Rust Edition - Portable & Installers)",
+            "- **Windows (`x64` & `ARM64`):** Portable `.exe`, Portable `.zip`, and Inno Setup 6 Installer (`ModernExplorer-Rust-Setup-win-x64.exe`, `ModernExplorer-Rust-Setup-win-arm64.exe`)",
+            "- **macOS (`Intel x64` & `Apple Silicon arm64`):** Portable `.app` (`.zip` / `.tar.gz`), `.dmg` Disk Image, and `.pkg` Installer",
+            "- **Linux (`x64` & `ARM64`):** Portable `.tar.gz`, `.zip`, `.AppImage`, Debian/Ubuntu `.deb`, Fedora/RHEL/openSUSE `.rpm`, Arch Linux `.pkg.tar.zst`, and universal `.sh` Installer"
+          )
+          $notes = $lines -join "`n"
           Set-Content -Path "release-notes.md" -Value $notes -Encoding UTF8
 
-      - name: Download all artifacts
+      - name: Download all Rust artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-assets
@@ -417,18 +235,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-          name: Modern Explorer ${{ github.event.inputs.tag_name || github.ref_name }} (.NET & Rust Studio Editions)
+          name: Modern Explorer Studio ${{ github.event.inputs.tag_name || github.ref_name }} (Rust Edition)
           body_path: release-notes.md
           generate_release_notes: true
           files: |
-            release-assets/*.zip
-            release-assets/*.tar.gz
-            release-assets/*.exe
-            release-assets/*.deb
-            release-assets/*.rpm
-            release-assets/*.pkg.tar.zst
-            release-assets/*.AppImage
-            release-assets/*.sh
-            release-assets/*.dmg
-            release-assets/*.pkg
+            release-assets/ModernExplorer-Rust-*
+
 
