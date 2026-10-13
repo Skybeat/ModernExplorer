@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "modern-explorer-app"
-version = "1.9.3"
+version = "1.9.4"
 dependencies = [
  "chrono",
  "modern-explorer-core",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "modern-explorer-core"
-version = "1.9.3"
+version = "1.9.4"
 dependencies = [
  "chrono",
  "crc32fast",

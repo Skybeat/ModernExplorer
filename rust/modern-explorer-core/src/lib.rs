@@ -116,6 +116,29 @@ mod tests {
         assert_eq!(dup_res.groups.len(), 1);
         assert_eq!(dup_res.total_wasted_bytes, 8192);
 
+        // Test with progress callback
+        let mut progress_events = Vec::new();
+        let dup_res2 = DuplicateFinderService::scan_directory_with_progress(
+            dir.path(),
+            1,
+            |p| progress_events.push(p.clone()),
+            None,
+        );
+        assert_eq!(dup_res2.groups.len(), 1);
+        assert!(!progress_events.is_empty());
+        assert!(progress_events.iter().any(|p| p.stage == 1));
+        assert!(progress_events.iter().any(|p| p.percentage >= 99.0));
+
+        // Test cancellation
+        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let dup_res_cancelled = DuplicateFinderService::scan_directory_with_progress(
+            dir.path(),
+            1,
+            |_| {},
+            Some(cancel),
+        );
+        assert_eq!(dup_res_cancelled.groups.len(), 0);
+
         let tree = StorageTreemapService::scan_directory_tree(dir.path(), 4);
         assert_eq!(tree.size_bytes, 16384);
         let top = StorageTreemapService::get_top_largest_files(&tree, 10);

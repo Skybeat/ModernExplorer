@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.3 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.4 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -825,6 +825,14 @@
     padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left;
   }
   table.data-tbl th { background: var(--bg-sunken); color: var(--fg-dim); position: sticky; top: 0; }
+
+  @keyframes dupSpin { 100% { transform: rotate(360deg); } }
+  @keyframes dupStripes { 0% { background-position: 0 0; } 100% { background-position: 24px 0; } }
+  .dup-progress-stripes {
+    background-size: 24px 24px;
+    background-image: linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%, transparent);
+    animation: dupStripes 0.8s linear infinite;
+  }
 </style>
 </head>
 <body>
@@ -1093,7 +1101,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.3 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.4 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1122,7 +1130,8 @@
         <div class="prefs-nav-item" data-cat="Behavior" onclick="switchSettingsCat('Behavior')">📁 Dateiliste &amp; Verhalten</div>
         <div class="prefs-nav-item" data-cat="Preview" onclick="switchSettingsCat('Preview')">🖼️ Bildvorschau</div>
         <div class="prefs-nav-item" data-cat="Fonts" onclick="switchSettingsCat('Fonts')">🔤 Schriftgrößen</div>
-        <div class="prefs-nav-item" data-cat="Session" onclick="switchSettingsCat('Session')">💾 Sitzung, Updates &amp; Fenster</div>
+        <div class="prefs-nav-item" data-cat="WindowSizes" onclick="switchSettingsCat('WindowSizes')">📐 Fenstergrößen</div>
+        <div class="prefs-nav-item" data-cat="Session" onclick="switchSettingsCat('Session')">💾 Sitzung &amp; Updates</div>
         <div class="prefs-nav-item" data-cat="Shortcuts" onclick="switchSettingsCat('Shortcuts')">⌨️ Tastenkürzel</div>
       </div>
 
@@ -1307,12 +1316,59 @@
         <div class="prefs-card" id="fontChildWindowsList"></div>
       </div>
 
-      <!-- 6. SESSION, UPDATES & WINDOW BOUNDS -->
+      <!-- 6. WINDOW SIZES & BOUNDS (Full .NET Parity) -->
+      <div class="prefs-pane" id="pcat-WindowSizes">
+        <div class="prefs-section-title">📐 Gespeicherte Fenstergrößen</div>
+        <div class="prefs-card">
+          <div style="margin-bottom:12px;font-size:12.5px;color:var(--fg-dim);">
+            ModernExplorer merkt sich automatisch die zuletzt verwendete Größe, Position und den Maximiert-Status des Hauptfensters sowie aller Child-Fenster:
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:10px;margin-bottom:14px;">
+            <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
+              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🖥️ Hauptfenster</div>
+              <div id="lblMainWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">1520 × 920 px (Normal)</div>
+            </div>
+            <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
+              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">⚙️ Einstellungsfenster</div>
+              <div id="lblSettingsWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">980 × 680 px</div>
+            </div>
+            <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
+              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">👁️ Vorschau (F3) / Editor (F4)</div>
+              <div id="lblViewerWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">960 × 680 px</div>
+            </div>
+            <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
+              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🛠️ Child-Fenster &amp; Power-Tools</div>
+              <div id="lblChildWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">Standard: 960 × 680 px</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;">
+            <button class="btn" onclick="resetWindowBounds()">↺ Fenstergrößen auf Standardwerte zurücksetzen</button>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">🗂️ Individuell gespeicherte Dialog- &amp; Child-Fenstergrößen</div>
+        <div class="prefs-card" style="padding:0;overflow:hidden;">
+          <table class="data-tbl" id="tblDialogSizes">
+            <thead>
+              <tr>
+                <th>Dialog / Werkzeug</th>
+                <th>Breite</th>
+                <th>Höhe</th>
+                <th>Status</th>
+                <th>Standard</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyDialogSizes"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 7. SESSION & UPDATES -->
       <div class="prefs-pane" id="pcat-Session">
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.3</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.4</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1339,7 +1395,8 @@
               <div class="pr-sub" id="lblWindowBoundsInfo">Hauptfenster: 1520 × 920 px | Einstellungen: 860 × 660 px | Dialoge: 960 × 680 px</div>
             </div>
             <div class="pr-ctl">
-              <button class="btn" onclick="resetWindowBounds()">↺ Fenstergrößen zurücksetzen</button>
+              <button class="btn" onclick="switchSettingsCat('WindowSizes')">📐 Fenstergrößen verwalten →</button>
+              <button class="btn" onclick="resetWindowBounds()">↺ Zurücksetzen</button>
             </div>
           </div>
         </div>
@@ -1383,7 +1440,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.3</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.3</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.4</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.4</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1392,7 +1449,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.3.
+        ✓ Sie verwenden die aktuelle Version v1.9.4.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -1493,7 +1550,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.0',
+  version: '1.9.4',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -1625,7 +1682,7 @@ const I18N = {
     'prefs.title': '⚙ Einstellungen — ModernExplorer Studio',
     'prefs.cat.appearance': '🎨 Darstellung & Design', 'prefs.cat.colors': '🖌️ Farben & Hervorhebung',
     'prefs.cat.behavior': '📁 Dateiliste & Verhalten', 'prefs.cat.preview': '🖼️ Bildvorschau',
-    'prefs.cat.fonts': '🔤 Schriftgrößen', 'prefs.cat.session': '💾 Sitzung, Updates & Fenster',
+    'prefs.cat.fonts': '🔤 Schriftgrößen', 'prefs.cat.windows': '📐 Fenstergrößen', 'prefs.cat.session': '💾 Sitzung & Updates',
     'prefs.cat.shortcuts': '⌨️ Tastenkürzel',
     'prefs.done': '✓ Fertig & Schließen',
     'common.cancel': 'Abbrechen', 'common.close': 'Schließen',
@@ -1676,10 +1733,10 @@ const I18N = {
     'dock.analyze_treemap': 'Analyze Folder in Storage Treemap',
     'dock.minimize_tip': 'Minimize / Collapse Right Dock (Ctrl+Q)',
     'dock.expand_tip': 'Expand Right Dock (Ctrl+Q)',
-    'basket.empty_count': '0 items', 'basket.add_sel': 'Add Selected', 'basket.copy_here': 'Copy Here',
+    'basket.empty_count': '0 items', 'basket.add_sel': 'Selection', 'basket.copy_here': 'Copy Here',
     'basket.move_here': 'Move Here', 'basket.clear': 'Clear', 'basket.empty': 'File basket is empty.',
-    'git.no_repo': 'No Git repository in current directory.', 'git.open_full': 'Open Full Git Panel',
-    'git.changed_files': 'Changed Files', 'git.clean': 'Working tree clean ✓',
+    'git.no_repo': 'No Git repository in current path.', 'git.open_full': 'Open Full Git Panel',
+    'git.changed_files': 'Changed files', 'git.clean': 'Working tree clean ✓',
     'fn.help': 'Help', 'fn.rename': 'Rename', 'fn.view': 'View', 'fn.editor': 'Editor',
     'fn.copy': 'Copy', 'fn.move': 'Move', 'fn.new_file': '+File', 'fn.new_folder': '+Folder',
     'fn.delete': 'Delete', 'fn.terminal': 'Terminal',
@@ -1687,7 +1744,7 @@ const I18N = {
     'prefs.title': '⚙ Settings — ModernExplorer Studio',
     'prefs.cat.appearance': '🎨 Appearance & Design', 'prefs.cat.colors': '🖌️ Colors & Highlighting',
     'prefs.cat.behavior': '📁 File List & Behavior', 'prefs.cat.preview': '🖼️ Image Hover Preview',
-    'prefs.cat.fonts': '🔤 Font Sizes', 'prefs.cat.session': '💾 Session, Updates & Windows',
+    'prefs.cat.fonts': '🔤 Font Sizes', 'prefs.cat.windows': '📐 Window Sizes', 'prefs.cat.session': '💾 Session & Updates',
     'prefs.cat.shortcuts': '⌨️ Keyboard Shortcuts',
     'prefs.done': '✓ Done & Close',
     'common.cancel': 'Cancel', 'common.close': 'Close',
@@ -1731,7 +1788,7 @@ const I18N = {
     'prefs.title': '⚙ Ajustes — ModernExplorer Studio',
     'prefs.cat.appearance': '🎨 Apariencia y Diseño', 'prefs.cat.colors': '🖌️ Colores y Resaltado',
     'prefs.cat.behavior': '📁 Lista de archivos y Comportamiento', 'prefs.cat.preview': '🖼️ Vista previa de imágenes',
-    'prefs.cat.fonts': '🔤 Tamaños de fuente', 'prefs.cat.session': '💾 Sesión, Actualizaciones y Ventanas',
+    'prefs.cat.fonts': '🔤 Tamaños de fuente', 'prefs.cat.windows': '📐 Tamaños de ventana', 'prefs.cat.session': '💾 Sesión y Actualizaciones',
     'prefs.cat.shortcuts': '⌨️ Atajos de teclado',
     'prefs.done': '✓ Listo y Cerrar', 'common.cancel': 'Cancelar', 'common.close': 'Cerrar'
   },
@@ -1745,7 +1802,7 @@ const I18N = {
     'opt.console': '>_ Console',
     'fav.label': '★ Favoris :', 'fav.pin_current': '+ Épingler le dossier actuel',
     'pane.addr_placeholder': 'Entrer le chemin ou > pour la palette…',
-    'pane.filter_placeholder': 'Filtrer (tag:red, *.rs)…',
+    'pane.filter_placeholder': 'Filtrar (tag:red, *.rs)…',
     'pane.parent_dir': '[..] Dossier parent',
     'pane.items': 'éléments', 'pane.marked': 'sélectionnés',
     'col.name': 'Nom', 'col.size': 'Taille', 'col.modified': 'Modifié', 'col.type': 'Type',
@@ -1758,7 +1815,7 @@ const I18N = {
     'prefs.title': '⚙ Paramètres — ModernExplorer Studio',
     'prefs.cat.appearance': '🎨 Apparence & Design', 'prefs.cat.colors': '🖌️ Couleurs & Surbrillance',
     'prefs.cat.behavior': '📁 Liste de fichiers & Comportement', 'prefs.cat.preview': '🖼️ Aperçu d’image',
-    'prefs.cat.fonts': '🔤 Tailles de police', 'prefs.cat.session': '💾 Session, Mises à jour & Fenêtres',
+    'prefs.cat.fonts': '🔤 Tailles de police', 'prefs.cat.windows': '📐 Tailles des fenêtres', 'prefs.cat.session': '💾 Session & Mises à jour',
     'prefs.cat.shortcuts': '⌨️ Raccourcis clavier',
     'prefs.done': '✓ Terminé & Fermer', 'common.cancel': 'Annuler', 'common.close': 'Fermer'
   },
@@ -1780,6 +1837,7 @@ const I18N = {
     'fn.delete': 'Elimina', 'fn.terminal': 'Terminale',
     'status.ready': 'Pronto',
     'prefs.title': '⚙ Impostazioni — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 Dimensioni finestre', 'prefs.cat.session': '💾 Sessione & Aggiornamenti',
     'prefs.done': '✓ Fatto e Chiudi', 'common.cancel': 'Annulla', 'common.close': 'Chiudi'
   },
   nl: {
@@ -1788,7 +1846,7 @@ const I18N = {
     'top.palette': '⌘ Palet', 'top.settings': '⚙ Instellingen', 'top.updates': '🔄 Updates', 'top.about': 'ℹ Over',
     'opt.undo': '↶ Ongedaan', 'opt.new_file': '+ Bestand', 'opt.new_folder': '+ Map',
     'opt.copy': '➔ Kopiëren', 'opt.move': '➔ Verplaatsen', 'opt.delete': '🗑 Verwijderen',
-    'opt.deep_search': '🔍 Zoeken', 'opt.duplicates': '🧹 Duplicaten', 'opt.archive': '📦 Archief',
+    'opt.deep_search': '🔍 Zoeken', 'opt.duplicates': '🧹 Duplikaten', 'opt.archive': '📦 Archief',
     'opt.console': '>_ Console',
     'fav.label': '★ Favorieten:', 'fav.pin_current': '+ Huidige map vastmaken',
     'pane.parent_dir': '[..] Bovenliggende map',
@@ -1800,6 +1858,7 @@ const I18N = {
     'fn.delete': 'Verwijderen', 'fn.terminal': 'Terminal',
     'status.ready': 'Gereed',
     'prefs.title': '⚙ Instellingen — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 Venstergroottes', 'prefs.cat.session': '💾 Sessie & Updates',
     'prefs.done': '✓ Gereed & Sluiten', 'common.cancel': 'Annuleren', 'common.close': 'Sluiten'
   },
   pl: {
@@ -1820,6 +1879,7 @@ const I18N = {
     'fn.delete': 'Usuń', 'fn.terminal': 'Terminal',
     'status.ready': 'Gotowy',
     'prefs.title': '⚙ Ustawienia — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 Rozmiary okien', 'prefs.cat.session': '💾 Sesja & Aktualizacje',
     'prefs.done': '✓ Gotowe i Zamknij', 'common.cancel': 'Anuluj', 'common.close': 'Zamknij'
   },
   pt: {
@@ -1840,6 +1900,7 @@ const I18N = {
     'fn.delete': 'Excluir', 'fn.terminal': 'Terminal',
     'status.ready': 'Pronto',
     'prefs.title': '⚙ Configurações — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 Tamanhos de janela', 'prefs.cat.session': '💾 Sessão & Atualizações',
     'prefs.done': '✓ Concluir e Fechar', 'common.cancel': 'Cancelar', 'common.close': 'Fechar'
   },
   ja: {
@@ -1860,6 +1921,7 @@ const I18N = {
     'fn.delete': '削除', 'fn.terminal': '端末',
     'status.ready': '準備完了',
     'prefs.title': '⚙ 設定 — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 ウィンドウサイズ', 'prefs.cat.session': '💾 セッションと更新',
     'prefs.done': '✓ 完了して閉じる', 'common.cancel': 'キャンセル', 'common.close': '閉じる'
   },
   zh: {
@@ -1880,6 +1942,7 @@ const I18N = {
     'fn.delete': '删除', 'fn.terminal': '终端',
     'status.ready': '就绪',
     'prefs.title': '⚙ 设置 — ModernExplorer Studio',
+    'prefs.cat.windows': '📐 窗口大小', 'prefs.cat.session': '💾 会话与更新',
     'prefs.done': '✓ 完成并关闭', 'common.cancel': '取消', 'common.close': '关闭'
   }
 };
@@ -1976,6 +2039,7 @@ function getLocalizedMenus() {
       { label: t('prefs.cat.behavior'), run: () => openSettingsModal('Behavior') },
       { label: t('prefs.cat.preview'), run: () => openSettingsModal('Preview') },
       { label: t('prefs.cat.fonts'), run: () => openSettingsModal('Fonts') },
+      { label: t('prefs.cat.windows'), run: () => openSettingsModal('WindowSizes') },
       { label: t('prefs.cat.session'), run: () => openSettingsModal('Session') },
       { label: t('prefs.cat.shortcuts'), kbd: 'F1', run: () => openSettingsModal('Shortcuts') }
     ]},
@@ -2134,6 +2198,7 @@ function applyLocalizationToDom() {
     Behavior: 'prefs.cat.behavior',
     Preview: 'prefs.cat.preview',
     Fonts: 'prefs.cat.fonts',
+    WindowSizes: 'prefs.cat.windows',
     Session: 'prefs.cat.session',
     Shortcuts: 'prefs.cat.shortcuts'
   };
@@ -2191,7 +2256,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.3';
+  STATE.version = data.version || '1.9.4';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -2244,13 +2309,36 @@ async function initApp() {
     STATE.panes.left.activeTab = Math.min(sess.active_left_tab || 0, STATE.panes.left.tabs.length - 1);
     STATE.panes.right.activeTab = Math.min(sess.active_right_tab || 0, STATE.panes.right.tabs.length - 1);
     setDualPaneMode(sess.is_dual_pane !== false);
-    if (typeof sess.show_preview_pane === 'boolean') {
-      toggleDock(sess.show_preview_pane);
-    }
   } else {
     STATE.panes.left.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
     STATE.panes.right.tabs = [{ path: cwd, homePath: cwd, title: 'Projekt', lockState: 'Normal', viewMode: defView, branchView: false, treeSizes: false, sortCol: 'Name', sortAsc: true }];
   }
+
+  // Restore Right Dock state (Collapsed / Expanded), active tab and width
+  let shouldDockBeOpen = true;
+  if (typeof STATE.settings.right_dock_open === 'boolean') {
+    shouldDockBeOpen = STATE.settings.right_dock_open;
+  }
+  if (STATE.settings.restore_previous_session && data.session) {
+    if (typeof data.session.dock_open === 'boolean') {
+      shouldDockBeOpen = data.session.dock_open;
+    } else if (typeof data.session.show_preview_pane === 'boolean') {
+      shouldDockBeOpen = data.session.show_preview_pane;
+    }
+  }
+
+  const savedDockTab = (STATE.settings.restore_previous_session && data.session?.dock_tab)
+    || STATE.settings.right_dock_tab || 'preview';
+  const savedDockWidth = (STATE.settings.restore_previous_session && data.session?.dock_width)
+    || STATE.settings.right_dock_width || 320;
+
+  const dockEl = document.getElementById('rightDock');
+  if (dockEl && savedDockWidth >= 200 && savedDockWidth <= 800) {
+    dockEl.style.width = Math.round(savedDockWidth) + 'px';
+  }
+
+  switchDockTab(savedDockTab, false);
+  toggleDock(shouldDockBeOpen, false);
 
   await loadPane('left', true);
   await loadPane('right', true);
@@ -3189,7 +3277,7 @@ function syncBasketBadge(count) {
   }
 }
 
-function toggleDock(forceOpen) {
+function toggleDock(forceOpen, doSave = true) {
   STATE.dockOpen = typeof forceOpen === 'boolean' ? forceOpen : !STATE.dockOpen;
   const dock = document.getElementById('rightDock');
   const sp = document.getElementById('dockSplitter');
@@ -3199,6 +3287,11 @@ function toggleDock(forceOpen) {
   if (seg) seg.classList.toggle('active', STATE.dockOpen);
   if (STATE.dockOpen) {
     updateDockInspector(getSelectedSingleItem());
+  }
+  if (doSave) {
+    STATE.settings.right_dock_open = STATE.dockOpen;
+    rpc('save_settings', { settings: STATE.settings });
+    saveCurrentSessionNow(false);
   }
 }
 
@@ -3213,12 +3306,11 @@ function onDockTabClick(tab) {
 }
 
 function expandDockToTab(tab) {
-  STATE.dockTab = tab;
   toggleDock(true);
   switchDockTab(tab);
 }
 
-function switchDockTab(tab) {
+function switchDockTab(tab, doSave = true) {
   STATE.dockTab = tab;
   ['preview','basket','git','info'].forEach(t => {
     const dt = document.getElementById('dtab-' + t);
@@ -3228,6 +3320,11 @@ function switchDockTab(tab) {
   });
   const item = getSelectedSingleItem();
   updateDockInspector(item);
+  if (doSave) {
+    STATE.settings.right_dock_tab = tab;
+    rpc('save_settings', { settings: STATE.settings });
+    saveCurrentSessionNow(false);
+  }
 }
 
 async function updateDockInspector(item) {
@@ -3499,6 +3596,7 @@ function populateSettingsUi() {
 
   renderColorsSettings();
   renderFontsSettings();
+  renderWindowSizesSettings();
   renderShortcutsTable('');
 }
 
@@ -3602,6 +3700,136 @@ async function resetFontSizes() {
   }
 }
 
+const DIALOG_REGISTRY = [
+  { key: 'modalSettings', title: '⚙️ Einstellungen (SettingsWindow)', defW: 980, defH: 680 },
+  { key: 'modalViewer', title: '👁️ Quick Viewer & Editor (F3 / F4)', defW: 960, defH: 680 },
+  { key: 'modalAbout', title: 'ℹ️ Über ModernExplorer & Updates', defW: 760, defH: 620 },
+  { key: 'modalCreate', title: '➕ Neues Element erstellen (F7 / Shift+F7)', defW: 540, defH: 310 },
+  { key: 'modalPalette', title: '⌨️ Befehlspalette (Strg+P)', defW: 720, defH: 480 },
+  { key: 'batch_rename', title: '🏷️ Mehrfach-Umbenennungstool (Strg+M)', defW: 1080, defH: 680 },
+  { key: 'visual_diff', title: '🔀 Visueller Side-by-Side Datei-Diff (Strg+Shift+U)', defW: 1100, defH: 700 },
+  { key: 'checksums', title: '🔒 Prüfsummen-Generator & Manifest (Strg+Shift+K)', defW: 1040, defH: 660 },
+  { key: 'file_splitter', title: '✂️ Splitter, Joiner & Shredder', defW: 1040, defH: 660 },
+  { key: 'file_tags', title: '🏷️ Farbige Datei-Tags & Notizen (Strg+Shift+L)', defW: 980, defH: 660 },
+  { key: 'workspaces', title: '💼 Arbeitsbereiche (Strg+Shift+O)', defW: 980, defH: 640 },
+  { key: 'smart_export', title: '📤 Smart-Export & Dateiliste (Strg+Shift+E)', defW: 980, defH: 640 },
+  { key: 'attr_exif', title: '📷 Attribute & EXIF-Editor (Strg+Shift+A)', defW: 1040, defH: 660 },
+  { key: 'git_panel', title: '🌿 Erweitertes Git-Panel (Strg+Shift+G)', defW: 1080, defH: 680 },
+  { key: 'dir_sync', title: '🔄 Ordner-Synchronisierung (Strg+Shift+S)', defW: 1100, defH: 700 },
+  { key: 'deep_search', title: '🔍 Erweiterte Tiefensuche (Alt+F7)', defW: 1100, defH: 700 },
+  { key: 'duplicates', title: '👥 Duplikat-Finder', defW: 1100, defH: 700 },
+  { key: 'treemap', title: '📊 Speicherplatz-Treemap (Strg+Shift+W)', defW: 1100, defH: 700 },
+  { key: 'archive_manager', title: '📦 Archiv-Manager', defW: 1040, defH: 660 },
+  { key: 'remote_profiles', title: '☁️ Remote & Cloud-Profile', defW: 980, defH: 640 }
+];
+
+function renderWindowSizesSettings() {
+  const s = STATE.settings || {};
+  const sizes = s.dialog_sizes || {};
+
+  // 1. Summary Cards
+  const elMain = document.getElementById('lblMainWinBoundsDetail');
+  if (elMain) {
+    const mw = Math.round(s.main_window_width || 1520);
+    const mh = Math.round(s.main_window_height || 920);
+    const maxStatus = s.main_window_maximized ? ' (Maximiert)' : ' (Normal)';
+    const pos = (s.main_window_x != null && s.main_window_y != null) ? ` • Pos: ${s.main_window_x}, ${s.main_window_y}` : '';
+    elMain.textContent = `${mw} × ${mh} px${maxStatus}${pos}`;
+  }
+
+  const elSet = document.getElementById('lblSettingsWinBoundsDetail');
+  if (elSet) {
+    const sw = Math.round(s.settings_window_width || 980);
+    const sh = Math.round(s.settings_window_height || 680);
+    const sMax = s.settings_window_maximized ? ' (Maximiert)' : ' (Normal)';
+    elSet.textContent = `${sw} × ${sh} px${sMax}`;
+  }
+
+  const elView = document.getElementById('lblViewerWinBoundsDetail');
+  if (elView) {
+    const savedV = sizes['modalViewer'];
+    if (savedV && savedV.width && savedV.height) {
+      elView.textContent = `${Math.round(savedV.width)} × ${Math.round(savedV.height)} px${savedV.maximized ? ' (Maximiert)' : ' (Normal)'}`;
+    } else {
+      elView.textContent = `960 × 680 px (Standard)`;
+    }
+  }
+
+  const elChild = document.getElementById('lblChildWinBoundsDetail');
+  if (elChild) {
+    const cw = Math.round(s.child_window_width || 960);
+    const ch = Math.round(s.child_window_height || 680);
+    const customCount = Object.keys(sizes).length;
+    elChild.textContent = `Standard: ${cw} × ${ch} px (${customCount} individuell angepasst)`;
+  }
+
+  // 2. Dialog Table
+  const tbody = document.getElementById('tbodyDialogSizes');
+  if (!tbody) return;
+
+  const rowsHtml = DIALOG_REGISTRY.map(d => {
+    let saved = sizes[d.key];
+    if (!saved && d.key === 'modalSettings' && (s.settings_window_width || s.settings_window_height)) {
+      saved = { width: s.settings_window_width, height: s.settings_window_height, maximized: s.settings_window_maximized };
+    }
+    const isCustom = !!(saved && saved.width && saved.height && (Math.round(saved.width) !== d.defW || Math.round(saved.height) !== d.defH || saved.maximized));
+    const curW = saved ? Math.round(saved.width) : d.defW;
+    const curH = saved ? Math.round(saved.height) : d.defH;
+    const curMax = saved?.maximized;
+
+    const statusBadge = isCustom
+      ? `<span class="f-tag-badge" style="background:var(--accent);color:#fff">Angepasst${curMax ? ' (Max)' : ''}</span>`
+      : `<span style="color:var(--fg-muted);font-size:11.5px;">Standard</span>`;
+
+    const actionBtn = isCustom
+      ? `<button class="btn" style="padding:2px 8px;font-size:11px;" onclick="resetSingleDialogSize('${d.key}')">↺ Standard</button>`
+      : `<span style="color:var(--fg-muted);font-size:11px;">—</span>`;
+
+    return `
+      <tr>
+        <td><strong>${esc(d.title)}</strong></td>
+        <td><code style="font-family:var(--font-mono);font-size:12px;">${curW} px</code></td>
+        <td><code style="font-family:var(--font-mono);font-size:12px;">${curH} px</code></td>
+        <td>${statusBadge}</td>
+        <td style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="color:var(--fg-dim);font-family:var(--font-mono);font-size:11.5px;">${d.defW} × ${d.defH} px</span>
+          ${actionBtn}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+async function resetSingleDialogSize(key) {
+  if (!STATE.settings) return;
+  if (!STATE.settings.dialog_sizes) STATE.settings.dialog_sizes = {};
+
+  const dItem = DIALOG_REGISTRY.find(d => d.key === key);
+  const defW = dItem ? dItem.defW : 960;
+  const defH = dItem ? dItem.defH : 680;
+
+  delete STATE.settings.dialog_sizes[key];
+
+  if (key === 'modalSettings') {
+    STATE.settings.settings_window_width = 980;
+    STATE.settings.settings_window_height = 680;
+    STATE.settings.settings_window_maximized = false;
+    applyModalSavedBounds('modalSettings', 'modalSettings');
+  }
+
+  const res = await rpc('update_window_bounds', { key, width: defW, height: defH, maximized: false });
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+  } else {
+    await rpc('save_settings', { settings: STATE.settings });
+  }
+
+  populateSettingsUi();
+  toast(`Fenstergröße für „${dItem ? dItem.title : key}“ auf Standard zurückgesetzt.`);
+}
+
 async function resetWindowBounds() {
   const res = await rpc('reset_window_bounds');
   if (res && res.settings) {
@@ -3626,6 +3854,8 @@ async function resetAllSettings() {
 }
 
 async function saveCurrentSessionNow(showToastMsg) {
+  const dEl = document.getElementById('rightDock');
+  const dW = dEl ? (parseFloat(dEl.style.width) || 320) : 320;
   const session = {
     left_tabs: STATE.panes.left.tabs.map(t => ({ path: t.path, home_path: t.homePath || t.path, lock_state: t.lockState || 'Normal', view_mode: t.viewMode || 'Details' })),
     right_tabs: STATE.panes.right.tabs.map(t => ({ path: t.path, home_path: t.homePath || t.path, lock_state: t.lockState || 'Normal', view_mode: t.viewMode || 'Details' })),
@@ -3634,7 +3864,10 @@ async function saveCurrentSessionNow(showToastMsg) {
     is_dual_pane: STATE.isDualPane,
     show_preview_pane: STATE.dockOpen,
     show_quick_console: !document.getElementById('quickConsoleBar').classList.contains('hidden'),
-    split_ratio: 0.5
+    split_ratio: 0.5,
+    dock_open: STATE.dockOpen,
+    dock_tab: STATE.dockTab,
+    dock_width: dW
   };
   await rpc('save_session', { session });
   if (showToastMsg) toast('Aktuelle Session (Tabs, Pfade & Layout) gespeichert.');
@@ -4115,36 +4348,520 @@ async function runDeepSearch() {
   `).join('') || '<tr><td colspan="4">Keine Treffer gefunden.</td></tr>';
 }
 
-/* 5. Duplicate Finder (Ctrl+Shift+D) */
-function openDuplicatesModal() {
-  const dir = getTab(STATE.activeSide).path;
-  showToolModal('🧹 3-Phasen Duplikat-Finder (Größe → 4KB Hash → Voll-SHA256)', `
-    <div style="display:flex;gap:8px;margin-bottom:10px;flex-shrink:0;">
-      <input class="input" id="dup-dir" value="${esc(dir)}" style="flex:1">
-      <button class="btn primary" onclick="runDuplicatesScan()">🧹 Scan starten</button>
-    </div>
-    <div id="dup-summary" style="margin-bottom:8px;font-weight:600;flex-shrink:0;"></div>
-    <div id="dup-list" style="flex:1;min-height:180px;overflow:auto;display:flex;flex-direction:column;gap:8px;"></div>
-  `, null, 'tool:Duplicates');
-  runDuplicatesScan();
+/* 5. Duplicate Finder (Ctrl+Shift+D) — Full Feature Parity & Live Progress */
+const DUP_STATE = {
+  activeDir: '',
+  scanning: false,
+  pollTimer: null,
+  groups: [],
+  selectedPaths: new Set(),
+  totalFilesScanned: 0,
+  totalWastedBytes: 0,
+  totalWastedText: '0 B'
+};
+
+function dupFormatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const val = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2);
+  return `${val} ${units[i]}`;
 }
 
-async function runDuplicatesScan() {
-  const res = await rpc('duplicates', { dir: document.getElementById('dup-dir').value, min_size_kb: 1 });
-  document.getElementById('dup-summary').textContent = `Gescannt: ${res.total_files_scanned} Dateien • Verschwendeter Speicherplatz: ${res.total_wasted_text} (${(res.groups||[]).length} Duplikat-Gruppen)`;
-  document.getElementById('dup-list').innerHTML = (res.groups || []).map(g => `
-    <div class="prefs-card">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <strong>SHA-256: ${esc(g.sha256.slice(0,16))}… (${esc(g.size_text)} pro Datei)</strong>
-        <span style="color:var(--warn)">Verschwendet: ${esc(g.wasted_text)}</span>
+function openDuplicatesModal(customDir) {
+  if (DUP_STATE.pollTimer) {
+    clearInterval(DUP_STATE.pollTimer);
+    DUP_STATE.pollTimer = null;
+  }
+  DUP_STATE.scanning = false;
+  DUP_STATE.selectedPaths.clear();
+  DUP_STATE.groups = [];
+  DUP_STATE.totalFilesScanned = 0;
+  DUP_STATE.totalWastedBytes = 0;
+  DUP_STATE.totalWastedText = '0 B';
+
+  const dir = customDir || getTab(STATE.activeSide).path;
+  DUP_STATE.activeDir = dir;
+
+  const bodyHtml = `
+    <!-- Top Controls Row -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap;">
+      <input class="input" id="dup-dir" value="${esc(dir)}" style="flex:1;min-width:240px;font-family:var(--font-mono);font-size:12px;" placeholder="Zu scannendes Verzeichnis..." onkeydown="if(event.key==='Enter')startDuplicatesScan()">
+      <div style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fg-dim);">
+        <span>Min. Größe:</span>
+        <input class="input" type="number" id="dup-min-kb" value="1" min="0" style="width:65px;text-align:right;" title="Minimale Dateigröße in Kilobytes">
+        <span>KB</span>
       </div>
-      ${g.files.map((f, i) => `<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11.5px;padding:2px 0;">
-        <span>${i===0?'🟢 Original':'🟠 Duplikat'}: ${esc(f)}</span>
-        ${i>0?`<button class="btn danger" style="padding:1px 7px;font-size:10.5px;" onclick="rpc('delete_items',{paths:['${esc(f).replace(/\\/g,'\\\\')}']}).then(()=>runDuplicatesScan())">Löschen</button>`:''}
-      </div>`).join('')}
+      <button class="btn primary" id="dup-scan-btn" onclick="startDuplicatesScan()">🧹 Scan starten</button>
+      <button class="btn danger" id="dup-cancel-btn" style="display:none;" onclick="cancelDuplicatesScan()">⏹ Abbrechen</button>
     </div>
-  `).join('') || '<div style="color:var(--ok)">✓ Keine Duplikate im gewählten Ordner gefunden.</div>';
+
+    <!-- Live Progress Feedback Section -->
+    <div id="dup-progress-wrap" style="display:none;margin-bottom:8px;background:var(--bg-elev);padding:10px 12px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
+        <span id="dup-stage-text" style="font-weight:600;display:flex;align-items:center;gap:6px;">
+          <span style="display:inline-block;animation:dupSpin 1s linear infinite;">⏳</span>
+          <span id="dup-stage-msg">Initialisiere Scan…</span>
+        </span>
+        <span id="dup-percent-text" style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">0%</span>
+      </div>
+      <div style="height:8px;background:var(--bg-app);border-radius:4px;overflow:hidden;border:1px solid var(--border);position:relative;">
+        <div id="dup-progress-bar" class="dup-progress-stripes" style="height:100%;width:0%;background-color:var(--accent);transition:width 0.15s ease-out;border-radius:3px;"></div>
+      </div>
+    </div>
+
+    <!-- Summary & Batch Selection Toolbar -->
+    <div id="dup-toolbar-wrap" style="display:none;margin-bottom:8px;flex-shrink:0;">
+      <div id="dup-summary" style="margin-bottom:6px;font-weight:600;font-size:12.5px;color:var(--fg);"></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--bg-elev);border-radius:6px;border:1px solid var(--border);">
+        <button class="btn" style="padding:4px 10px;font-size:11.5px;font-weight:600;background:rgba(251,191,36,0.15);color:#f59e0b;border:1px solid rgba(251,191,36,0.3);" onclick="dupSelectAllDuplicates()" title="Markiert alle Duplikate jeder Gruppe zur Löschung (Originale bleiben geschützt)">
+          ⚡ Alle Duplikate markieren (Originale behalten)
+        </button>
+        <button class="btn" style="padding:4px 10px;font-size:11.5px;font-weight:600;background:rgba(52,211,153,0.15);color:#10b981;border:1px solid rgba(52,211,153,0.3);" onclick="dupSelectAllOriginals()" title="Markiert alle Original-Dateien (Duplikate bleiben unmarkiert)">
+          📌 Alle Originale markieren (Duplikate behalten)
+        </button>
+        <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+        <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="dupSelectAll(true)">✓ Alle</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="dupSelectAll(false)">✗ Keine</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="dupInvertSelection()">⇄ Invertieren</button>
+      </div>
+    </div>
+
+    <!-- Duplicate Groups List -->
+    <div id="dup-list" style="flex:1;min-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;">
+      <div style="color:var(--fg-dim);font-size:12.5px;padding:24px;text-align:center;">
+        Klicken Sie auf „Scan starten“, um nach doppelten Dateien zu suchen.
+      </div>
+    </div>
+  `;
+
+  const footHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px;">
+      <div id="dup-foot-summary" style="font-size:12px;font-weight:600;color:var(--fg-dim);">
+        0 Dateien ausgewählt
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn danger" id="dup-batch-delete-btn" style="display:none;font-weight:700;" onclick="dupDeleteMarkedFiles()">
+          🗑️ Markierte Duplikate löschen
+        </button>
+        <button class="btn" onclick="closeModal('modalTool')">Schließen</button>
+      </div>
+    </div>
+  `;
+
+  showToolModal('🧹 3-Phasen Duplikat-Finder (Größe → 4KB Hash → Voll-SHA256)', bodyHtml, footHtml, 'tool:Duplicates');
+  startDuplicatesScan();
 }
+
+async function startDuplicatesScan() {
+  const dirInput = document.getElementById('dup-dir');
+  const minKbInput = document.getElementById('dup-min-kb');
+  const dir = (dirInput ? dirInput.value.trim() : '') || DUP_STATE.activeDir || '.';
+  const minKb = parseInt((minKbInput ? minKbInput.value : '1') || '1', 10) || 1;
+
+  DUP_STATE.activeDir = dir;
+  DUP_STATE.selectedPaths.clear();
+  DUP_STATE.groups = [];
+
+  const scanBtn = document.getElementById('dup-scan-btn');
+  const cancelBtn = document.getElementById('dup-cancel-btn');
+  const progressWrap = document.getElementById('dup-progress-wrap');
+  const progressBar = document.getElementById('dup-progress-bar');
+  const stageMsg = document.getElementById('dup-stage-msg');
+  const percentText = document.getElementById('dup-percent-text');
+  const tbWrap = document.getElementById('dup-toolbar-wrap');
+  const batchDelBtn = document.getElementById('dup-batch-delete-btn');
+  const listEl = document.getElementById('dup-list');
+
+  if (scanBtn) {
+    scanBtn.disabled = true;
+    scanBtn.textContent = '⏳ Scan läuft…';
+  }
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+  if (progressWrap) progressWrap.style.display = 'block';
+  if (progressBar) progressBar.style.width = '0%';
+  if (percentText) percentText.textContent = '0%';
+  if (stageMsg) stageMsg.textContent = '1/3 Sammle Dateien nach Dateigröße…';
+  if (tbWrap) tbWrap.style.display = 'none';
+  if (batchDelBtn) batchDelBtn.style.display = 'none';
+  if (listEl) {
+    listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--fg-dim);font-size:13px;"><span style="display:inline-block;animation:dupSpin 1s linear infinite;font-size:18px;margin-bottom:8px;">⏳</span><br>Multi-Stage Duplikatanalyse läuft im Hintergrund… Bitte warten.</div>`;
+  }
+
+  const res = await rpc('duplicates_start', { dir, min_size_kb: minKb });
+  if (res && res.error) {
+    toast(`Fehler beim Starten des Scans: ${res.error}`);
+    if (scanBtn) { scanBtn.disabled = false; scanBtn.textContent = '🧹 Scan starten'; }
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    return;
+  }
+
+  DUP_STATE.scanning = true;
+  if (DUP_STATE.pollTimer) clearInterval(DUP_STATE.pollTimer);
+
+  DUP_STATE.pollTimer = setInterval(async () => {
+    const poll = await rpc('duplicates_poll');
+    if (!poll || !poll.ok) return;
+
+    const pBar = document.getElementById('dup-progress-bar');
+    const pPercent = document.getElementById('dup-percent-text');
+    const pMsg = document.getElementById('dup-stage-msg');
+
+    if (pMsg && poll.stage_message) {
+      pMsg.textContent = poll.stage_message;
+    }
+    if (pBar) {
+      const pct = Math.max(0, Math.min(100, poll.percentage || 0));
+      pBar.style.width = pct + '%';
+    }
+    if (pPercent) {
+      if (poll.is_indeterminate) {
+        pPercent.textContent = poll.processed_files ? `${poll.processed_files} Dateien` : 'Scanne…';
+      } else {
+        const pctRound = Math.round(poll.percentage || 0);
+        pPercent.textContent = poll.total_files > 0
+          ? `${pctRound}% (${poll.processed_files}/${poll.total_files})`
+          : `${pctRound}%`;
+      }
+    }
+
+    if (!poll.running) {
+      clearInterval(DUP_STATE.pollTimer);
+      DUP_STATE.pollTimer = null;
+      DUP_STATE.scanning = false;
+      finishDuplicatesScan(poll.result);
+    }
+  }, 100);
+}
+
+async function cancelDuplicatesScan() {
+  if (DUP_STATE.pollTimer) {
+    clearInterval(DUP_STATE.pollTimer);
+    DUP_STATE.pollTimer = null;
+  }
+  DUP_STATE.scanning = false;
+  await rpc('duplicates_cancel');
+
+  const scanBtn = document.getElementById('dup-scan-btn');
+  const cancelBtn = document.getElementById('dup-cancel-btn');
+  const stageMsg = document.getElementById('dup-stage-msg');
+
+  if (scanBtn) { scanBtn.disabled = false; scanBtn.textContent = '🧹 Scan starten'; }
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  if (stageMsg) stageMsg.textContent = '⏹ Scan durch Benutzer abgebrochen.';
+  toast('Duplikat-Scan abgebrochen.');
+}
+
+function finishDuplicatesScan(result) {
+  const scanBtn = document.getElementById('dup-scan-btn');
+  const cancelBtn = document.getElementById('dup-cancel-btn');
+  const pBar = document.getElementById('dup-progress-bar');
+  const pPercent = document.getElementById('dup-percent-text');
+  const pMsg = document.getElementById('dup-stage-msg');
+
+  if (scanBtn) { scanBtn.disabled = false; scanBtn.textContent = '🧹 Scan starten'; }
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  if (pBar) pBar.style.width = '100%';
+  if (pPercent) pPercent.textContent = '100%';
+
+  DUP_STATE.groups = (result && result.groups) || [];
+  DUP_STATE.totalFilesScanned = result ? result.total_files_scanned : 0;
+  DUP_STATE.totalWastedBytes = result ? result.total_wasted_bytes : 0;
+  DUP_STATE.totalWastedText = result ? result.total_wasted_text : '0 B';
+
+  if (pMsg) {
+    pMsg.textContent = DUP_STATE.groups.length > 0
+      ? `Scan abgeschlossen – ${DUP_STATE.groups.length} Gruppen gefunden (${DUP_STATE.totalWastedText} verschwendet).`
+      : 'Scan abgeschlossen – keine Duplikate gefunden.';
+  }
+
+  renderDuplicatesList();
+}
+
+function renderDuplicatesList() {
+  const listEl = document.getElementById('dup-list');
+  const summaryEl = document.getElementById('dup-summary');
+  const tbWrap = document.getElementById('dup-toolbar-wrap');
+  if (!listEl) return;
+
+  if (summaryEl) {
+    summaryEl.textContent = `Gescannt: ${DUP_STATE.totalFilesScanned} Dateien • Verschwendeter Speicherplatz: ${DUP_STATE.totalWastedText} (${DUP_STATE.groups.length} Duplikat-Gruppen)`;
+  }
+  if (tbWrap) {
+    tbWrap.style.display = DUP_STATE.groups.length > 0 ? 'block' : 'none';
+  }
+
+  if (DUP_STATE.groups.length === 0) {
+    listEl.innerHTML = `<div style="color:var(--ok);padding:30px 16px;text-align:center;font-size:13px;font-weight:600;background:var(--bg-elev);border-radius:8px;border:1px solid var(--border);">✓ Keine Duplikate im gewählten Ordner gefunden.</div>`;
+    dupUpdateSelectionSummary();
+    return;
+  }
+
+  listEl.innerHTML = DUP_STATE.groups.map((g, gi) => {
+    const files = g.file_details || g.files.map(f => ({ full_path: f, name: f.split(/[/\\]/).pop() || f, modified_text: '' }));
+    return `
+      <div class="prefs-card" style="margin-bottom:10px;padding:10px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-weight:700;font-size:12.5px;color:var(--fg);">📁 Gruppe #${gi + 1}</span>
+            <span style="font-size:12px;color:var(--fg-dim);">(${esc(g.size_text)} pro Datei)</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-dim);opacity:0.8;" title="SHA-256: ${esc(g.sha256)}">[${esc(g.sha256.slice(0, 12))}…]</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="color:#f59e0b;font-weight:600;font-size:12px;">Verschwendet: ${esc(g.wasted_text)}</span>
+            <button class="btn" style="padding:2px 8px;font-size:11px;" onclick="dupSelectGroupDuplicates(${gi})" title="Markiert alle Kopien dieser Gruppe und lässt das Original unmarkiert">Nur Duplikate dieser Gruppe markieren</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          ${files.map((f, fi) => {
+            const isOriginal = (fi === 0);
+            const path = f.full_path;
+            const isChecked = DUP_STATE.selectedPaths.has(path);
+            const badge = isOriginal
+              ? `<span style="padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(52,211,153,0.18);color:#10b981;white-space:nowrap;">📌 Original (Behalten)</span>`
+              : `<span style="padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(251,191,36,0.18);color:#f59e0b;white-space:nowrap;">📋 Duplikat</span>`;
+            return `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:5px;background:var(--bg-app);border:1px solid ${isChecked ? 'var(--accent)' : 'var(--border)'};gap:8px;">
+                <label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer;margin:0;">
+                  <input type="checkbox" style="cursor:pointer;width:15px;height:15px;accent-color:var(--accent);" ${isChecked ? 'checked' : ''} onchange="dupToggleFile('${esc(path).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', this.checked)">
+                  ${badge}
+                  <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <span style="font-weight:600;font-size:12px;color:var(--fg);">${esc(f.name)}</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-dim);margin-left:6px;" title="${esc(path)}">${esc(path)}</span>
+                  </div>
+                  ${f.modified_text ? `<span style="font-size:11px;color:var(--fg-dim);white-space:nowrap;">${esc(f.modified_text)}</span>` : ''}
+                </label>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                  <button class="ibtn" style="padding:3px 6px;font-size:11px;" onclick="dupRevealFile('${esc(path).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" title="Im Explorer-Ordner anzeigen">🔍</button>
+                  <button class="ibtn" style="padding:3px 6px;font-size:11px;" onclick="dupPreviewFile('${esc(path).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" title="Schnellvorschau (F3)">👁</button>
+                  <button class="ibtn danger" style="padding:3px 6px;font-size:11px;" onclick="dupDeleteSingleFile('${esc(path).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" title="Diese Datei löschen">🗑️</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  dupUpdateSelectionSummary();
+}
+
+function dupSelectAllDuplicates() {
+  DUP_STATE.selectedPaths.clear();
+  DUP_STATE.groups.forEach(g => {
+    for (let i = 1; i < g.files.length; i++) {
+      DUP_STATE.selectedPaths.add(g.files[i]);
+    }
+  });
+  renderDuplicatesList();
+  toast(`${DUP_STATE.selectedPaths.size} Duplikat(e) markiert. Klicken Sie auf „Markierte Duplikate löschen“.`);
+}
+
+function dupSelectAllOriginals() {
+  DUP_STATE.selectedPaths.clear();
+  DUP_STATE.groups.forEach(g => {
+    if (g.files.length > 0) {
+      DUP_STATE.selectedPaths.add(g.files[0]);
+    }
+  });
+  renderDuplicatesList();
+  toast(`${DUP_STATE.selectedPaths.size} Original(e) markiert.`);
+}
+
+function dupSelectAll(checked) {
+  DUP_STATE.selectedPaths.clear();
+  if (checked) {
+    DUP_STATE.groups.forEach(g => {
+      g.files.forEach(f => DUP_STATE.selectedPaths.add(f));
+    });
+  }
+  renderDuplicatesList();
+}
+
+function dupInvertSelection() {
+  const current = new Set(DUP_STATE.selectedPaths);
+  DUP_STATE.selectedPaths.clear();
+  DUP_STATE.groups.forEach(g => {
+    g.files.forEach(f => {
+      if (!current.has(f)) {
+        DUP_STATE.selectedPaths.add(f);
+      }
+    });
+  });
+  renderDuplicatesList();
+}
+
+function dupToggleFile(path, checked) {
+  if (checked) {
+    DUP_STATE.selectedPaths.add(path);
+  } else {
+    DUP_STATE.selectedPaths.delete(path);
+  }
+  dupUpdateSelectionSummary();
+}
+
+function dupSelectGroupDuplicates(groupIndex) {
+  const g = DUP_STATE.groups[groupIndex];
+  if (!g) return;
+  if (g.files.length > 0) {
+    DUP_STATE.selectedPaths.delete(g.files[0]);
+  }
+  for (let i = 1; i < g.files.length; i++) {
+    DUP_STATE.selectedPaths.add(g.files[i]);
+  }
+  renderDuplicatesList();
+}
+
+function dupUpdateSelectionSummary() {
+  const count = DUP_STATE.selectedPaths.size;
+  let totalFiles = 0;
+  let freedBytes = 0;
+  DUP_STATE.groups.forEach(g => {
+    totalFiles += g.files.length;
+    g.files.forEach(f => {
+      if (DUP_STATE.selectedPaths.has(f)) {
+        freedBytes += g.file_size_bytes;
+      }
+    });
+  });
+  const freedText = dupFormatBytes(freedBytes);
+
+  const footEl = document.getElementById('dup-foot-summary');
+  if (footEl) {
+    footEl.textContent = count > 0
+      ? `${count} von ${totalFiles} Datei(en) markiert • ${freedText} zum Löschen freigeben`
+      : `${totalFiles} Duplikat-Dateien in ${DUP_STATE.groups.length} Gruppen`;
+  }
+
+  const btn = document.getElementById('dup-batch-delete-btn');
+  if (btn) {
+    if (count > 0) {
+      btn.style.display = 'inline-flex';
+      btn.textContent = `🗑️ Markierte Duplikate löschen (${count} Dateien, ${freedText})`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+}
+
+async function dupDeleteSingleFile(filePath) {
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  if (!confirm(`Möchten Sie diese Datei wirklich löschen?\n\n${fileName}\n(${filePath})`)) return;
+  const res = await rpc('delete_items', { paths: [filePath] });
+  if (res && res.error) {
+    toast(`Fehler beim Löschen: ${res.error}`);
+    return;
+  }
+  DUP_STATE.selectedPaths.delete(filePath);
+  DUP_STATE.groups.forEach(g => {
+    g.files = g.files.filter(f => f !== filePath);
+    if (g.file_details) {
+      g.file_details = g.file_details.filter(d => d.full_path !== filePath);
+    }
+  });
+  DUP_STATE.groups = DUP_STATE.groups.filter(g => g.files.length >= 2);
+  let totalWasted = 0;
+  DUP_STATE.groups.forEach(g => {
+    totalWasted += g.file_size_bytes * (g.files.length - 1);
+  });
+  DUP_STATE.totalWastedBytes = totalWasted;
+  DUP_STATE.totalWastedText = dupFormatBytes(totalWasted);
+
+  renderDuplicatesList();
+  loadPane(STATE.activeSide);
+  toast(`Datei ${fileName} gelöscht.`);
+}
+
+async function dupDeleteMarkedFiles() {
+  const count = DUP_STATE.selectedPaths.size;
+  if (count === 0) return;
+
+  let freedBytes = 0;
+  DUP_STATE.groups.forEach(g => {
+    g.files.forEach(f => {
+      if (DUP_STATE.selectedPaths.has(f)) {
+        freedBytes += g.file_size_bytes;
+      }
+    });
+  });
+  const freedText = dupFormatBytes(freedBytes);
+
+  const ok = confirm(`Möchten Sie die ${count} markierten Datei(en) unwiderruflich löschen?\n\nFreigegebener Speicherplatz: ${freedText}`);
+  if (!ok) return;
+
+  const btn = document.getElementById('dup-batch-delete-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = `⏳ Lösche ${count} Dateien…`;
+  }
+
+  const paths = Array.from(DUP_STATE.selectedPaths);
+  const res = await rpc('delete_items', { paths });
+
+  if (btn) btn.disabled = false;
+
+  if (res && res.error) {
+    toast(`Fehler beim Löschen: ${res.error}`);
+    return;
+  }
+
+  const deletedSet = new Set(paths);
+  DUP_STATE.groups.forEach(g => {
+    g.files = g.files.filter(f => !deletedSet.has(f));
+    if (g.file_details) {
+      g.file_details = g.file_details.filter(d => !deletedSet.has(d.full_path));
+    }
+  });
+  DUP_STATE.groups = DUP_STATE.groups.filter(g => g.files.length >= 2);
+  DUP_STATE.selectedPaths.clear();
+
+  let totalWasted = 0;
+  DUP_STATE.groups.forEach(g => {
+    totalWasted += g.file_size_bytes * (g.files.length - 1);
+  });
+  DUP_STATE.totalWastedBytes = totalWasted;
+  DUP_STATE.totalWastedText = dupFormatBytes(totalWasted);
+
+  renderDuplicatesList();
+  loadPane(STATE.activeSide);
+  toast(`${count} Datei(en) gelöscht (${freedText} freigegeben).`);
+}
+
+function dupRevealFile(filePath) {
+  const parent = filePath.replace(/[/\\][^/\\]+$/, '');
+  if (parent) {
+    loadDir(STATE.activeSide, parent);
+    toast('Ordner im Explorer geöffnet: ' + parent);
+  }
+}
+
+async function dupPreviewFile(filePath) {
+  STATE.viewerPath = filePath;
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const ext = fileName.includes('.') ? ('.' + fileName.split('.').pop().toLowerCase()) : '';
+  const res = await rpc('quick_preview', { path: filePath });
+  STATE.viewerData = res;
+  document.getElementById('viewerTitle').textContent = '👁 Quick Viewer: ' + fileName;
+  const ta = document.getElementById('viewerTextarea');
+  ta.value = res.text || '';
+  ta.readOnly = true;
+  document.getElementById('btnViewerSave').style.display = 'none';
+  document.getElementById('viewerHexPre').textContent = res.hex || '';
+  document.getElementById('viewerImgEl').src = isImageExt(ext) ? `/file?path=${encodeURIComponent(filePath)}` : '';
+  document.getElementById('viewerImgMeta').textContent = `${fileName} • ${res.resolution || ''}`;
+
+  const csvRows = res.csv_rows || [];
+  document.getElementById('viewerCsvWrap').innerHTML = csvRows.length
+    ? `<table class="data-tbl"><tbody>${csvRows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : '<div style="color:var(--fg-muted)">Keine CSV-Tabellendaten erkannt.</div>';
+
+  switchViewerTab(isImageExt(ext) ? 'image' : 'text');
+  openModal('modalViewer');
+}
+
+const runDuplicatesScan = startDuplicatesScan;
 
 /* 6. Squarified Storage Treemap (Ctrl+Shift+W) — Full .NET Feature Parity */
 const TM_STATE = {
@@ -5569,6 +6286,12 @@ function initSplitter() {
       if (dockDragging) {
         dockDragging = false;
         dsp.classList.remove('dragging');
+        const finalW = parseFloat(dock.style.width);
+        if (finalW >= 200 && finalW <= 800) {
+          STATE.settings.right_dock_width = finalW;
+          rpc('save_settings', { settings: STATE.settings });
+          saveCurrentSessionNow(false);
+        }
       }
     });
   }
@@ -5698,6 +6421,17 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
+});
+
+window.addEventListener('beforeunload', () => {
+  STATE.settings.right_dock_open = STATE.dockOpen;
+  STATE.settings.right_dock_tab = STATE.dockTab;
+  const dEl = document.getElementById('rightDock');
+  if (dEl) {
+    const w = parseFloat(dEl.style.width);
+    if (w > 0) STATE.settings.right_dock_width = w;
+  }
+  saveCurrentSessionNow(false);
 });
 
 window.addEventListener('DOMContentLoaded', initApp);

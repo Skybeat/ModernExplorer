@@ -7,6 +7,10 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use sysinfo::Disks;
 use walkdir::WalkDir;
 
@@ -570,7 +574,17 @@ impl DeepSearchService {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicateScanProgress {
+    pub stage: u8,
+    pub stage_message: String,
+    pub percentage: f32,
+    pub processed_files: usize,
+    pub total_files: usize,
+    pub is_indeterminate: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DuplicateFileGroup {
     pub sha256_hash: String,
     pub file_size_bytes: u64,
@@ -587,7 +601,7 @@ impl DuplicateFileGroup {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DuplicateScanResult {
     pub groups: Vec<DuplicateFileGroup>,
     pub total_files_scanned: usize,
@@ -602,6 +616,34 @@ impl DuplicateFinderService {
     /// Stage 2: Group candidates by 4 KB partial SHA-256 hash
     /// Stage 3: Group remaining candidates by full SHA-256 hash
     pub fn scan_directory(root_dir: impl AsRef<Path>, min_size_bytes: u64) -> DuplicateScanResult {
+        Self::scan_directory_with_progress(root_dir, min_size_bytes, |_| {}, None)
+    }
+
+    pub fn scan_directory_with_progress<F>(
+        root_dir: impl AsRef<Path>,
+        min_size_bytes: u64,
+        mut on_progress: F,
+        cancel: Option<Arc<AtomicBool>>,
+    ) -> DuplicateScanResult
+    where
+        F: FnMut(&DuplicateScanProgress),
+    {
+        let is_cancelled = || {
+            cancel
+                .as_ref()
+                .map(|c| c.load(Ordering::Relaxed))
+                .unwrap_or(false)
+        };
+
+        on_progress(&DuplicateScanProgress {
+            stage: 1,
+            stage_message: "1/3 Sammle Dateien nach Dateigröße…".to_string(),
+            percentage: 0.0,
+            processed_files: 0,
+            total_files: 0,
+            is_indeterminate: true,
+        });
+
         let mut by_size: HashMap<u64, Vec<FileEntry>> = HashMap::new();
         let mut total_scanned = 0usize;
 
@@ -610,6 +652,9 @@ impl DuplicateFinderService {
             .into_iter()
             .filter_map(|e| e.ok())
         {
+            if is_cancelled() {
+                return DuplicateScanResult::default();
+            }
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -618,48 +663,188 @@ impl DuplicateFinderService {
                 if fe.size_bytes >= min_size_bytes.max(1) {
                     by_size.entry(fe.size_bytes).or_default().push(fe);
                 }
+                if total_scanned % 50 == 0 {
+                    on_progress(&DuplicateScanProgress {
+                        stage: 1,
+                        stage_message: format!(
+                            "1/3 Sammle Dateien nach Dateigröße… ({} Dateien erfasst)",
+                            total_scanned
+                        ),
+                        percentage: 0.0,
+                        processed_files: total_scanned,
+                        total_files: 0,
+                        is_indeterminate: true,
+                    });
+                }
             }
         }
 
-        let mut groups = Vec::new();
-        for (size, candidates) in by_size {
-            if candidates.len() < 2 {
-                continue;
+        let candidate_buckets: Vec<(u64, Vec<FileEntry>)> =
+            by_size.into_iter().filter(|(_, v)| v.len() >= 2).collect();
+
+        if candidate_buckets.is_empty() {
+            on_progress(&DuplicateScanProgress {
+                stage: 3,
+                stage_message: "Scan abgeschlossen – keine Duplikate gefunden.".to_string(),
+                percentage: 100.0,
+                processed_files: total_scanned,
+                total_files: total_scanned,
+                is_indeterminate: false,
+            });
+            return DuplicateScanResult {
+                groups: Vec::new(),
+                total_files_scanned: total_scanned,
+                total_wasted_bytes: 0,
+            };
+        }
+
+        let total_stage2_files: usize = candidate_buckets.iter().map(|(_, v)| v.len()).sum();
+        let mut processed_stage2_files = 0usize;
+
+        on_progress(&DuplicateScanProgress {
+            stage: 2,
+            stage_message: format!(
+                "2/3 Prüfe Schnell-Hashes für {} Größen-Gruppen ({} Dateien)…",
+                candidate_buckets.len(),
+                total_stage2_files
+            ),
+            percentage: 5.0,
+            processed_files: 0,
+            total_files: total_stage2_files,
+            is_indeterminate: false,
+        });
+
+        // Stage 2: 4 KB partial hash
+        let mut partial_candidates: Vec<(u64, Vec<FileEntry>)> = Vec::new();
+        for (size, candidates) in candidate_buckets {
+            if is_cancelled() {
+                return DuplicateScanResult::default();
             }
-            // Stage 2: 4 KB partial hash
             let mut by_partial: HashMap<String, Vec<FileEntry>> = HashMap::new();
             for item in candidates {
+                if is_cancelled() {
+                    return DuplicateScanResult::default();
+                }
                 if let Some(ph) = Self::compute_partial_hash(&item.full_path, 4096) {
                     by_partial.entry(ph).or_default().push(item);
                 }
+                processed_stage2_files += 1;
+                let pct = 5.0 + (processed_stage2_files as f32 * 45.0 / (total_stage2_files.max(1) as f32));
+                if processed_stage2_files % 10 == 0 || processed_stage2_files == total_stage2_files {
+                    on_progress(&DuplicateScanProgress {
+                        stage: 2,
+                        stage_message: format!(
+                            "2/3 Prüfe Schnell-Hashes ({}/{})…",
+                            processed_stage2_files, total_stage2_files
+                        ),
+                        percentage: pct.min(50.0),
+                        processed_files: processed_stage2_files,
+                        total_files: total_stage2_files,
+                        is_indeterminate: false,
+                    });
+                }
             }
+            for (_ph, matches) in by_partial {
+                if matches.len() >= 2 {
+                    partial_candidates.push((size, matches));
+                }
+            }
+        }
 
-            // Stage 3: Full SHA-256 hash
-            for (_ph, partial_matches) in by_partial {
-                if partial_matches.len() < 2 {
-                    continue;
+        if partial_candidates.is_empty() {
+            on_progress(&DuplicateScanProgress {
+                stage: 3,
+                stage_message: "Scan abgeschlossen – keine Duplikate gefunden.".to_string(),
+                percentage: 100.0,
+                processed_files: total_scanned,
+                total_files: total_scanned,
+                is_indeterminate: false,
+            });
+            return DuplicateScanResult {
+                groups: Vec::new(),
+                total_files_scanned: total_scanned,
+                total_wasted_bytes: 0,
+            };
+        }
+
+        // Stage 3: Full SHA-256 hash
+        let total_stage3_files: usize = partial_candidates.iter().map(|(_, v)| v.len()).sum();
+        let mut processed_stage3_files = 0usize;
+
+        on_progress(&DuplicateScanProgress {
+            stage: 3,
+            stage_message: format!(
+                "3/3 Berechne vollständige SHA-256-Prüfsummen ({} Kandidaten)…",
+                total_stage3_files
+            ),
+            percentage: 50.0,
+            processed_files: 0,
+            total_files: total_stage3_files,
+            is_indeterminate: false,
+        });
+
+        let mut groups = Vec::new();
+        for (size, candidates) in partial_candidates {
+            if is_cancelled() {
+                return DuplicateScanResult::default();
+            }
+            let mut by_full: HashMap<String, Vec<FileEntry>> = HashMap::new();
+            for item in candidates {
+                if is_cancelled() {
+                    return DuplicateScanResult::default();
                 }
-                let mut by_full: HashMap<String, Vec<FileEntry>> = HashMap::new();
-                for item in partial_matches {
-                    if let Some(fh) = Self::compute_full_sha256(&item.full_path) {
-                        by_full.entry(fh).or_default().push(item);
-                    }
+                if let Some(fh) = Self::compute_full_sha256(&item.full_path) {
+                    by_full.entry(fh).or_default().push(item);
                 }
-                for (hash, mut dup_files) in by_full {
-                    if dup_files.len() >= 2 {
-                        dup_files.sort_by(|a, b| a.full_path.cmp(&b.full_path));
-                        groups.push(DuplicateFileGroup {
-                            sha256_hash: hash,
-                            file_size_bytes: size,
-                            files: dup_files,
-                        });
-                    }
+                processed_stage3_files += 1;
+                let pct = 50.0 + (processed_stage3_files as f32 * 50.0 / (total_stage3_files.max(1) as f32));
+                if processed_stage3_files % 5 == 0 || processed_stage3_files == total_stage3_files {
+                    on_progress(&DuplicateScanProgress {
+                        stage: 3,
+                        stage_message: format!(
+                            "3/3 Berechne SHA-256 ({}/{})…",
+                            processed_stage3_files, total_stage3_files
+                        ),
+                        percentage: pct.min(100.0),
+                        processed_files: processed_stage3_files,
+                        total_files: total_stage3_files,
+                        is_indeterminate: false,
+                    });
+                }
+            }
+            for (hash, mut dup_files) in by_full {
+                if dup_files.len() >= 2 {
+                    // Sort by modified time first (oldest is original), then by path
+                    dup_files.sort_by(|a, b| {
+                        a.modified
+                            .cmp(&b.modified)
+                            .then_with(|| a.full_path.cmp(&b.full_path))
+                    });
+                    groups.push(DuplicateFileGroup {
+                        sha256_hash: hash,
+                        file_size_bytes: size,
+                        files: dup_files,
+                    });
                 }
             }
         }
 
         groups.sort_by(|a, b| b.wasted_bytes().cmp(&a.wasted_bytes()));
         let total_wasted = groups.iter().map(|g| g.wasted_bytes()).sum();
+
+        on_progress(&DuplicateScanProgress {
+            stage: 3,
+            stage_message: format!(
+                "Scan abgeschlossen – {} Duplikat-Gruppen gefunden ({} verschwendet).",
+                groups.len(),
+                format_bytes(total_wasted)
+            ),
+            percentage: 100.0,
+            processed_files: total_stage3_files,
+            total_files: total_stage3_files,
+            is_indeterminate: false,
+        });
+
         DuplicateScanResult {
             groups,
             total_files_scanned: total_scanned,

@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.9.3"
+version = "1.9.4"
 edition = "2021"
 authors = ["ModernExplorer Team"]
 license = "MIT"

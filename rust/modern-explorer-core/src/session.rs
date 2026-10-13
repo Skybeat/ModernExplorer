@@ -55,6 +55,12 @@ pub struct SessionState {
     pub show_preview_pane: bool,
     pub show_quick_console: bool,
     pub split_ratio: f32,
+    #[serde(default)]
+    pub dock_open: Option<bool>,
+    #[serde(default)]
+    pub dock_tab: Option<String>,
+    #[serde(default)]
+    pub dock_width: Option<f32>,
 }
 
 impl Default for SessionState {
@@ -74,9 +80,12 @@ impl Default for SessionState {
             active_left_tab: 0,
             active_right_tab: 0,
             is_dual_pane: true,
-            show_preview_pane: false,
+            show_preview_pane: true,
             show_quick_console: false,
             split_ratio: 0.5,
+            dock_open: Some(true),
+            dock_tab: Some("preview".to_string()),
+            dock_width: Some(320.0),
         }
     }
 }

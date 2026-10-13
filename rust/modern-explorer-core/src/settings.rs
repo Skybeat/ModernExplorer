@@ -54,6 +54,9 @@ pub struct AppSettings {
     pub show_function_key_bar: bool,
     pub show_tooltips: bool,
     pub file_list_row_height: f32,
+    pub right_dock_open: bool,
+    pub right_dock_tab: String,
+    pub right_dock_width: f32,
 
     // 2. Colors & Highlighting (Active Panel, Selection, Marked Item + 7 Treemap Categories)
     pub active_panel_border_color_hex: String,
@@ -139,6 +142,9 @@ impl Default for AppSettings {
             show_function_key_bar: true,
             show_tooltips: true,
             file_list_row_height: 26.0,
+            right_dock_open: true,
+            right_dock_tab: "preview".to_string(),
+            right_dock_width: 320.0,
 
             active_panel_border_color_hex: ColorSettingTarget::ActivePanelBorder.default_hex().to_string(),
             active_panel_border_thickness: 2.0,
@@ -413,6 +419,36 @@ mod tests {
         assert_eq!(br_bounds.width, 1240.0);
         assert_eq!(br_bounds.height, 810.0);
         assert!(br_bounds.maximized);
+    }
+
+    #[test]
+    fn test_dock_state_persistence_in_settings_and_session() {
+        let mut settings = AppSettings::default();
+        assert!(settings.right_dock_open);
+        settings.right_dock_open = false;
+        settings.right_dock_tab = "basket".to_string();
+        settings.right_dock_width = 380.0;
+
+        let temp_file = std::env::temp_dir().join("modern_explorer_test_dock_settings.json");
+        SettingsStore::save_to(&temp_file, &settings);
+        let loaded = SettingsStore::load_from(&temp_file);
+        let _ = fs::remove_file(&temp_file);
+
+        assert!(!loaded.right_dock_open);
+        assert_eq!(loaded.right_dock_tab, "basket");
+        assert_eq!(loaded.right_dock_width, 380.0);
+
+        let mut session = crate::session::SessionState::default();
+        session.dock_open = Some(false);
+        session.dock_tab = Some("git".to_string());
+        session.dock_width = Some(420.0);
+
+        let s_json = serde_json::to_string(&session).expect("serialize session");
+        let s_loaded: crate::session::SessionState =
+            serde_json::from_str(&s_json).expect("deserialize session");
+        assert_eq!(s_loaded.dock_open, Some(false));
+        assert_eq!(s_loaded.dock_tab, Some("git".to_string()));
+        assert_eq!(s_loaded.dock_width, Some(420.0));
     }
 }
 

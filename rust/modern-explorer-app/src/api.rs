@@ -9,8 +9,8 @@ use modern_explorer_core::{
     },
     filesystem::{
         format_bytes, sort_entries_with_options, DeepSearchCriteria, DeepSearchService,
-        DirectoryEnumerator, DriveItem, DuplicateFinderService, FileCreationService, FileEntry,
-        SortColumn, SortDirection,
+        DirectoryEnumerator, DriveItem, DuplicateFinderService, DuplicateScanProgress,
+        DuplicateScanResult, FileCreationService, FileEntry, SortColumn, SortDirection,
     },
     localization::LanguageCode,
     operations::{
@@ -30,6 +30,10 @@ use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreadcrumbDto {
@@ -57,6 +61,15 @@ pub struct FileItemDto {
     pub tag_note: Option<String>,
 }
 
+#[derive(Clone)]
+pub struct DuplicatesJobState {
+    pub running: bool,
+    pub progress: DuplicateScanProgress,
+    pub result: Option<DuplicateScanResult>,
+    pub error: Option<String>,
+    pub cancel_flag: Arc<AtomicBool>,
+}
+
 pub struct BackendState {
     pub settings: AppSettings,
     pub favorites: FavoritesStore,
@@ -67,6 +80,7 @@ pub struct BackendState {
     pub basket_service: FileBasketService,
     pub quick_runner: QuickCommandRunnerService,
     pub cached_treemap: Option<TreemapNode>,
+    pub duplicates_job: Arc<Mutex<Option<DuplicatesJobState>>>,
 }
 
 impl BackendState {
@@ -81,6 +95,7 @@ impl BackendState {
             basket_service: FileBasketService::default(),
             quick_runner: QuickCommandRunnerService::new(),
             cached_treemap: None,
+            duplicates_job: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -123,6 +138,9 @@ impl BackendState {
             "dir_sync" => self.rpc_dir_sync(params),
             "deep_search" => self.rpc_deep_search(params),
             "duplicates" => self.rpc_duplicates(params),
+            "duplicates_start" => self.rpc_duplicates_start(params),
+            "duplicates_poll" => self.rpc_duplicates_poll(),
+            "duplicates_cancel" => self.rpc_duplicates_cancel(),
             "treemap" => self.rpc_treemap(params),
             "archive" => self.rpc_archive(params),
             "remote" => self.rpc_remote(params),
@@ -1454,6 +1472,38 @@ impl BackendState {
         json!({ "results": hits })
     }
 
+    fn format_duplicate_groups_result(res: &DuplicateScanResult) -> Value {
+        let groups: Vec<Value> = res
+            .groups
+            .iter()
+            .map(|g| {
+                json!({
+                    "sha256": g.sha256_hash,
+                    "file_size_bytes": g.file_size_bytes,
+                    "size_text": format_bytes(g.file_size_bytes),
+                    "wasted_bytes": g.wasted_bytes(),
+                    "wasted_text": format_bytes(g.wasted_bytes()),
+                    "files": g.files.iter().map(|f| &f.full_path).collect::<Vec<_>>(),
+                    "file_details": g.files.iter().map(|f| {
+                        json!({
+                            "name": f.name,
+                            "full_path": f.full_path,
+                            "modified_text": f.modified.format("%d.%m.%Y %H:%M").to_string(),
+                            "size_bytes": f.size_bytes,
+                            "size_text": format_bytes(f.size_bytes),
+                        })
+                    }).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        json!({
+            "total_files_scanned": res.total_files_scanned,
+            "total_wasted_bytes": res.total_wasted_bytes,
+            "total_wasted_text": format_bytes(res.total_wasted_bytes),
+            "groups": groups,
+        })
+    }
+
     fn rpc_duplicates(&self, params: &Value) -> Value {
         let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
         let min_kb = params
@@ -1461,23 +1511,98 @@ impl BackendState {
             .and_then(|v| v.as_u64())
             .unwrap_or(1);
         let res = DuplicateFinderService::scan_directory(dir, min_kb * 1024);
-        let groups: Vec<Value> = res
-            .groups
-            .iter()
-            .map(|g| {
-                json!({
-                    "sha256": g.sha256_hash,
-                    "size_text": format_bytes(g.file_size_bytes),
-                    "wasted_text": format_bytes(g.wasted_bytes()),
-                    "files": g.files.iter().map(|f| &f.full_path).collect::<Vec<_>>(),
-                })
-            })
-            .collect();
-        json!({
-            "total_files_scanned": res.total_files_scanned,
-            "total_wasted_text": format_bytes(res.total_wasted_bytes),
-            "groups": groups,
-        })
+        Self::format_duplicate_groups_result(&res)
+    }
+
+    fn rpc_duplicates_start(&self, params: &Value) -> Value {
+        let dir = params
+            .get("dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".")
+            .to_string();
+        let min_kb = params
+            .get("min_size_kb")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1);
+        let min_bytes = min_kb * 1024;
+
+        if let Ok(mut lock) = self.duplicates_job.lock() {
+            if let Some(ref current) = *lock {
+                if current.running {
+                    current.cancel_flag.store(true, Ordering::SeqCst);
+                }
+            }
+            let cancel_flag = Arc::new(AtomicBool::new(false));
+            *lock = Some(DuplicatesJobState {
+                running: true,
+                progress: DuplicateScanProgress {
+                    stage: 1,
+                    stage_message: "Starte Duplikatanalyse…".to_string(),
+                    percentage: 0.0,
+                    processed_files: 0,
+                    total_files: 0,
+                    is_indeterminate: true,
+                },
+                result: None,
+                error: None,
+                cancel_flag: Arc::clone(&cancel_flag),
+            });
+
+            let job_ref = Arc::clone(&self.duplicates_job);
+            std::thread::spawn(move || {
+                let res = DuplicateFinderService::scan_directory_with_progress(
+                    &dir,
+                    min_bytes,
+                    |p| {
+                        if let Ok(mut lk) = job_ref.lock() {
+                            if let Some(ref mut j) = *lk {
+                                j.progress = p.clone();
+                            }
+                        }
+                    },
+                    Some(cancel_flag),
+                );
+                if let Ok(mut lk) = job_ref.lock() {
+                    if let Some(ref mut j) = *lk {
+                        j.running = false;
+                        j.result = Some(res);
+                    }
+                }
+            });
+        }
+        json!({ "ok": true, "started": true })
+    }
+
+    fn rpc_duplicates_poll(&self) -> Value {
+        if let Ok(lock) = self.duplicates_job.lock() {
+            if let Some(ref job) = *lock {
+                let mut out = json!({
+                    "ok": true,
+                    "running": job.running,
+                    "stage": job.progress.stage,
+                    "stage_message": job.progress.stage_message,
+                    "percentage": job.progress.percentage,
+                    "processed_files": job.progress.processed_files,
+                    "total_files": job.progress.total_files,
+                    "is_indeterminate": job.progress.is_indeterminate,
+                    "error": job.error,
+                });
+                if let Some(ref res) = job.result {
+                    out["result"] = Self::format_duplicate_groups_result(res);
+                }
+                return out;
+            }
+        }
+        json!({ "ok": true, "running": false, "no_job": true })
+    }
+
+    fn rpc_duplicates_cancel(&self) -> Value {
+        if let Ok(lock) = self.duplicates_job.lock() {
+            if let Some(ref job) = *lock {
+                job.cancel_flag.store(true, Ordering::SeqCst);
+            }
+        }
+        json!({ "ok": true })
     }
 
     fn rpc_treemap(&mut self, params: &Value) -> Value {
