@@ -2028,7 +2028,7 @@ impl BackendState {
             Ok(path) => {
                 SettingsStore::save(&self.settings);
                 std::thread::spawn(|| {
-                    std::thread::sleep(std::time::Duration::from_millis(350));
+                    std::thread::sleep(std::time::Duration::from_millis(750));
                     std::process::exit(0);
                 });
                 json!({

@@ -42,7 +42,7 @@ pub struct GitHubReleaseInfo {
 pub struct GitHubUpdateService;
 
 impl GitHubUpdateService {
-    pub const CURRENT_VERSION: &'static str = "1.9.4";
+    pub const CURRENT_VERSION: &'static str = "1.9.5";
     pub const RELEASES_URL: &'static str = "https://github.com/Skybeat/ModernExplorer/releases";
     pub const LATEST_API_URL: &'static str =
         "https://api.github.com/repos/Skybeat/ModernExplorer/releases/latest";
@@ -245,12 +245,24 @@ $targetDir = '{dir_str}'
 $newVer = '{ver_clean}'
 $pidToWait = {pid}
 
+$logFile = Join-Path (Split-Path -Parent $dlFile) 'update.log'
+function Write-Log($msg) {{
+    $ts = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss')
+    Add-Content -LiteralPath $logFile -Value "[$ts] $msg" -ErrorAction SilentlyContinue
+}}
+
+Write-Log "=== ModernExplorer Updater v$newVer gestartet ==="
+Write-Log "PID to wait: $pidToWait"
+Write-Log "Downloaded file: $dlFile"
+Write-Log "Target exe: $targetExe"
+Write-Log "Target dir: $targetDir"
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "ModernExplorer Studio (Rust) – Update auf v$newVer"
+$form.Text = "ModernExplorer Studio (Rust) - Update auf v$newVer"
 $form.Size = New-Object System.Drawing.Size(500, 195)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
@@ -270,7 +282,7 @@ $hdr.Size = New-Object System.Drawing.Size(445, 26)
 $form.Controls.Add($hdr)
 
 $lbl = New-Object System.Windows.Forms.Label
-$lbl.Text = "Warte auf das Schließen von ModernExplorer..."
+$lbl.Text = "Warte auf das Beenden von ModernExplorer..."
 $lbl.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
 $lbl.Location = New-Object System.Drawing.Point(22, 50)
 $lbl.Size = New-Object System.Drawing.Size(445, 22)
@@ -297,72 +309,122 @@ $form.Show()
 $form.Activate()
 [System.Windows.Forms.Application]::DoEvents()
 
+# 1. Warte auf Beendigung des Hauptprozesses
 for ($i = 0; $i -lt 50; $i++) {{
     $p = Get-Process -Id $pidToWait -ErrorAction SilentlyContinue
     if (-not $p) {{ break }}
-    if ($i -ge 12) {{ Stop-Process -Id $pidToWait -Force -ErrorAction SilentlyContinue }}
+    if ($i -ge 15) {{ 
+        Write-Log "Beende Prozess PID $pidToWait gewaltsam..."
+        Stop-Process -Id $pidToWait -Force -ErrorAction SilentlyContinue 
+    }}
     [System.Windows.Forms.Application]::DoEvents()
     Start-Sleep -Milliseconds 120
 }}
 
 Get-Process -Name 'ModernExplorer-Rust' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 350
+Write-Log "Hauptprozess beendet."
 
-$bar.Value = 55
+$bar.Value = 50
 $lbl.Text = "Aktualisiere Programmdatei auf v$newVer..."
 [System.Windows.Forms.Application]::DoEvents()
 
-$targets = [System.Collections.Generic.List[string]]::new()
-$targets.Add($targetExe)
-$progFilesExe = Join-Path $env:ProgramFiles 'ModernExplorer-Rust\ModernExplorer-Rust.exe'
-if ((Test-Path -LiteralPath (Split-Path -Parent $progFilesExe)) -and ($progFilesExe.ToLower() -ne $targetExe.ToLower())) {{
-    $targets.Add($progFilesExe)
-}}
+# 2. Pruefen, ob Setup-Installer oder Portable-Exe
+$isSetup = ($dlFile -match '(?i)setup.*\.exe$')
+$copySuccess = $false
 
-foreach ($dest in $targets) {{
-    $oldBak = "$dest.old"
-    if (Test-Path -LiteralPath $oldBak) {{ Remove-Item -LiteralPath $oldBak -Force -ErrorAction SilentlyContinue }}
-    for ($attempt = 1; $attempt -le 12; $attempt++) {{
-        try {{
-            Copy-Item -LiteralPath $dlFile -Destination $dest -Force -ErrorAction Stop
-            break
-        }} catch {{
+if ($isSetup) {{
+    Write-Log "Fuehre Setup-Installer aus: $dlFile"
+    $lbl.Text = "Fuehre Setup-Installer fuer v$newVer aus..."
+    [System.Windows.Forms.Application]::DoEvents()
+    $setupProc = Start-Process -FilePath $dlFile -ArgumentList "/SILENT /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS" -PassThru -Wait
+    Write-Log "Setup beendet mit ExitCode: $($setupProc.ExitCode)"
+    $copySuccess = ($setupProc.ExitCode -eq 0)
+}} else {{
+    $targets = [System.Collections.Generic.List[string]]::new()
+    $targets.Add($targetExe)
+    $progFilesExe = Join-Path $env:ProgramFiles 'ModernExplorer-Rust\ModernExplorer-Rust.exe'
+    if ((Test-Path -LiteralPath (Split-Path -Parent $progFilesExe)) -and ($progFilesExe.ToLower() -ne $targetExe.ToLower())) {{
+        $targets.Add($progFilesExe)
+    }}
+
+    foreach ($dest in $targets) {{
+        Write-Log "Aktualisiere Zieldatei: $dest"
+        $oldBak = "$dest.old"
+        if (Test-Path -LiteralPath $oldBak) {{ Remove-Item -LiteralPath $oldBak -Force -ErrorAction SilentlyContinue }}
+        
+        $destCopied = $false
+        for ($attempt = 1; $attempt -le 15; $attempt++) {{
             try {{
-                if (Test-Path -LiteralPath $dest) {{
-                    Move-Item -LiteralPath $dest -Destination $oldBak -Force -ErrorAction Stop
-                }}
                 Copy-Item -LiteralPath $dlFile -Destination $dest -Force -ErrorAction Stop
+                $destCopied = $true
+                Write-Log "Copy-Item erfolgreich fuer $dest bei Versuch $attempt"
                 break
             }} catch {{
-                [System.Windows.Forms.Application]::DoEvents()
-                Start-Sleep -Milliseconds 250
+                Write-Log "Versuch $attempt fehlgeschlagen fuer $dest: $($_.Exception.Message)"
+                try {{
+                    if (Test-Path -LiteralPath $dest) {{
+                        Move-Item -LiteralPath $dest -Destination $oldBak -Force -ErrorAction Stop
+                        Write-Log "Move-Item nach $oldBak erfolgreich"
+                    }}
+                    Copy-Item -LiteralPath $dlFile -Destination $dest -Force -ErrorAction Stop
+                    $destCopied = $true
+                    Write-Log "Copy-Item nach Verschieben erfolgreich fuer $dest"
+                    break
+                }} catch {{
+                    Write-Log "Move/Copy Fallback fehlgeschlagen: $($_.Exception.Message)"
+                    [System.Windows.Forms.Application]::DoEvents()
+                    Start-Sleep -Milliseconds 300
+                }}
             }}
+        }}
+        if ($dest.ToLower() -eq $targetExe.ToLower() -and $destCopied) {{
+            $copySuccess = $true
         }}
     }}
 }}
 
+# 3. Registrierungseintraege aktualisieren
 try {{
     foreach ($hive in @('HKLM:', 'HKCU:')) {{
         $regPath = "$hive\Software\Microsoft\Windows\CurrentVersion\Uninstall\{{C94E7A12-8D41-4F3A-9B25-7E1A3D94F6B2}}_is1"
         if (Test-Path -LiteralPath $regPath) {{
             Set-ItemProperty -LiteralPath $regPath -Name 'DisplayVersion' -Value $newVer -ErrorAction SilentlyContinue
             Set-ItemProperty -LiteralPath $regPath -Name 'DisplayName' -Value "Modern Explorer Studio (Rust) $newVer (win-x64)" -ErrorAction SilentlyContinue
+            Write-Log "Registry aktualisiert in $hive"
         }}
     }}
-}} catch {{ }}
+}} catch {{
+    Write-Log "Registry-Aktualisierung uebersprungen: $($_.Exception.Message)"
+}}
 
 $bar.Value = 100
 $lbl.Text = "Update abgeschlossen! Starte ModernExplorer Studio v$newVer..."
 [System.Windows.Forms.Application]::DoEvents()
-Start-Sleep -Milliseconds 300
+Start-Sleep -Milliseconds 400
 
-Start-Process -FilePath $targetExe -WorkingDirectory $targetDir
+# 4. Anwendung neu starten
+if (-not $isSetup) {{
+    Write-Log "Starte Zielanwendung neu: $targetExe in $targetDir"
+    try {{
+        Start-Process -FilePath $targetExe -WorkingDirectory $targetDir -ErrorAction Stop
+        Write-Log "Start-Process erfolgreich."
+    }} catch {{
+        Write-Log "Start-Process fehlgeschlagen: $($_.Exception.Message) - Starte via Explorer..."
+        Start-Process -FilePath "explorer.exe" -ArgumentList "`"$targetExe`""
+    }}
+}}
+
+Write-Log "Update abgeschlossen."
 $form.Close()
 $form.Dispose()
 "#
             );
 
-            fs::write(&script_path, ps_script)
+            // Write with UTF-8 BOM so Windows PowerShell 5.1 parses strings reliably on any locale
+            let mut script_bytes = vec![0xEF, 0xBB, 0xBF];
+            script_bytes.extend_from_slice(ps_script.as_bytes());
+            fs::write(&script_path, script_bytes)
                 .map_err(|e| format!("Update-Skript konnte nicht erstellt werden: {e}"))?;
 
             Command::new("powershell.exe")
