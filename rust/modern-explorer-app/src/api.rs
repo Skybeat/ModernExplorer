@@ -2028,7 +2028,8 @@ impl BackendState {
             Ok(path) => {
                 SettingsStore::save(&self.settings);
                 std::thread::spawn(|| {
-                    std::thread::sleep(std::time::Duration::from_millis(750));
+                    std::thread::sleep(std::time::Duration::from_millis(700));
+                    let _ = GitHubUpdateService::restart_application();
                     std::process::exit(0);
                 });
                 json!({

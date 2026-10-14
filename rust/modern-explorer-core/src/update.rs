@@ -2,7 +2,7 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn null_to_empty<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -155,8 +155,7 @@ impl GitHubUpdateService {
         };
 
         if cfg!(target_os = "windows") {
-            // Prefer Portable .exe for direct in-place replacement of ModernExplorer-Rust.exe,
-            // or Setup.exe if Portable.exe is not found
+            // Priority 1: Portable Standalone Executable (.exe) for direct in-place replacement
             let portable_exe = format!("modernexplorer-rust-windows-{arch}-portable.exe");
             if let Some(a) = pool
                 .iter()
@@ -164,6 +163,15 @@ impl GitHubUpdateService {
             {
                 return Some(*a);
             }
+            // Priority 2: Portable ZIP Archive (contains ModernExplorer-Rust.exe)
+            let portable_zip = format!("modernexplorer-rust-windows-{arch}-portable.zip");
+            if let Some(a) = pool
+                .iter()
+                .find(|a| a.name.to_ascii_lowercase() == portable_zip)
+            {
+                return Some(*a);
+            }
+            // Priority 3: Fallback Setup.exe
             let setup_exe = format!("modernexplorer-rust-setup-win-{arch}.exe");
             if let Some(a) = pool
                 .iter()
@@ -172,19 +180,22 @@ impl GitHubUpdateService {
                 return Some(*a);
             }
         } else if cfg!(target_os = "macos") {
+            let tar_name = format!("modernexplorer-rust-macos-{arch}-portable.tar.gz");
+            let zip_name = format!("modernexplorer-rust-macos-{arch}-portable.zip");
             let pkg_name = format!("modernexplorer-rust-setup-macos-{arch}.pkg");
             let dmg_name = format!("modernexplorer-rust-setup-macos-{arch}.dmg");
-            let tar_name = format!("modernexplorer-rust-macos-{arch}-portable.tar.gz");
-            for want in [pkg_name, dmg_name, tar_name] {
+            for want in [tar_name, zip_name, pkg_name, dmg_name] {
                 if let Some(a) = pool.iter().find(|a| a.name.to_ascii_lowercase() == want) {
                     return Some(*a);
                 }
             }
         } else if cfg!(target_os = "linux") {
-            let sh_name = format!("modernexplorer-rust-installer-linux-{arch}.sh");
+            let tar_name = format!("modernexplorer-rust-linux-{arch}-portable.tar.gz");
+            let zip_name = format!("modernexplorer-rust-linux-{arch}-portable.zip");
             let appimage_name = format!("modernexplorer-rust-linux-{arch}-portable.appimage");
+            let sh_name = format!("modernexplorer-rust-installer-linux-{arch}.sh");
             let deb_name = format!("modernexplorer-rust-setup-linux-{arch}.deb");
-            for want in [sh_name, appimage_name, deb_name] {
+            for want in [tar_name, zip_name, appimage_name, sh_name, deb_name] {
                 if let Some(a) = pool.iter().find(|a| a.name.to_ascii_lowercase() == want) {
                     return Some(*a);
                 }
@@ -192,6 +203,187 @@ impl GitHubUpdateService {
         }
 
         pool.first().copied()
+    }
+
+    pub fn unpack_binary_if_archive(
+        downloaded_file: &Path,
+        target_dir: &Path,
+    ) -> Result<PathBuf, String> {
+        let name_lower = downloaded_file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+
+        if name_lower.ends_with(".zip") {
+            let file = fs::File::open(downloaded_file)
+                .map_err(|e| format!("ZIP-Datei konnte nicht geöffnet werden: {e}"))?;
+            let mut archive =
+                zip::ZipArchive::new(file).map_err(|e| format!("Ungültiges ZIP-Archiv: {e}"))?;
+
+            let mut match_index: Option<usize> = None;
+            for i in 0..archive.len() {
+                if let Ok(entry) = archive.by_index(i) {
+                    let entry_name = entry.name().to_ascii_lowercase();
+                    if entry_name.ends_with("modernexplorer-rust.exe")
+                        || entry_name.ends_with("modernexplorer-rust")
+                    {
+                        match_index = Some(i);
+                        break;
+                    }
+                }
+            }
+
+            let idx = match_index.ok_or_else(|| {
+                "Keine ModernExplorer-Rust-Binärdatei im ZIP-Archiv gefunden.".to_string()
+            })?;
+
+            let mut entry = archive
+                .by_index(idx)
+                .map_err(|e| format!("Fehler beim Zugriff auf ZIP-Eintrag: {e}"))?;
+
+            let out_ext = if cfg!(target_os = "windows") {
+                ".exe"
+            } else {
+                ""
+            };
+            let extracted_path = target_dir.join(format!("ModernExplorer-Rust-extracted{out_ext}"));
+            let mut out = fs::File::create(&extracted_path)
+                .map_err(|e| format!("Extrahierte Datei konnte nicht erstellt werden: {e}"))?;
+            io::copy(&mut entry, &mut out)
+                .map_err(|e| format!("Fehler beim Entpacken der Binärdatei: {e}"))?;
+            drop(out);
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&extracted_path, fs::Permissions::from_mode(0o755));
+            }
+
+            Ok(extracted_path)
+        } else if name_lower.ends_with(".tar.gz") || name_lower.ends_with(".tgz") {
+            let file = fs::File::open(downloaded_file)
+                .map_err(|e| format!("Tar.gz-Datei konnte nicht geöffnet werden: {e}"))?;
+            let gz = flate2::read::GzDecoder::new(file);
+            let mut archive = tar::Archive::new(gz);
+
+            let mut extracted_path: Option<PathBuf> = None;
+            for entry_res in archive.entries().map_err(|e| format!("Tar-Fehler: {e}"))? {
+                let mut entry = entry_res.map_err(|e| format!("Tar-Eintrag Fehler: {e}"))?;
+                let path = entry.path().map_err(|e| format!("Pfadfehler: {e}"))?;
+                let path_str = path.to_string_lossy().to_ascii_lowercase();
+                if path_str.ends_with("modernexplorer-rust")
+                    || path_str.ends_with("modernexplorer-rust.exe")
+                {
+                    let out_path = target_dir.join("ModernExplorer-Rust-extracted");
+                    let mut out = fs::File::create(&out_path).map_err(|e| {
+                        format!("Extrahierte Datei konnte nicht erstellt werden: {e}")
+                    })?;
+                    io::copy(&mut entry, &mut out)
+                        .map_err(|e| format!("Fehler beim Entpacken der Tar-Binärdatei: {e}"))?;
+                    drop(out);
+
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(0o755));
+                    }
+                    extracted_path = Some(out_path);
+                    break;
+                }
+            }
+
+            extracted_path.ok_or_else(|| {
+                "Keine ModernExplorer-Rust-Binärdatei im Tar.gz-Archiv gefunden.".to_string()
+            })
+        } else {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(downloaded_file, fs::Permissions::from_mode(0o755));
+            }
+            Ok(downloaded_file.to_path_buf())
+        }
+    }
+
+    pub fn restart_application() -> Result<(), String> {
+        let current_exe = std::env::current_exe()
+            .map_err(|e| format!("Aktueller Anwendungs-Pfad nicht ermittelbar: {e}"))?;
+        let current_dir = current_exe
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const DETACHED_PROCESS: u32 = 0x00000008;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+            Command::new(&current_exe)
+                .current_dir(&current_dir)
+                .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+                .spawn()
+                .map_err(|e| format!("Fehler beim Neustart der Anwendung: {e}"))?;
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            Command::new(&current_exe)
+                .current_dir(&current_dir)
+                .spawn()
+                .map_err(|e| format!("Fehler beim Neustart der Anwendung: {e}"))?;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn update_windows_registry(new_ver: &str) {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let hives = ["HKLM", "HKCU"];
+        for hive in hives {
+            let key = format!(
+                r"{hive}\Software\Microsoft\Windows\CurrentVersion\Uninstall\{{C94E7A12-8D41-4F3A-9B25-7E1A3D94F6B2}}_is1"
+            );
+            let _ = Command::new("reg.exe")
+                .args(["add", &key, "/v", "DisplayVersion", "/t", "REG_SZ", "/d", new_ver, "/f"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+            let display_name = format!("Modern Explorer Studio (Rust) {new_ver} (win-x64)");
+            let _ = Command::new("reg.exe")
+                .args(["add", &key, "/v", "DisplayName", "/t", "REG_SZ", "/d", &display_name, "/f"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+        }
+    }
+
+    pub fn cleanup_old_versions() {
+        if let Ok(current_exe) = std::env::current_exe() {
+            if let Some(parent) = current_exe.parent() {
+                if let Ok(entries) = fs::read_dir(parent) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                            let lower = file_name.to_ascii_lowercase();
+                            if lower.ends_with(".old")
+                                || lower.ends_with(".relocated")
+                                || lower.ends_with(".selfdelete")
+                                || lower.ends_with(".testrename")
+                                || (file_name.starts_with('.') && lower.ends_with(".temp"))
+                            {
+                                let _ = fs::remove_file(&path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let temp_base = std::env::temp_dir().join("ModernExplorer_Rust_Update");
+        let _ = fs::remove_dir_all(&temp_base);
     }
 
     pub fn download_and_install_update(release: &GitHubReleaseInfo) -> Result<String, String> {
@@ -217,256 +409,22 @@ impl GitHubUpdateService {
         io::copy(&mut reader, &mut out_file)
             .map_err(|e| format!("Fehler beim Speichern des Updates: {e}"))?;
         drop(out_file);
+        // 1. Ggf. Binärdatei aus Archiv (.zip, .tar.gz) entpacken
+        let new_binary = Self::unpack_binary_if_archive(&download_path, &update_dir)?;
 
-        let current_exe =
-            std::env::current_exe().map_err(|e| format!("Aktueller Pfad nicht lesbar: {e}"))?;
-        let current_dir = current_exe
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("."));
-        let pid = std::process::id();
-        let ver_clean = release.tag_name.trim_start_matches(['v', 'V']).to_string();
+        // 2. In-Place-Austausch der laufenden Binärdatei via self_replace
+        self_replace::self_replace(&new_binary).map_err(|e| {
+            format!("Fehler beim In-Place-Austausch der Anwendungsdatei via self-replace: {e}")
+        })?;
 
+        // 3. Auf Windows: Registry DisplayVersion aktualisieren (best-effort)
         #[cfg(target_os = "windows")]
         {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-            let script_path = update_dir.join("apply_rust_update.ps1");
-            let dl_str = download_path.to_string_lossy().replace('\'', "''");
-            let exe_str = current_exe.to_string_lossy().replace('\'', "''");
-            let dir_str = current_dir.to_string_lossy().replace('\'', "''");
-
-            let ps_script = format!(
-                r#"$ErrorActionPreference = 'Continue'
-$dlFile = '{dl_str}'
-$targetExe = '{exe_str}'
-$targetDir = '{dir_str}'
-$newVer = '{ver_clean}'
-$pidToWait = {pid}
-
-$logFile = Join-Path (Split-Path -Parent $dlFile) 'update.log'
-function Write-Log($msg) {{
-    $ts = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss')
-    Add-Content -LiteralPath $logFile -Value "[$ts] $msg" -ErrorAction SilentlyContinue
-}}
-
-Write-Log "=== ModernExplorer Updater v$newVer gestartet ==="
-Write-Log "PID to wait: $pidToWait"
-Write-Log "Downloaded file: $dlFile"
-Write-Log "Target exe: $targetExe"
-Write-Log "Target dir: $targetDir"
-
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-[System.Windows.Forms.Application]::EnableVisualStyles()
-
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "ModernExplorer Studio (Rust) - Update auf v$newVer"
-$form.Size = New-Object System.Drawing.Size(500, 195)
-$form.StartPosition = 'CenterScreen'
-$form.FormBorderStyle = 'FixedDialog'
-$form.MaximizeBox = $false
-$form.MinimizeBox = $false
-$form.ControlBox = $false
-$form.TopMost = $true
-$form.BackColor = [System.Drawing.Color]::FromArgb(15, 23, 42)
-$form.ForeColor = [System.Drawing.Color]::FromArgb(241, 245, 249)
-
-$hdr = New-Object System.Windows.Forms.Label
-$hdr.Text = "ModernExplorer Studio (Rust) v$newVer wird installiert..."
-$hdr.Font = New-Object System.Drawing.Font('Segoe UI', 11, [System.Drawing.FontStyle]::Bold)
-$hdr.ForeColor = [System.Drawing.Color]::FromArgb(56, 189, 248)
-$hdr.Location = New-Object System.Drawing.Point(22, 18)
-$hdr.Size = New-Object System.Drawing.Size(445, 26)
-$form.Controls.Add($hdr)
-
-$lbl = New-Object System.Windows.Forms.Label
-$lbl.Text = "Warte auf das Beenden von ModernExplorer..."
-$lbl.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
-$lbl.Location = New-Object System.Drawing.Point(22, 50)
-$lbl.Size = New-Object System.Drawing.Size(445, 22)
-$form.Controls.Add($lbl)
-
-$bar = New-Object System.Windows.Forms.ProgressBar
-$bar.Location = New-Object System.Drawing.Point(22, 80)
-$bar.Size = New-Object System.Drawing.Size(445, 24)
-$bar.Minimum = 0
-$bar.Maximum = 100
-$bar.Value = 15
-$form.Controls.Add($bar)
-
-$det = New-Object System.Windows.Forms.Label
-$det.Text = $targetExe
-$det.Font = New-Object System.Drawing.Font('Consolas', 8.5)
-$det.ForeColor = [System.Drawing.Color]::FromArgb(148, 163, 184)
-$det.AutoEllipsis = $true
-$det.Location = New-Object System.Drawing.Point(22, 114)
-$det.Size = New-Object System.Drawing.Size(445, 20)
-$form.Controls.Add($det)
-
-$form.Show()
-$form.Activate()
-[System.Windows.Forms.Application]::DoEvents()
-
-# 1. Warte auf Beendigung des Hauptprozesses
-for ($i = 0; $i -lt 50; $i++) {{
-    $p = Get-Process -Id $pidToWait -ErrorAction SilentlyContinue
-    if (-not $p) {{ break }}
-    if ($i -ge 15) {{ 
-        Write-Log "Beende Prozess PID $pidToWait gewaltsam..."
-        Stop-Process -Id $pidToWait -Force -ErrorAction SilentlyContinue 
-    }}
-    [System.Windows.Forms.Application]::DoEvents()
-    Start-Sleep -Milliseconds 120
-}}
-
-Get-Process -Name 'ModernExplorer-Rust' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 350
-Write-Log "Hauptprozess beendet."
-
-$bar.Value = 50
-$lbl.Text = "Aktualisiere Programmdatei auf v$newVer..."
-[System.Windows.Forms.Application]::DoEvents()
-
-# 2. Pruefen, ob Setup-Installer oder Portable-Exe
-$isSetup = ($dlFile -match '(?i)setup.*\.exe$')
-$copySuccess = $false
-
-if ($isSetup) {{
-    Write-Log "Fuehre Setup-Installer aus: $dlFile"
-    $lbl.Text = "Fuehre Setup-Installer fuer v$newVer aus..."
-    [System.Windows.Forms.Application]::DoEvents()
-    $setupProc = Start-Process -FilePath $dlFile -ArgumentList "/SILENT /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS" -PassThru -Wait
-    Write-Log "Setup beendet mit ExitCode: $($setupProc.ExitCode)"
-    $copySuccess = ($setupProc.ExitCode -eq 0)
-}} else {{
-    $targets = [System.Collections.Generic.List[string]]::new()
-    $targets.Add($targetExe)
-    $progFilesExe = Join-Path $env:ProgramFiles 'ModernExplorer-Rust\ModernExplorer-Rust.exe'
-    if ((Test-Path -LiteralPath (Split-Path -Parent $progFilesExe)) -and ($progFilesExe.ToLower() -ne $targetExe.ToLower())) {{
-        $targets.Add($progFilesExe)
-    }}
-
-    foreach ($dest in $targets) {{
-        Write-Log "Aktualisiere Zieldatei: $dest"
-        $oldBak = "$dest.old"
-        if (Test-Path -LiteralPath $oldBak) {{ Remove-Item -LiteralPath $oldBak -Force -ErrorAction SilentlyContinue }}
-        
-        $destCopied = $false
-        for ($attempt = 1; $attempt -le 15; $attempt++) {{
-            try {{
-                Copy-Item -LiteralPath $dlFile -Destination $dest -Force -ErrorAction Stop
-                $destCopied = $true
-                Write-Log "Copy-Item erfolgreich fuer $dest bei Versuch $attempt"
-                break
-            }} catch {{
-                Write-Log "Versuch $attempt fehlgeschlagen fuer $dest: $($_.Exception.Message)"
-                try {{
-                    if (Test-Path -LiteralPath $dest) {{
-                        Move-Item -LiteralPath $dest -Destination $oldBak -Force -ErrorAction Stop
-                        Write-Log "Move-Item nach $oldBak erfolgreich"
-                    }}
-                    Copy-Item -LiteralPath $dlFile -Destination $dest -Force -ErrorAction Stop
-                    $destCopied = $true
-                    Write-Log "Copy-Item nach Verschieben erfolgreich fuer $dest"
-                    break
-                }} catch {{
-                    Write-Log "Move/Copy Fallback fehlgeschlagen: $($_.Exception.Message)"
-                    [System.Windows.Forms.Application]::DoEvents()
-                    Start-Sleep -Milliseconds 300
-                }}
-            }}
-        }}
-        if ($dest.ToLower() -eq $targetExe.ToLower() -and $destCopied) {{
-            $copySuccess = $true
-        }}
-    }}
-}}
-
-# 3. Registrierungseintraege aktualisieren
-try {{
-    foreach ($hive in @('HKLM:', 'HKCU:')) {{
-        $regPath = "$hive\Software\Microsoft\Windows\CurrentVersion\Uninstall\{{C94E7A12-8D41-4F3A-9B25-7E1A3D94F6B2}}_is1"
-        if (Test-Path -LiteralPath $regPath) {{
-            Set-ItemProperty -LiteralPath $regPath -Name 'DisplayVersion' -Value $newVer -ErrorAction SilentlyContinue
-            Set-ItemProperty -LiteralPath $regPath -Name 'DisplayName' -Value "Modern Explorer Studio (Rust) $newVer (win-x64)" -ErrorAction SilentlyContinue
-            Write-Log "Registry aktualisiert in $hive"
-        }}
-    }}
-}} catch {{
-    Write-Log "Registry-Aktualisierung uebersprungen: $($_.Exception.Message)"
-}}
-
-$bar.Value = 100
-$lbl.Text = "Update abgeschlossen! Starte ModernExplorer Studio v$newVer..."
-[System.Windows.Forms.Application]::DoEvents()
-Start-Sleep -Milliseconds 400
-
-# 4. Anwendung neu starten
-if (-not $isSetup) {{
-    Write-Log "Starte Zielanwendung neu: $targetExe in $targetDir"
-    try {{
-        Start-Process -FilePath $targetExe -WorkingDirectory $targetDir -ErrorAction Stop
-        Write-Log "Start-Process erfolgreich."
-    }} catch {{
-        Write-Log "Start-Process fehlgeschlagen: $($_.Exception.Message) - Starte via Explorer..."
-        Start-Process -FilePath "explorer.exe" -ArgumentList "`"$targetExe`""
-    }}
-}}
-
-Write-Log "Update abgeschlossen."
-$form.Close()
-$form.Dispose()
-"#
-            );
-
-            // Write with UTF-8 BOM so Windows PowerShell 5.1 parses strings reliably on any locale
-            let mut script_bytes = vec![0xEF, 0xBB, 0xBF];
-            script_bytes.extend_from_slice(ps_script.as_bytes());
-            fs::write(&script_path, script_bytes)
-                .map_err(|e| format!("Update-Skript konnte nicht erstellt werden: {e}"))?;
-
-            Command::new("powershell.exe")
-                .args([
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-STA",
-                    "-WindowStyle",
-                    "Hidden",
-                    "-File",
-                    &script_path.to_string_lossy(),
-                ])
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn()
-                .map_err(|e| format!("Fehler beim Starten des Updaters: {e}"))?;
-
-            return Ok(download_path.to_string_lossy().to_string());
+            let ver_clean = release.tag_name.trim_start_matches(['v', 'V']).to_string();
+            Self::update_windows_registry(&ver_clean);
         }
 
-        #[cfg(not(target_os = "windows"))]
-        {
-            let name_lower = asset.name.to_ascii_lowercase();
-            if name_lower.ends_with(".dmg")
-                || name_lower.ends_with(".pkg")
-                || name_lower.ends_with(".deb")
-                || name_lower.ends_with(".rpm")
-            {
-                let _ = open::that(&download_path);
-                return Ok(download_path.to_string_lossy().to_string());
-            }
-
-            let script_path = update_dir.join("apply_rust_update.sh");
-            let dl_str = download_path.to_string_lossy();
-            let exe_str = current_exe.to_string_lossy();
-            let sh_script = format!(
-                "#!/bin/sh\nwhile kill -0 {pid} 2>/dev/null; do sleep 0.2; done\nsleep 0.3\ncp -f \"{dl_str}\" \"{exe_str}\"\nchmod +x \"{exe_str}\"\nnohup \"{exe_str}\" >/dev/null 2>&1 &\n"
-            );
-            let _ = fs::write(&script_path, sh_script);
-            let _ = Command::new("/bin/sh").arg(&script_path).spawn();
-            Ok(download_path.to_string_lossy().to_string())
-        }
+        Ok(download_path.to_string_lossy().to_string())
     }
 
     /// Formats raw GitHub Markdown release notes into a clean, multi-line readable text

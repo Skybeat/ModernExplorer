@@ -188,6 +188,8 @@ fn main() {
         }
     }
 
+    modern_explorer_core::update::GitHubUpdateService::cleanup_old_versions();
+
     let state = Arc::new(Mutex::new(BackendState::new()));
     let (win_w, win_h, win_x, win_y, win_max) = {
         let g = state.lock().unwrap();
@@ -204,9 +206,14 @@ fn main() {
 
     let app_icon = Icon::from_rgba(APP_ICON_RGBA64.to_vec(), 64, 64).ok();
 
+    let title = format!(
+        "ModernExplorer Studio — Dual-Pane File Manager v{} (Rust Edition)",
+        modern_explorer_core::update::GitHubUpdateService::CURRENT_VERSION
+    );
+
     let event_loop = EventLoop::new();
     let mut wb = WindowBuilder::new()
-        .with_title("ModernExplorer Studio — Dual-Pane File Manager v1.9.3 (Rust Edition)")
+        .with_title(title)
         .with_inner_size(LogicalSize::new(win_w, win_h))
         .with_min_inner_size(LogicalSize::new(980.0, 620.0))
         .with_window_icon(app_icon.clone());

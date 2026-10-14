@@ -180,7 +180,35 @@ mod tests {
                 },
             ],
         };
-        assert!(GitHubUpdateService::select_best_rust_asset(&dummy_rel).is_some());
+        let best = GitHubUpdateService::select_best_rust_asset(&dummy_rel);
+        assert!(best.is_some());
+        assert_eq!(
+            best.unwrap().name,
+            "ModernExplorer-Rust-windows-x64-Portable.exe"
+        );
+    }
+
+    #[test]
+    fn github_update_service_selects_portable_and_unpacks_zip() {
+        let dir = TempDir::new().unwrap();
+        let zip_path = dir.path().join("archive.zip");
+
+        {
+            let file = fs::File::create(&zip_path).unwrap();
+            let mut zip = zip::ZipWriter::new(file);
+            let options = zip::write::SimpleFileOptions::default();
+            zip.start_file("ModernExplorer-Rust.exe", options).unwrap();
+            use std::io::Write;
+            zip.write_all(b"MZ_DUMMY_EXECUTABLE_CONTENT").unwrap();
+            zip.finish().unwrap();
+        }
+
+        let out_dir = dir.path().join("out");
+        fs::create_dir_all(&out_dir).unwrap();
+        let extracted = GitHubUpdateService::unpack_binary_if_archive(&zip_path, &out_dir).unwrap();
+        assert!(extracted.exists());
+        let content = fs::read(&extracted).unwrap();
+        assert_eq!(content, b"MZ_DUMMY_EXECUTABLE_CONTENT");
     }
 
     #[test]
