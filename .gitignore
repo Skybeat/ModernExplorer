@@ -496,5 +496,6 @@ rust/target/
 rust/dist/
 rust/*.exe
 dist-rust/
+rust/**/gen/
 
 

@@ -1597,8 +1597,18 @@ const STATE = {
   }
 };
 
+function filePreviewUrl(path) {
+  if (window.__TAURI__) {
+    return 'file-preview://localhost/?path=' + encodeURIComponent(path);
+  }
+  return '/file?path=' + encodeURIComponent(path);
+}
+
 async function rpc(action, params = {}) {
   try {
+    if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+      return await window.__TAURI__.core.invoke('rpc', { action, params });
+    }
     const res = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2624,7 +2634,7 @@ function renderFileList(side) {
       card.dataset.idx = String(idx);
       const showThumb = isImageExt(item.extension) && ['MediumIcons','LargeIcons','ExtraLargeIcons','Tiles'].includes(mode);
       card.innerHTML = showThumb
-        ? `<img class="thumb-img" src="/file?path=${encodeURIComponent(item.full_path)}" loading="lazy"><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
+        ? `<img class="thumb-img" src="${filePreviewUrl(item.full_path)}" loading="lazy"><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
         : `<div style="font-size:${mode==='SmallIcons'||mode==='List'?'16px':'28px'}">${fileIcon(item)}</div><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`;
       bindItemEvents(card, side, item, idx);
       host.appendChild(card);
@@ -2934,7 +2944,7 @@ function showImageHoverPreview(e, item) {
   const sz = STATE.settings.image_hover_preview_size || 320;
   img.style.maxWidth = sz + 'px';
   img.style.maxHeight = sz + 'px';
-  img.src = `/file?path=${encodeURIComponent(item.full_path)}`;
+  img.src = filePreviewUrl(item.full_path);
   meta.textContent = `${item.name} (${item.size_text})`;
   card.classList.add('visible');
   moveImageHoverPreview(e);
@@ -3400,7 +3410,7 @@ async function updateDockInspector(item) {
   if (isImageExt(item.extension)) {
     body.innerHTML = `
       <div style="text-align:center;">
-        <img src="/file?path=${encodeURIComponent(item.full_path)}" style="max-width:100%;max-height:260px;border-radius:6px;background:var(--bg-sunken);">
+        <img src="${filePreviewUrl(item.full_path)}" style="max-width:100%;max-height:260px;border-radius:6px;background:var(--bg-sunken);">
         <div style="margin-top:6px;font-weight:600;">${esc(item.name)}</div>
         <div style="color:var(--fg-dim);font-family:var(--font-mono);font-size:11px;">${esc(prev.resolution || '')} • ${esc(item.size_text)}</div>
       </div>
@@ -4106,7 +4116,7 @@ async function openViewerModal(editable) {
   ta.readOnly = !editable;
   document.getElementById('btnViewerSave').style.display = editable ? 'inline-flex' : 'none';
   document.getElementById('viewerHexPre').textContent = res.hex || '';
-  document.getElementById('viewerImgEl').src = isImageExt(item.extension) ? `/file?path=${encodeURIComponent(item.full_path)}` : '';
+  document.getElementById('viewerImgEl').src = isImageExt(item.extension) ? filePreviewUrl(item.full_path) : '';
   document.getElementById('viewerImgMeta').textContent = `${item.name} • ${res.resolution || ''} • ${item.size_text}`;
 
   const csvRows = res.csv_rows || [];
@@ -4849,7 +4859,7 @@ async function dupPreviewFile(filePath) {
   ta.readOnly = true;
   document.getElementById('btnViewerSave').style.display = 'none';
   document.getElementById('viewerHexPre').textContent = res.hex || '';
-  document.getElementById('viewerImgEl').src = isImageExt(ext) ? `/file?path=${encodeURIComponent(filePath)}` : '';
+  document.getElementById('viewerImgEl').src = isImageExt(ext) ? filePreviewUrl(filePath) : '';
   document.getElementById('viewerImgMeta').textContent = `${fileName} • ${res.resolution || ''}`;
 
   const csvRows = res.csv_rows || [];
