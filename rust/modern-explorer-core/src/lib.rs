@@ -285,5 +285,80 @@ mod tests {
         assert_eq!(cd_res.exit_code, 0);
         assert!(cd_res.navigate_to_directory.is_some());
     }
+
+    #[test]
+    fn virtual_archive_and_sync_jump_settings_work() {
+        use crate::archive::{ArchiveFormat, ArchiveService};
+        use crate::settings::AppSettings;
+
+        // 1. Settings defaults and serialization
+        let def = AppSettings::default();
+        assert_eq!(def.archive_open_action, "archive_browser");
+        assert!(def.sync_jump_to_other_pane_folder);
+
+        let json_str = serde_json::to_string(&def).unwrap();
+        let parsed: AppSettings = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed.archive_open_action, "archive_browser");
+        assert!(parsed.sync_jump_to_other_pane_folder);
+
+        let from_empty: AppSettings = serde_json::from_str("{}").unwrap();
+        assert_eq!(from_empty.archive_open_action, "archive_browser");
+        assert!(from_empty.sync_jump_to_other_pane_folder);
+
+        // 2. Virtual archive path helpers
+        let root_vp = ArchiveService::build_virtual_archive_path("C:/data/test.zip", "");
+        assert_eq!(root_vp, "archive://C:/data/test.zip");
+        assert!(ArchiveService::is_virtual_archive_path(&root_vp));
+
+        let sub_vp = ArchiveService::build_virtual_archive_path("C:/data/test.zip", "nested/sub");
+        assert_eq!(sub_vp, "archive://C:/data/test.zip|nested/sub");
+
+        let (arch, inner) = ArchiveService::parse_virtual_archive_path(&sub_vp).unwrap();
+        assert_eq!(arch, "C:/data/test.zip");
+        assert_eq!(inner, "nested/sub");
+
+        let p1 = ArchiveService::get_parent_path_for_virtual_archive(&sub_vp);
+        assert_eq!(p1, "archive://C:/data/test.zip|nested");
+
+        let p2 = ArchiveService::get_parent_path_for_virtual_archive(&p1);
+        assert_eq!(p2, "archive://C:/data/test.zip");
+
+        let p3 = ArchiveService::get_parent_path_for_virtual_archive(&p2);
+        assert_eq!(p3.replace('\\', "/"), "C:/data");
+
+        // 3. Virtual archive listing and entry extraction
+        let dir = TempDir::new().unwrap();
+        let src_dir = dir.path().join("content");
+        let sub_dir = src_dir.join("folder");
+        fs::create_dir_all(&sub_dir).unwrap();
+        fs::write(src_dir.join("hello.txt"), "Hello Virtual Archive!").unwrap();
+        fs::write(sub_dir.join("inner.rs"), "fn main() {}").unwrap();
+
+        let zip_path = dir.path().join("sample.zip");
+        let packed = ArchiveService::pack_archive(
+            &[
+                src_dir.join("hello.txt").to_string_lossy().to_string(),
+                sub_dir.to_string_lossy().to_string(),
+            ],
+            &zip_path,
+            ArchiveFormat::Zip,
+        )
+        .unwrap();
+        assert!(packed >= 2);
+
+        let root_virt = ArchiveService::build_virtual_archive_path(&zip_path.to_string_lossy(), "");
+        let root_entries = ArchiveService::list_virtual_archive_entries(&root_virt).unwrap();
+        assert!(root_entries.iter().any(|e| e.name == "hello.txt" && !e.is_directory));
+        assert!(root_entries.iter().any(|e| e.name == "folder" && e.is_directory));
+
+        let sub_virt = ArchiveService::build_virtual_archive_path(&zip_path.to_string_lossy(), "folder");
+        let sub_entries = ArchiveService::list_virtual_archive_entries(&sub_virt).unwrap();
+        assert!(sub_entries.iter().any(|e| e.name == "inner.rs" && !e.is_directory));
+
+        let extracted = ArchiveService::extract_single_entry_to_temp(&zip_path.to_string_lossy(), "hello.txt").unwrap();
+        assert!(extracted.is_file());
+        let text = fs::read_to_string(&extracted).unwrap();
+        assert_eq!(text, "Hello Virtual Archive!");
+    }
 }
 

@@ -1265,6 +1265,19 @@
             <div><div class="pr-label">Einfachklick zum Öffnen von Ordnern und Dateien</div><div class="pr-sub">Wenn deaktiviert, öffnet Doppelklick (Standard)</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-single_click_open" onclick="toggleBoolSetting('single_click_open')"></div></div>
           </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Verhalten beim Doppelklick auf Archive (.zip, .tar.gz usw.)</div><div class="pr-sub">Wahl zwischen Archiv-Browser Dialog oder direkt im Explorer als Ordner öffnen</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-archive_open_action" onchange="updateSetting('archive_open_action', this.value)">
+                <option value="archive_browser">Archivbrowser (Dialog zum Entpacken &amp; Packen)</option>
+                <option value="open_in_explorer">Direkt im Explorer öffnen (Virtueller Ordner)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Automatischer Ordnersprung zum aktiven Tab des anderen Explorers</div><div class="pr-sub">Springt beim Anklicken eines Ordners direkt in denselben Unterordner, wenn dieser im anderen Explorer bereits geöffnet ist</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-sync_jump_to_other_pane_folder" onclick="toggleBoolSetting('sync_jump_to_other_pane_folder')"></div></div>
+          </div>
         </div>
       </div>
 
@@ -2393,7 +2406,16 @@ function renderDrives(side, currentPath) {
     chip.innerHTML = `<span>💾 ${esc(d.display_text)}</span><div class="drive-prog"><span style="width:${d.used_percent}%"></span></div>`;
     chip.onclick = (e) => {
       e.stopPropagation();
-      navigateTo(side, d.root_path);
+      const target = resolveTargetFolderWithOtherPane(side, d.root_path);
+      navigateTo(side, target);
+    };
+    chip.onauxclick = (e) => {
+      if (e.button === 1) {
+        e.stopPropagation();
+        e.preventDefault();
+        const target = resolveTargetFolderWithOtherPane(side, d.root_path);
+        addTab(side, target);
+      }
     };
     host.appendChild(chip);
   });
@@ -2436,14 +2458,56 @@ function renderTabs(side) {
   host.appendChild(addBtn);
 }
 
+function resolveTargetFolderWithOtherPane(side, targetPath) {
+  if (STATE.settings.sync_jump_to_other_pane_folder === false) return targetPath;
+  if (!STATE.isDualPane) return targetPath;
+  const otherSide = side === 'left' ? 'right' : 'left';
+  const otherTab = getTab(otherSide);
+  if (!otherTab || !otherTab.path) return targetPath;
+
+  const normTarget = String(targetPath || '').replace(/[\\/]+$/, '');
+  const normOther = String(otherTab.path || '').replace(/[\\/]+$/, '');
+  if (!normTarget || !normOther) return targetPath;
+
+  // Exact match (case-insensitive)
+  if (normTarget.toLowerCase() === normOther.toLowerCase()) {
+    return otherTab.path;
+  }
+
+  // Check if otherTab.path is inside normTarget
+  const targetPrefix = (normTarget.endsWith(':') ? normTarget + '\\' : normTarget + '\\').toLowerCase();
+  const targetPrefixSlash = (normTarget.endsWith(':') ? normTarget + '/' : normTarget + '/').toLowerCase();
+  const otherLower = normOther.toLowerCase();
+
+  if (otherLower.startsWith(targetPrefix) || otherLower.startsWith(targetPrefixSlash)) {
+    return otherTab.path;
+  }
+
+  return targetPath;
+}
+
 function addTab(side, customPath) {
   const p = STATE.panes[side];
   const cur = getTab(side);
-  const path = customPath || cur.path;
+  let path = customPath ? resolveTargetFolderWithOtherPane(side, customPath) : cur.path;
+  let title = path;
+  if (path.startsWith('archive://')) {
+    const payload = path.slice('archive://'.length);
+    const pipeIdx = payload.indexOf('|');
+    if (pipeIdx < 0) {
+      const archName = payload.split(/[\\/]/).filter(Boolean).pop() || payload;
+      title = '📦 ' + archName;
+    } else {
+      const inner = payload.slice(pipeIdx + 1);
+      title = inner.split('/').filter(Boolean).pop() || inner;
+    }
+  } else {
+    title = path.split(/[\\/]/).filter(Boolean).pop() || path;
+  }
   p.tabs.push({
     path,
     homePath: path,
-    title: path.split(/[\\/]/).filter(Boolean).pop() || path,
+    title,
     lockState: 'Normal',
     viewMode: STATE.settings.default_view_mode || cur.viewMode || 'Details',
     branchView: false,
@@ -2614,7 +2678,7 @@ function renderFileList(side) {
   host.innerHTML = '';
 
   // Parent directory [..] entry if not at root
-  const hasParent = tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/'));
+  const hasParent = tab.path.startsWith('archive://') || (tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/')));
   if (hasParent && mode === 'Details') {
     const upRow = document.createElement('div');
     upRow.className = 'file-row';
@@ -2720,6 +2784,21 @@ function bindItemEvents(el, side, item, idx) {
       activateItem(side, item);
     }
   };
+  el.onauxclick = (e) => {
+    if (e.button === 1) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (item.is_directory) {
+        addTab(side, item.full_path);
+      } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x))) {
+        if ((STATE.settings.archive_open_action || 'archive_browser') === 'open_in_explorer') {
+          addTab(side, 'archive://' + item.full_path);
+        } else {
+          openArchiveModal(item.full_path);
+        }
+      }
+    }
+  };
   el.oncontextmenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -2775,10 +2854,22 @@ function updatePaneFooter(side, totalBytesText) {
 }
 
 function activateItem(side, item) {
-  if (item.is_directory) {
-    navigateTo(side, item.full_path);
-  } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => item.name.toLowerCase().endsWith(x))) {
-    openArchiveModal(item.full_path);
+  if (item.full_path && item.full_path.startsWith('archive://')) {
+    if (item.is_directory) {
+      navigateTo(side, item.full_path);
+    } else {
+      rpc('open_item', { path: item.full_path });
+    }
+  } else if (item.is_directory) {
+    const target = resolveTargetFolderWithOtherPane(side, item.full_path);
+    navigateTo(side, target);
+  } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x))) {
+    const action = STATE.settings.archive_open_action || 'archive_browser';
+    if (action === 'open_in_explorer') {
+      navigateTo(side, 'archive://' + item.full_path);
+    } else {
+      openArchiveModal(item.full_path);
+    }
   } else {
     rpc('open_item', { path: item.full_path });
   }
@@ -2969,6 +3060,30 @@ function hideImageHoverPreview() {
 /* ==================== NAVIGATION, SORT & AUTOCOMPLETE ==================== */
 function navUp(side) {
   const t = getTab(side);
+  if (t.path.startsWith('archive://')) {
+    const payload = t.path.slice('archive://'.length);
+    const pipeIdx = payload.indexOf('|');
+    if (pipeIdx < 0) {
+      const archPath = payload;
+      const norm = archPath.replace(/[\\/]+$/, '');
+      const idx = Math.max(norm.lastIndexOf('\\'), norm.lastIndexOf('/'));
+      if (idx > 0) {
+        let par = norm.slice(0, idx);
+        if (par.endsWith(':')) par += '\\';
+        navigateTo(side, par, archPath);
+      }
+      return;
+    }
+    const archPath = payload.slice(0, pipeIdx);
+    const inner = payload.slice(pipeIdx + 1).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const slashIdx = inner.lastIndexOf('/');
+    if (slashIdx < 0) {
+      navigateTo(side, 'archive://' + archPath);
+    } else {
+      navigateTo(side, 'archive://' + archPath + '|' + inner.slice(0, slashIdx));
+    }
+    return;
+  }
   const norm = t.path.replace(/[\\/]+$/, '');
   const idx = Math.max(norm.lastIndexOf('\\'), norm.lastIndexOf('/'));
   if (idx > 0) {
@@ -3082,11 +3197,17 @@ function showContextMenuAt(e, items) {
 
 function openFileContextMenu(e, side, item) {
   const other = side === 'left' ? 'right' : 'left';
+  const isArch = ['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x));
   showContextMenuAt(e, [
     { label: item.is_directory ? '📂 Ordner öffnen' : '▶ Datei öffnen', kbd: 'Enter', run: () => activateItem(side, item) },
     ...(item.is_directory ? [
       { label: '➕ In neuem Tab öffnen', kbd: 'Strg+T', run: () => addTab(side, item.full_path) },
       { label: '⇄ Im anderen Panel öffnen', run: () => navigateTo(other, item.full_path) }
+    ] : []),
+    ...(isArch ? [
+      { label: '📁 Im Explorer öffnen (Virtueller Ordner)', run: () => navigateTo(side, 'archive://' + item.full_path) },
+      { label: '➕ In neuem Tab im Explorer öffnen', run: () => addTab(side, 'archive://' + item.full_path) },
+      { label: '📦 Im Archivbrowser öffnen…', run: () => openArchiveModal(item.full_path) },
     ] : []),
     'sep',
     { label: '👁 Schnellansicht (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
@@ -3569,6 +3690,7 @@ function populateSettingsUi() {
     'show_drive_bar','multiline_drive_bar','show_function_key_bar','show_tooltips',
     'sort_folders_first','show_file_extensions','show_hidden_files','show_system_files',
     'auto_calculate_folder_size_on_mark','confirm_delete','single_click_open',
+    'sync_jump_to_other_pane_folder',
     'enable_image_hover_preview','use_global_font_size',
     'check_updates_on_startup','restore_previous_session'
   ];
@@ -3583,6 +3705,8 @@ function populateSettingsUi() {
   document.getElementById('lbl-file_list_row_height').textContent = rh + ' px';
 
   document.getElementById('set-default_view_mode').value = s.default_view_mode || 'Details';
+  const archActSel = document.getElementById('set-archive_open_action');
+  if (archActSel) archActSel.value = s.archive_open_action || 'archive_browser';
 
   const hp = s.image_hover_preview_size ?? 320;
   document.getElementById('rng-image_hover_preview_size').value = hp;

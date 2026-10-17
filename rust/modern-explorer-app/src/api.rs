@@ -278,19 +278,33 @@ impl BackendState {
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
 
-        let path_obj = Path::new(raw_path);
-        let canonical = if path_obj.is_dir() {
-            path_obj.to_path_buf()
-        } else {
-            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-        };
-        let clean_path = canonical.to_string_lossy().to_string();
+        let is_virtual = ArchiveService::is_virtual_archive_path(raw_path)
+            || (Path::new(raw_path).is_file() && ArchiveService::is_supported_archive(Path::new(raw_path)));
 
-        let mut entries = DirectoryEnumerator::list_directory(
-            &canonical,
-            self.settings.show_hidden_files,
-            branch_view,
-        );
+        let (canonical, clean_path, mut entries) = if is_virtual {
+            let effective_virtual_path = if ArchiveService::is_virtual_archive_path(raw_path) {
+                raw_path.to_string()
+            } else {
+                ArchiveService::build_virtual_archive_path(raw_path, "")
+            };
+            let entries = ArchiveService::list_virtual_archive_entries(&effective_virtual_path)
+                .unwrap_or_default();
+            (PathBuf::from(&effective_virtual_path), effective_virtual_path, entries)
+        } else {
+            let path_obj = Path::new(raw_path);
+            let canonical = if path_obj.is_dir() {
+                path_obj.to_path_buf()
+            } else {
+                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+            };
+            let clean_path = canonical.to_string_lossy().to_string();
+            let entries = DirectoryEnumerator::list_directory(
+                &canonical,
+                self.settings.show_hidden_files,
+                branch_view,
+            );
+            (canonical, clean_path, entries)
+        };
 
         if show_tree_sizes {
             for e in &mut entries {
@@ -422,30 +436,93 @@ impl BackendState {
 
         // Build breadcrumbs
         let mut breadcrumbs = Vec::new();
-        let mut cur: Option<&Path> = Some(&canonical);
-        while let Some(p) = cur {
-            let label = p
+        let (git_badge, folder_title) = if is_virtual {
+            if let Some((archive_file, inner_rel)) = ArchiveService::parse_virtual_archive_path(&clean_path) {
+                let arch_p = Path::new(&archive_file);
+                let mut cur = arch_p.parent();
+                let mut disk_crumbs = Vec::new();
+                while let Some(p) = cur {
+                    let label = p
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or_else(|| p.to_string_lossy().trim_end_matches('\\').to_string());
+                    disk_crumbs.push(BreadcrumbDto {
+                        label,
+                        full_path: p.to_string_lossy().to_string(),
+                    });
+                    cur = p.parent();
+                }
+                disk_crumbs.reverse();
+                breadcrumbs.extend(disk_crumbs);
+
+                let arch_name = arch_p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| archive_file.clone());
+                breadcrumbs.push(BreadcrumbDto {
+                    label: format!("📦 {}", arch_name),
+                    full_path: ArchiveService::build_virtual_archive_path(&archive_file, ""),
+                });
+
+                if !inner_rel.is_empty() {
+                    let mut accum = String::new();
+                    for seg in inner_rel.split('/') {
+                        if seg.is_empty() {
+                            continue;
+                        }
+                        if !accum.is_empty() {
+                            accum.push('/');
+                        }
+                        accum.push_str(seg);
+                        breadcrumbs.push(BreadcrumbDto {
+                            label: seg.to_string(),
+                            full_path: ArchiveService::build_virtual_archive_path(&archive_file, &accum),
+                        });
+                    }
+                }
+
+                let title = if inner_rel.is_empty() {
+                    format!("📦 {}", arch_name)
+                } else {
+                    inner_rel
+                        .split('/')
+                        .filter(|s| !s.is_empty())
+                        .last()
+                        .unwrap_or(&arch_name)
+                        .to_string()
+                };
+                (None, title)
+            } else {
+                (None, clean_path.clone())
+            }
+        } else {
+            let mut cur: Option<&Path> = Some(&canonical);
+            while let Some(p) = cur {
+                let label = p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| p.to_string_lossy().trim_end_matches('\\').to_string());
+                breadcrumbs.push(BreadcrumbDto {
+                    label,
+                    full_path: p.to_string_lossy().to_string(),
+                });
+                cur = p.parent();
+            }
+            breadcrumbs.reverse();
+
+            // Pure-Rust instant .git/HEAD lookup (0 process spawns!)
+            let git = GitIntegrationService::get_quick_badge(&canonical);
+            let title = canonical
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| p.to_string_lossy().trim_end_matches('\\').to_string());
-            breadcrumbs.push(BreadcrumbDto {
-                label,
-                full_path: p.to_string_lossy().to_string(),
-            });
-            cur = p.parent();
-        }
-        breadcrumbs.reverse();
-
-        // Pure-Rust instant .git/HEAD lookup (0 process spawns!)
-        let git_badge = GitIntegrationService::get_quick_badge(&canonical);
+                .unwrap_or_else(|| clean_path.clone());
+            (git, title)
+        };
 
         let is_fav = self.favorites.is_favorite(&clean_path);
-        let folder_title = canonical
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| clean_path.clone());
 
         json!({
             "path": clean_path,
@@ -461,6 +538,14 @@ impl BackendState {
 
     fn rpc_open_item(&self, params: &Value) -> Value {
         if let Some(p) = params.get("path").and_then(|v| v.as_str()) {
+            if ArchiveService::is_virtual_archive_path(p) {
+                if let Some((arch_file, inner_path)) = ArchiveService::parse_virtual_archive_path(p) {
+                    if let Ok(extracted) = ArchiveService::extract_single_entry_to_temp(&arch_file, &inner_path) {
+                        let _ = open::that(&extracted);
+                        return json!({ "ok": true, "temp_path": extracted.to_string_lossy() });
+                    }
+                }
+            }
             let _ = open::that(p);
             json!({ "ok": true })
         } else {
@@ -813,7 +898,18 @@ impl BackendState {
 
     fn rpc_quick_preview(&self, params: &Value) -> Value {
         let path_str = params.get("path").and_then(|v| v.as_str()).unwrap_or("");
-        let path = Path::new(path_str);
+        let mut temp_extracted: Option<PathBuf> = None;
+        let path = if ArchiveService::is_virtual_archive_path(path_str) {
+            if let Some((arch_file, inner_path)) = ArchiveService::parse_virtual_archive_path(path_str) {
+                if let Ok(extracted) = ArchiveService::extract_single_entry_to_temp(&arch_file, &inner_path) {
+                    temp_extracted = Some(extracted);
+                }
+            }
+            temp_extracted.as_deref().unwrap_or_else(|| Path::new(path_str))
+        } else {
+            Path::new(path_str)
+        };
+
         if !path.is_file() {
             return json!({
                 "is_file": false,
@@ -824,7 +920,7 @@ impl BackendState {
         let hex = FileContentService::format_hex_dump(path, 4096).unwrap_or_default();
         let csv_rows = FileContentService::parse_csv_rows(&text, 100);
         let media = MetadataAndAttributeService::inspect_media_metadata(path);
-        let hashes = ChecksumBatchService::compute_checksums(&[path_str.to_string()]);
+        let hashes = ChecksumBatchService::compute_checksums(&[path.to_string_lossy().to_string()]);
         json!({
             "is_file": true,
             "path": path_str,

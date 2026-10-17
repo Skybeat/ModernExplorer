@@ -43,6 +43,14 @@ pub struct WindowBounds {
     pub maximized: bool,
 }
 
+fn default_archive_open_action() -> String {
+    "archive_browser".to_string()
+}
+
+fn default_sync_jump_to_other_pane_folder() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
@@ -82,6 +90,10 @@ pub struct AppSettings {
     pub auto_calculate_folder_size_on_mark: bool,
     pub confirm_delete: bool,
     pub single_click_open: bool,
+    #[serde(default = "default_archive_open_action")]
+    pub archive_open_action: String,
+    #[serde(default = "default_sync_jump_to_other_pane_folder")]
+    pub sync_jump_to_other_pane_folder: bool,
 
     // 4. Image Hover Preview
     pub enable_image_hover_preview: bool,
@@ -168,6 +180,8 @@ impl Default for AppSettings {
             auto_calculate_folder_size_on_mark: true,
             confirm_delete: true,
             single_click_open: false,
+            archive_open_action: "archive_browser".to_string(),
+            sync_jump_to_other_pane_folder: true,
 
             enable_image_hover_preview: true,
             image_hover_preview_size: 320.0,

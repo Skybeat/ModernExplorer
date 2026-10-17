@@ -106,15 +106,27 @@ fn main() {
                 }
             }
             if !file_path.is_empty() {
-                if let Ok(bytes) = std::fs::read(&file_path) {
-                    let mime = guess_mime_type(&file_path);
-                    return http::Response::builder()
-                        .status(200)
-                        .header("Content-Type", mime)
-                        .header("Cache-Control", "max-age=60")
-                        .header("Access-Control-Allow-Origin", "*")
-                        .body(bytes)
-                        .unwrap();
+                let actual_path = if modern_explorer_core::archive::ArchiveService::is_virtual_archive_path(&file_path) {
+                    if let Some((arch_file, inner_path)) = modern_explorer_core::archive::ArchiveService::parse_virtual_archive_path(&file_path) {
+                        modern_explorer_core::archive::ArchiveService::extract_single_entry_to_temp(&arch_file, &inner_path).ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(std::path::PathBuf::from(&file_path))
+                };
+
+                if let Some(p) = actual_path {
+                    if let Ok(bytes) = std::fs::read(&p) {
+                        let mime = guess_mime_type(&p.to_string_lossy());
+                        return http::Response::builder()
+                            .status(200)
+                            .header("Content-Type", mime)
+                            .header("Cache-Control", "max-age=60")
+                            .header("Access-Control-Allow-Origin", "*")
+                            .body(bytes)
+                            .unwrap();
+                    }
                 }
             }
             http::Response::builder()
