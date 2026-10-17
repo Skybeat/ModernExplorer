@@ -267,6 +267,7 @@
     background: var(--bg-app); overflow: hidden; padding: 4px; gap: 0;
   }
   .pane {
+    position: relative;
     display: flex; flex-direction: column; min-width: 260px; min-height: 0;
     background: var(--bg-panel); border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden; flex: 1;
@@ -277,6 +278,32 @@
     border-width: var(--active-pane-border-w);
     box-shadow: 0 0 0 1px rgba(110, 168, 254, 0.12);
   }
+  .quick-search-pill {
+    position: absolute;
+    bottom: 28px;
+    left: 12px;
+    z-index: 60;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--fg);
+    pointer-events: none;
+    user-select: none;
+  }
+  .quick-search-pill .qs-icon { color: var(--accent); font-size: 12px; }
+  .quick-search-pill .qs-label { color: var(--fg-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .quick-search-pill .qs-query { color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
+  .quick-search-pill .qs-count { color: var(--fg-dim); font-size: 11px; margin-left: 2px; }
+  .quick-search-pill.no-match { border-color: #ef4444; }
+  .quick-search-pill.no-match .qs-query { color: #f87171; }
+  .quick-search-pill.no-match .qs-count { color: #f87171; }
   .splitter {
     width: 6px; cursor: col-resize; background: transparent;
     position: relative; flex-shrink: 0;
@@ -950,7 +977,7 @@
             <button class="addr-star" id="star-left" onclick="togglePaneFavorite('left')" title="Ordner als Favorit merken">☆</button>
             <div class="addr-ac" id="ac-left"></div>
           </div>
-          <input class="filter-input" id="filter-left" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('left')">
+          <input class="filter-input" id="filter-left" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('left')" onkeydown="if(event.key==='Escape'){event.preventDefault();this.value='';loadPane('left');document.getElementById('list-left')?.focus({preventScroll:true});}else if(event.key==='Enter'||event.key==='ArrowDown'){event.preventDefault();document.getElementById('list-left')?.focus({preventScroll:true});}">
           <select class="view-select" id="viewmode-left" onchange="changePaneViewMode('left', this.value)" title="Ansichtsmodus wählen">
             <option value="Details">☰ Details</option>
             <option value="List">≡ Liste</option>
@@ -973,7 +1000,13 @@
           <div class="col-cell" onclick="toggleSort('left','Modified')">Geändert <span id="sort-left-Modified"></span></div>
           <div class="col-cell" onclick="toggleSort('left','Extension')">Typ <span id="sort-left-Extension"></span></div>
         </div>
-        <div class="file-list" id="list-left" tabindex="0"></div>
+        <div class="file-list" id="list-left" tabindex="0" onclick="setActiveSide('left');this.focus({preventScroll:true});"></div>
+        <div class="quick-search-pill" id="qs-pill-left" style="display:none;">
+          <span class="qs-icon">⚡</span>
+          <span class="qs-label">Suche:</span>
+          <span class="qs-query" id="qs-query-left"></span>
+          <span class="qs-count" id="qs-count-left"></span>
+        </div>
         <div class="pane-foot">
           <span id="foot-left-count">0 Elemente</span>
           <span id="foot-left-marked"></span>
@@ -1002,7 +1035,7 @@
             <button class="addr-star" id="star-right" onclick="togglePaneFavorite('right')" title="Ordner als Favorit merken">☆</button>
             <div class="addr-ac" id="ac-right"></div>
           </div>
-          <input class="filter-input" id="filter-right" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('right')">
+          <input class="filter-input" id="filter-right" placeholder="Filter (tag:red, *.rs)…" oninput="loadPane('right')" onkeydown="if(event.key==='Escape'){event.preventDefault();this.value='';loadPane('right');document.getElementById('list-right')?.focus({preventScroll:true});}else if(event.key==='Enter'||event.key==='ArrowDown'){event.preventDefault();document.getElementById('list-right')?.focus({preventScroll:true});}">
           <select class="view-select" id="viewmode-right" onchange="changePaneViewMode('right', this.value)" title="Ansichtsmodus wählen">
             <option value="Details">☰ Details</option>
             <option value="List">≡ Liste</option>
@@ -1025,7 +1058,13 @@
           <div class="col-cell" onclick="toggleSort('right','Modified')">Geändert <span id="sort-right-Modified"></span></div>
           <div class="col-cell" onclick="toggleSort('right','Extension')">Typ <span id="sort-right-Extension"></span></div>
         </div>
-        <div class="file-list" id="list-right" tabindex="0"></div>
+        <div class="file-list" id="list-right" tabindex="0" onclick="setActiveSide('right');this.focus({preventScroll:true});"></div>
+        <div class="quick-search-pill" id="qs-pill-right" style="display:none;">
+          <span class="qs-icon">⚡</span>
+          <span class="qs-label">Suche:</span>
+          <span class="qs-query" id="qs-query-right"></span>
+          <span class="qs-count" id="qs-count-right"></span>
+        </div>
         <div class="pane-foot">
           <span id="foot-right-count">0 Elemente</span>
           <span id="foot-right-marked"></span>
@@ -2377,6 +2416,9 @@ function getTab(side) {
 }
 
 function setActiveSide(side) {
+  if (STATE.activeSide !== side) {
+    clearQuickSearch(STATE.activeSide);
+  }
   STATE.activeSide = side;
   document.getElementById('pane-left').classList.toggle('active-pane', side === 'left');
   document.getElementById('pane-right').classList.toggle('active-pane', side === 'right');
@@ -2590,6 +2632,7 @@ async function loadPane(side, recordHistory = false, selectPathOnLoad = null) {
   p.selected.clear();
   if (!wasSameDir) {
     p.marked.clear();
+    clearQuickSearch(side);
   }
 
   if (p.items.length > 0) {
@@ -2636,6 +2679,10 @@ async function loadPane(side, recordHistory = false, selectPathOnLoad = null) {
     document.getElementById('qcPrompt').textContent = `PS ${tab.path}>`;
     if (p.cursorIndex >= 0 && p.items[p.cursorIndex]) {
       updateDockInspector(p.items[p.cursorIndex]);
+    }
+    const activeTag = document.activeElement?.tagName;
+    if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && !document.querySelector('.modal-bg.open')) {
+      document.getElementById('list-' + side)?.focus({ preventScroll: true });
     }
   }
   if (STATE.settings.restore_previous_session) {
@@ -2745,6 +2792,7 @@ function bindItemEvents(el, side, item, idx) {
   const p = STATE.panes[side];
   el.onclick = (e) => {
     e.stopPropagation();
+    clearQuickSearch(side);
     setActiveSide(side);
     document.getElementById('list-' + side)?.focus({ preventScroll: true });
     if (e.target.dataset.chk) {
@@ -2977,6 +3025,7 @@ function navigatePaneByKey(side, key, shiftKey = false) {
         targetEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
     }
+    host.focus({ preventScroll: true });
   }
 
   clearTimeout(_dockNavTimer);
@@ -2988,41 +3037,155 @@ function navigatePaneByKey(side, key, shiftKey = false) {
 
 let _typeAheadBuf = '';
 let _typeAheadTimer = null;
-function jumpToPrefixInPane(side, ch) {
+
+function clearQuickSearch(side) {
+  _typeAheadBuf = '';
+  clearTimeout(_typeAheadTimer);
+  _typeAheadTimer = null;
+  const sList = side ? [side] : ['left', 'right'];
+  sList.forEach(s => {
+    const pill = document.getElementById('qs-pill-' + s);
+    if (pill) {
+      pill.style.display = 'none';
+      pill.classList.remove('no-match');
+    }
+  });
+}
+
+function showQuickSearchPill(side, query, currentMatchNum, totalMatches, isError = false) {
+  const pill = document.getElementById('qs-pill-' + side);
+  const qEl = document.getElementById('qs-query-' + side);
+  const cEl = document.getElementById('qs-count-' + side);
+  if (!pill || !qEl || !cEl) return;
+  pill.style.display = 'inline-flex';
+  qEl.textContent = query;
+  if (isError || totalMatches === 0) {
+    pill.classList.add('no-match');
+    cEl.textContent = '(0/0)';
+  } else {
+    pill.classList.remove('no-match');
+    cEl.textContent = `(${currentMatchNum}/${totalMatches})`;
+  }
+}
+
+function executeTypeAheadSearch(side, isCycleRequest = false) {
   const p = STATE.panes[side];
   const items = p.items || [];
-  if (!items.length) return;
-  clearTimeout(_typeAheadTimer);
-  _typeAheadBuf += ch.toLowerCase();
-  _typeAheadTimer = setTimeout(() => { _typeAheadBuf = ''; }, 700);
+  if (!items.length || !_typeAheadBuf) {
+    clearQuickSearch(side);
+    return;
+  }
+  const q = _typeAheadBuf.toLowerCase();
 
-  const startIdx = (_typeAheadBuf.length === 1 && typeof p.cursorIndex === 'number' && p.cursorIndex >= 0)
-    ? (p.cursorIndex + 1) % items.length
-    : Math.max(0, p.cursorIndex || 0);
-
-  let foundIdx = -1;
-  for (let offset = 0; offset < items.length; offset++) {
-    const idx = (startIdx + offset) % items.length;
-    if ((items[idx].display_name || items[idx].name || '').toLowerCase().startsWith(_typeAheadBuf)) {
-      foundIdx = idx;
-      break;
+  // 1. Prefix match (starts with query)
+  let matches = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const dName = (it.display_name || '').toLowerCase();
+    const fName = (it.name || '').toLowerCase();
+    if (dName.startsWith(q) || fName.startsWith(q)) {
+      matches.push(i);
     }
   }
-  if (foundIdx >= 0) {
-    p.cursorIndex = foundIdx;
-    p.anchorIndex = foundIdx;
-    p.selected.clear();
-    p.selected.add(items[foundIdx].full_path);
-    const host = document.getElementById('list-' + side);
-    if (host) {
-      host.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-      const targetEl = host.querySelector(`[data-idx="${foundIdx}"]`);
-      if (targetEl) {
-        targetEl.classList.add('selected');
+
+  // 2. Fallback substring match if no prefix matches (Total Commander style)
+  if (matches.length === 0 && q.length >= 2) {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const dName = (it.display_name || '').toLowerCase();
+      const fName = (it.name || '').toLowerCase();
+      if (dName.includes(q) || fName.includes(q)) {
+        matches.push(i);
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    showQuickSearchPill(side, _typeAheadBuf, 0, 0, true);
+    return;
+  }
+
+  let targetIdx = -1;
+  let matchPos = 0;
+  const currentCursor = typeof p.cursorIndex === 'number' ? p.cursorIndex : -1;
+
+  if (isCycleRequest) {
+    const foundPos = matches.indexOf(currentCursor);
+    if (foundPos >= 0) {
+      matchPos = (foundPos + 1) % matches.length;
+    } else {
+      const nextMatch = matches.find(idx => idx > currentCursor);
+      matchPos = (nextMatch !== undefined) ? matches.indexOf(nextMatch) : 0;
+    }
+    targetIdx = matches[matchPos];
+  } else {
+    const foundPos = matches.indexOf(currentCursor);
+    if (foundPos >= 0) {
+      matchPos = foundPos;
+      targetIdx = currentCursor;
+    } else {
+      matchPos = 0;
+      targetIdx = matches[0];
+    }
+  }
+
+  p.cursorIndex = targetIdx;
+  p.anchorIndex = targetIdx;
+  p.selected.clear();
+  p.selected.add(items[targetIdx].full_path);
+
+  const host = document.getElementById('list-' + side);
+  if (host) {
+    host.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    const targetEl = host.querySelector(`[data-idx="${targetIdx}"]`);
+    if (targetEl) {
+      targetEl.classList.add('selected');
+      if (targetIdx === 0) {
+        host.scrollTop = 0;
+      } else {
         targetEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
     }
-    updateDockInspector(items[foundIdx]);
+    host.focus({ preventScroll: true });
+  }
+
+  showQuickSearchPill(side, _typeAheadBuf, matchPos + 1, matches.length, false);
+
+  clearTimeout(_dockNavTimer);
+  _dockNavTimer = setTimeout(() => {
+    if (items[targetIdx]) updateDockInspector(items[targetIdx]);
+  }, 35);
+}
+
+function jumpToPrefixInPane(side, ch) {
+  const p = STATE.panes[side];
+  if (!p || !p.items || !p.items.length) return;
+
+  clearTimeout(_typeAheadTimer);
+  _typeAheadTimer = setTimeout(() => { clearQuickSearch(side); }, 1200);
+
+  const lowerCh = ch.toLowerCase();
+  const isSingleCharCycle = (_typeAheadBuf.length === 1 && _typeAheadBuf === lowerCh);
+
+  if (isSingleCharCycle) {
+    executeTypeAheadSearch(side, true);
+  } else {
+    _typeAheadBuf += lowerCh;
+    executeTypeAheadSearch(side, false);
+  }
+}
+
+function handleTypeAheadBackspace(side) {
+  clearTimeout(_typeAheadTimer);
+  _typeAheadTimer = setTimeout(() => { clearQuickSearch(side); }, 1200);
+
+  if (_typeAheadBuf.length > 0) {
+    _typeAheadBuf = _typeAheadBuf.slice(0, -1);
+  }
+  if (!_typeAheadBuf.length) {
+    clearQuickSearch(side);
+  } else {
+    executeTypeAheadSearch(side, false);
   }
 }
 
@@ -6434,6 +6597,11 @@ function initSplitter() {
 window.addEventListener('keydown', (e) => {
   const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
   if (e.key === 'Escape') {
+    if (_typeAheadBuf.length > 0) {
+      e.preventDefault();
+      clearQuickSearch(STATE.activeSide);
+      return;
+    }
     const fly = document.getElementById('tm-tree-flyout');
     if (fly && fly.classList.contains('open')) {
       fly.classList.remove('open');
@@ -6515,11 +6683,13 @@ window.addEventListener('keydown', (e) => {
 
   if (!inInput && !hasOpenModal) {
     if (!e.altKey && !e.ctrlKey && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageDown', 'PageUp'].includes(e.key)) {
+      clearQuickSearch(STATE.activeSide);
       e.preventDefault();
       navigatePaneByKey(STATE.activeSide, e.key, e.shiftKey);
       return;
     }
     if (e.key === 'Tab') {
+      clearQuickSearch(STATE.activeSide);
       e.preventDefault();
       if (STATE.isDualPane) {
         const nextSide = STATE.activeSide === 'left' ? 'right' : 'left';
@@ -6529,9 +6699,14 @@ window.addEventListener('keydown', (e) => {
       return;
     } else if (e.key === 'Backspace') {
       e.preventDefault();
+      if (_typeAheadBuf.length > 0) {
+        handleTypeAheadBackspace(STATE.activeSide);
+        return;
+      }
       navUp(STATE.activeSide);
       return;
     } else if (e.key === 'Insert') {
+      clearQuickSearch(STATE.activeSide);
       e.preventDefault();
       const it = getSelectedSingleItem(STATE.activeSide);
       if (it) {
@@ -6541,11 +6716,16 @@ window.addEventListener('keydown', (e) => {
       return;
     } else if (e.key === ' ') {
       e.preventDefault();
+      if (_typeAheadBuf.length > 0) {
+        jumpToPrefixInPane(STATE.activeSide, ' ');
+        return;
+      }
       const it = getSelectedSingleItem(STATE.activeSide);
       if (it) toggleMarkItem(STATE.activeSide, it, STATE.panes[STATE.activeSide].cursorIndex || 0);
       return;
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      clearQuickSearch(STATE.activeSide);
       const it = getSelectedSingleItem(STATE.activeSide);
       if (it) activateItem(STATE.activeSide, it);
       return;
