@@ -4574,13 +4574,26 @@ function stepHexPage(delta) {
 async function loadHexEditorPage() {
   if (!STATE.viewerPath) return;
   const offset = parseHexOrDecOffset(document.getElementById('hexEditOffset').value);
-  const page = await rpc('hex_editor', { sub: 'read_page', path: STATE.viewerPath, offset, length: 512 });
-  if (!page || page.error) {
-    document.getElementById('hexEditTableHost').innerHTML = `<div style="color:var(--danger)">${esc(page?.error || 'Fehler')}</div>`;
+  const res = await rpc('hex_editor', { sub: 'read', path: STATE.viewerPath, offset, length: 512 });
+  if (!res || res.error || !res.page) {
+    document.getElementById('hexEditTableHost').innerHTML = `<div style="color:var(--danger)">${esc(res?.error || 'Fehler')}</div>`;
     return;
   }
-  const rows = page.rows || [];
-  let html = `<div style="margin-bottom:6px;color:var(--fg-dim);">Dateigröße: <strong>${page.total_size} Bytes</strong> • Zeige Offset 0x${(page.offset||0).toString(16).toUpperCase()} (${rows.length * 16} Bytes) • Geänderte Bytes: <strong id="hexPatchCount">${Object.keys(STATE.hexPatches).length}</strong></div>`;
+  const page = res.page;
+  const bytes = page.bytes || [];
+  const rows = [];
+  for (let i = 0; i < bytes.length; i += 16) {
+    const chunk = bytes.slice(i, i + 16);
+    const rowOff = (page.offset || 0) + i;
+    const ascii = chunk.map(b => (b >= 0x20 && b <= 0x7E) ? String.fromCharCode(b) : '.').join('');
+    rows.push({
+      offset: rowOff,
+      offset_hex: rowOff.toString(16).toUpperCase().padStart(8, '0'),
+      bytes: chunk,
+      ascii
+    });
+  }
+  let html = `<div style="margin-bottom:6px;color:var(--fg-dim);">Dateigröße: <strong>${page.total_size} Bytes</strong> • Zeige Offset 0x${(page.offset||0).toString(16).toUpperCase()} (${bytes.length} Bytes) • Geänderte Bytes: <strong id="hexPatchCount">${Object.keys(STATE.hexPatches).length}</strong></div>`;
   html += `<table class="data-tbl" style="font-family:var(--font-mono);font-size:12px;"><thead><tr><th>Offset</th><th>Hex-Bytes (klicken/editieren)</th><th>ASCII</th></tr></thead><tbody>`;
   rows.forEach(r => {
     const cells = (r.bytes || []).map((b, idx) => {
@@ -4619,7 +4632,7 @@ async function runHexBinarySearch() {
   if (!q) return;
   const isHex = document.getElementById('hexSearchIsHex').checked;
   const res = await rpc('hex_editor', { sub: 'search', path: STATE.viewerPath, query: q, is_hex: isHex });
-  const matches = res.matches || [];
+  const matches = res.offsets || res.matches || [];
   if (!matches.length) {
     document.getElementById('hexSearchMatches').textContent = 'Keine Treffer gefunden.';
     return;
@@ -4630,12 +4643,12 @@ async function runHexBinarySearch() {
 }
 
 async function applyHexPatchesNow() {
-  const entries = Object.entries(STATE.hexPatches).map(([off, b]) => [parseInt(off, 10), b]);
+  const entries = Object.entries(STATE.hexPatches).map(([off, b]) => ({ offset: parseInt(off, 10), byte: b }));
   if (!entries.length) { toast('Keine geänderten Bytes zum Patchen vorhanden.'); return; }
   const res = await rpc('hex_editor', { sub: 'patch', path: STATE.viewerPath, patches: entries });
   if (res && res.ok) {
     STATE.hexPatches = {};
-    toast(`${res.patched_bytes} Byte(s) erfolgreich in Datei gepatcht!`);
+    toast(`${res.patched_count ?? entries.length} Byte(s) erfolgreich in Datei gepatcht!`);
     loadHexEditorPage();
     loadPane(STATE.activeSide);
   } else {
@@ -6594,23 +6607,26 @@ function loadSelectionPreset(idx) {
   if (!p) return;
   document.getElementById('sel-pattern').value = p.pattern || '*.*';
   document.getElementById('sel-regex').checked = !!p.is_regex;
-  document.getElementById('sel-dirs').checked = !!p.include_dirs;
+  document.getElementById('sel-dirs').checked = (p.target_type === 'all' || p.target_type === 'folders' || !!p.include_dirs);
   document.getElementById('sel-min-size').value = p.min_size_bytes || '';
   document.getElementById('sel-max-size').value = p.max_size_bytes || '';
-  document.getElementById('sel-max-days').value = p.max_age_days || '';
+  const days = p.max_age_days || (p.max_age_hours ? Math.round(p.max_age_hours / 24) : '');
+  document.getElementById('sel-max-days').value = days;
 }
 
 async function saveSelectionPresetNow() {
-  const preset = {
+  const maxDays = parseInt(document.getElementById('sel-max-days').value, 10) || null;
+  const rule = {
     name: document.getElementById('sel-preset-name').value.trim() || 'Filter',
     pattern: document.getElementById('sel-pattern').value.trim() || '*.*',
     is_regex: document.getElementById('sel-regex').checked,
     min_size_bytes: parseInt(document.getElementById('sel-min-size').value, 10) || null,
     max_size_bytes: parseInt(document.getElementById('sel-max-size').value, 10) || null,
-    max_age_days: parseInt(document.getElementById('sel-max-days').value, 10) || null,
-    include_dirs: document.getElementById('sel-dirs').checked
+    max_age_hours: maxDays ? maxDays * 24 : null,
+    min_age_hours: null,
+    target_type: document.getElementById('sel-dirs').checked ? 'all' : 'files'
   };
-  const res = await rpc('selection_engine', { sub: 'save_preset', preset });
+  const res = await rpc('selection_engine', { sub: 'save_preset', rule });
   STATE.selectionPresets = res.presets || [];
   renderSelectionPresetsList();
   toast('Auswahl-Preset gespeichert.');
@@ -6618,17 +6634,19 @@ async function saveSelectionPresetNow() {
 
 async function applySelectionEngineRule(mode) {
   const dir = getTab(STATE.activeSide).path;
-  const preset = {
+  const maxDays = parseInt(document.getElementById('sel-max-days').value, 10) || null;
+  const rule = {
     name: 'Live',
     pattern: document.getElementById('sel-pattern').value.trim() || '*.*',
     is_regex: document.getElementById('sel-regex').checked,
     min_size_bytes: parseInt(document.getElementById('sel-min-size').value, 10) || null,
     max_size_bytes: parseInt(document.getElementById('sel-max-size').value, 10) || null,
-    max_age_days: parseInt(document.getElementById('sel-max-days').value, 10) || null,
-    include_dirs: document.getElementById('sel-dirs').checked
+    max_age_hours: maxDays ? maxDays * 24 : null,
+    min_age_hours: null,
+    target_type: document.getElementById('sel-dirs').checked ? 'all' : 'files'
   };
-  const res = await rpc('selection_engine', { sub: 'evaluate', dir, preset });
-  const matches = new Set(res.matches || []);
+  const res = await rpc('selection_engine', { sub: 'evaluate', dir, rule });
+  const matches = new Set(res.matched_paths || res.matches || []);
   const p = STATE.panes[STATE.activeSide];
   if (mode === 'select') {
     matches.forEach(m => p.marked.add(m));
@@ -6649,7 +6667,7 @@ async function openTransferQueueModal(autoEnqueue = false) {
     const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
     const dest = getTab(otherSide).path;
     if (sources.length && dest) {
-      await rpc('transfer_queue', { sub: 'enqueue', kind: 'Copy', sources, destination: dest, conflict_policy: 'Overwrite' });
+      await rpc('transfer_queue', { sub: 'enqueue', paths: sources, dest_dir: dest, is_move: false });
       toast('Job zur Transfer-Warteschlange hinzugefügt.');
     }
   }
@@ -6657,12 +6675,7 @@ async function openTransferQueueModal(autoEnqueue = false) {
     <div class="prefs-card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
       <span>Aktuelle Auswahl in Queue einreihen:</span>
       <select class="select" id="tq-kind"><option value="Copy">Kopieren (Copy)</option><option value="Move">Verschieben (Move)</option></select>
-      <select class="select" id="tq-policy">
-        <option value="Overwrite">Überschreiben (Overwrite)</option>
-        <option value="SkipExisting">Vorhandene überspringen (Skip)</option>
-        <option value="AutoRename">Automatisch umbenennen (Auto-Rename)</option>
-      </select>
-      <label>Limit (MB/s, 0=Max): <input class="input" id="tq-limit" type="number" value="0" style="width:65px"></label>
+      <label>Speed-Limit (MB/s, 0=Max): <input class="input" id="tq-limit" type="number" value="0" style="width:65px" onchange="rpc('transfer_queue',{sub:'speed_limit',kbps:(parseInt(this.value,10)||0)*1024})"></label>
       <button class="btn primary" onclick="enqueueCurrentSelectionToQueue()">+ Zur Queue hinzufügen</button>
       <button class="btn" onclick="clearFinishedQueueJobs()">🧹 Fertige leeren</button>
     </div>
@@ -6686,13 +6699,16 @@ async function enqueueCurrentSelectionToQueue() {
   if (!sources.length) { toast('Bitte Dateien im aktiven Panel auswählen.'); return; }
   const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
   const destination = getTab(otherSide).path;
+  const isMove = document.getElementById('tq-kind').value === 'Move';
+  const limitMb = parseInt(document.getElementById('tq-limit').value, 10) || 0;
+  if (limitMb > 0) {
+    await rpc('transfer_queue', { sub: 'speed_limit', kbps: limitMb * 1024 });
+  }
   await rpc('transfer_queue', {
     sub: 'enqueue',
-    kind: document.getElementById('tq-kind').value,
-    sources,
-    destination,
-    conflict_policy: document.getElementById('tq-policy').value,
-    speed_limit_kbps: (parseInt(document.getElementById('tq-limit').value, 10) || 0) * 1024
+    paths: sources,
+    dest_dir: destination,
+    is_move: isMove
   });
   await refreshTransferQueueTable();
   loadPane('left');
@@ -6701,25 +6717,29 @@ async function enqueueCurrentSelectionToQueue() {
 
 async function refreshTransferQueueTable() {
   const res = await rpc('transfer_queue', { sub: 'list' });
-  const jobs = res.jobs || [];
+  const jobs = res.items || res.jobs || [];
   const tbody = document.getElementById('tq-tbody');
   if (!tbody) return;
   tbody.innerHTML = jobs.map(j => {
-    const pct = j.total_bytes > 0 ? Math.min(100, Math.round((j.processed_bytes / j.total_bytes) * 100)) : 100;
+    const totalB = j.bytes_total ?? j.total_bytes ?? 0;
+    const doneB = j.bytes_done ?? j.processed_bytes ?? 0;
+    const pct = totalB > 0 ? Math.min(100, Math.round((doneB / totalB) * 100)) : (j.status === 'Done' ? 100 : 0);
     const spd = j.speed_bps > 0 ? (j.speed_bps / (1024 * 1024)).toFixed(1) + ' MB/s' : '—';
+    const kindLabel = j.is_move ? 'Move' : (j.kind || 'Copy');
+    const destLabel = j.destination_dir || j.destination || '';
     return `<tr>
       <td>#${j.id}</td>
-      <td><strong>${esc(j.kind)}</strong> (${(j.sources||[]).length})</td>
-      <td>${esc(j.destination)}</td>
+      <td><strong>${esc(kindLabel)}</strong> (${(j.sources||[]).length})</td>
+      <td>${esc(destLabel)}</td>
       <td><span class="badge">${esc(j.status)}</span></td>
       <td style="min-width:140px;">
         <div class="drive-prog" style="width:100%;height:8px;"><span style="width:${pct}%"></span></div>
-        <div style="font-size:10.5px;color:var(--fg-dim)">${j.processed_files}/${j.total_files} Dateien (${pct}%)</div>
+        <div style="font-size:10.5px;color:var(--fg-dim)">${esc(j.current_file || '')} (${pct}%)</div>
       </td>
       <td>${spd}</td>
       <td style="display:flex;gap:4px;">
-        ${j.status === 'Running' ? `<button class="btn" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'pause',id:${j.id}}).then(refreshTransferQueueTable)">⏸</button>` : ''}
-        ${j.status === 'Paused' ? `<button class="btn primary" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'resume',id:${j.id}}).then(refreshTransferQueueTable)">▶</button>` : ''}
+        ${j.status === 'Running' ? `<button class="btn" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'pause',paused:true}).then(refreshTransferQueueTable)">⏸</button>` : ''}
+        ${res.paused ? `<button class="btn primary" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'pause',paused:false}).then(refreshTransferQueueTable)">▶</button>` : ''}
         ${(j.status === 'Running' || j.status === 'Paused' || j.status === 'Queued') ? `<button class="btn danger" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'cancel',id:${j.id}}).then(refreshTransferQueueTable)">✕</button>` : ''}
       </td>
     </tr>`;
@@ -6745,10 +6765,16 @@ async function refreshDirTreeSidebar() {
   const host = document.getElementById('treeSidebarBody');
   if (!host) return;
   const curPath = getTab(STATE.activeSide).path;
-  const root = curPath.includes(':') ? curPath.slice(0, 3) : curPath;
-  const res = await rpc('dir_tree', { root, focus_path: curPath });
+  const res = await rpc('dir_tree', { path: curPath });
   const nodes = res.nodes || [];
-  host.innerHTML = renderDirTreeNodes(nodes, 0, curPath);
+  const parentPath = getParentPath(curPath);
+  let html = '';
+  if (parentPath && parentPath !== curPath) {
+    html += `<div style="padding:4px 6px;cursor:pointer;border-radius:4px;font-weight:600;color:var(--fg-dim);" onclick="navigateTo(STATE.activeSide, '${esc(parentPath).replace(/\\/g,'\\\\')}')">⬆ [..] ${esc(parentPath)}</div>`;
+  }
+  html += `<div style="padding:4px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-weight:700;margin-bottom:2px;">📂 ${esc(curPath)}</div>`;
+  html += renderDirTreeNodes(nodes, 1, curPath);
+  host.innerHTML = html;
 }
 
 function renderDirTreeNodes(nodes, depth, activePath) {
@@ -6758,7 +6784,7 @@ function renderDirTreeNodes(nodes, depth, activePath) {
     return `
       <div style="padding:3px 6px 3px ${6 + pad}px;cursor:pointer;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isAct ? 'background:var(--accent-soft);color:var(--accent);font-weight:600;' : ''}"
            onclick="navigateTo(STATE.activeSide, '${esc(n.full_path).replace(/\\/g,'\\\\')}')">
-        ${n.children && n.children.length ? '📂' : '📁'} ${esc(n.name)}
+        ${n.has_children || (n.children && n.children.length) ? '📂' : '📁'} ${esc(n.name)}
       </div>
       ${n.children && n.children.length ? renderDirTreeNodes(n.children, depth + 1, activePath) : ''}
     `;
@@ -6778,8 +6804,8 @@ async function openSmartJumpModal() {
 }
 
 async function refreshSmartJumpList(query) {
-  const res = await rpc('smart_jump', { sub: 'query', query: query || '' });
-  const entries = res.entries || [];
+  const res = await rpc('smart_jump', { query: query || '' });
+  const entries = res.items || res.entries || [];
   const tbody = document.getElementById('sj-tbody');
   if (!tbody) return;
   tbody.innerHTML = entries.map(e => `
@@ -6836,8 +6862,8 @@ function openImageConverterModal() {
         </select>
       </div>
       <div>
-        <label>Qualität (1–100):</label>
-        <input class="input" id="img-qual" type="number" value="85" style="width:100%;margin-top:4px;">
+        <label>Skalierung (% optional, 100 = Original):</label>
+        <input class="input" id="img-qual" type="number" value="100" style="width:100%;margin-top:4px;">
       </div>
       <div>
         <label>Drehung:</label>
@@ -6865,16 +6891,17 @@ function openImageConverterModal() {
 }
 
 async function runImageBatchConvert() {
+  const scalePct = parseInt(document.getElementById('img-qual').value, 10);
   const res = await rpc('image_converter', {
     paths: getActionPaths(),
     target_format: document.getElementById('img-fmt').value,
-    quality: parseInt(document.getElementById('img-qual').value, 10) || 85,
-    max_width: parseInt(document.getElementById('img-w').value, 10) || null,
-    max_height: parseInt(document.getElementById('img-h').value, 10) || null,
-    rotate_deg: parseInt(document.getElementById('img-rot').value, 10) || 0,
+    scale_percent: (scalePct && scalePct !== 100) ? scalePct : null,
+    resize_width: parseInt(document.getElementById('img-w').value, 10) || null,
+    resize_height: parseInt(document.getElementById('img-h').value, 10) || null,
+    rotate_degrees: parseInt(document.getElementById('img-rot').value, 10) || 0,
     grayscale: document.getElementById('img-gray').checked
   });
-  const count = (res.outputs || []).length;
+  const count = (res.results || res.outputs || []).length;
   document.getElementById('img-conv-res').textContent = `✓ ${count} Bild(er) erfolgreich konvertiert!`;
   loadPane(STATE.activeSide);
   toast(`${count} Bild(er) konvertiert.`);
@@ -6886,12 +6913,13 @@ async function openPdfToolkitModal() {
   const dir = getTab(STATE.activeSide).path.replace(/[\\/]+$/, '');
   let infoHtml = '';
   if (paths.length === 1 && paths[0].toLowerCase().endsWith('.pdf')) {
-    const info = await rpc('pdf_toolkit', { sub: 'inspect', path: paths[0] });
-    if (info && !info.error) {
-      infoHtml = `<div style="margin-bottom:10px;color:var(--accent)">📄 <strong>${esc(paths[0])}</strong> • Seitenanzahl: <strong>${info.page_count}</strong> • PDF-Version: ${esc(info.version)}</div>`;
+    const res = await rpc('pdf_toolkit', { sub: 'inspect', path: paths[0] });
+    const info = res?.info || res;
+    if (info && !res?.error && info.page_count !== undefined) {
+      infoHtml = `<div style="margin-bottom:10px;color:var(--accent)">📄 <strong>${esc(paths[0])}</strong> • Seitenanzahl: <strong>${info.page_count}</strong> • PDF-Version: ${esc(info.version || '1.4')}</div>`;
     }
   }
-  showToolModal('📄 Integriertes PDF-Toolkit: Merge, Split & Info (Strg+Alt+P)', `
+  showToolModal('📄 Integriertes PDF-Toolkit: Merge, Seiten-Extraktion & Info (Strg+Alt+P)', `
     ${infoHtml}
     <div class="prefs-card">
       <strong>1. Ausgewählte PDF-Dateien (${paths.length}) zu einer PDF zusammenfügen (Merge):</strong>
@@ -6901,10 +6929,11 @@ async function openPdfToolkitModal() {
       </div>
     </div>
     <div class="prefs-card">
-      <strong>2. Aktuelle PDF-Datei in Einzelseiten splitten:</strong>
+      <strong>2. Seitenbereich aus aktueller PDF-Datei extrahieren / splitten:</strong>
       <div style="display:flex;gap:8px;margin-top:6px;">
-        <input class="input" id="pdf-split-dir" value="${esc(dir)}" style="flex:1">
-        <button class="btn primary" onclick="runPdfSplit()">✂ In Einzelseiten splitten</button>
+        <input class="input" id="pdf-split-range" value="1" placeholder="Seiten (z.B. 1-3, 5)" style="width:150px">
+        <input class="input" id="pdf-split-dir" value="${esc(dir + '\\extracted.pdf')}" style="flex:1">
+        <button class="btn primary" onclick="runPdfSplit()">✂ Seiten extrahieren</button>
       </div>
     </div>
     <div id="pdf-msg" style="margin-top:8px;font-weight:600;color:var(--ok);"></div>
@@ -6914,16 +6943,17 @@ async function openPdfToolkitModal() {
 async function runPdfMerge() {
   const out = document.getElementById('pdf-merge-out').value;
   const res = await rpc('pdf_toolkit', { sub: 'merge', paths: getActionPaths(), output_path: out });
-  document.getElementById('pdf-msg').textContent = res.ok ? `✓ Zusammengefügt: ${res.output}` : (res.error || 'Fehler');
+  document.getElementById('pdf-msg').textContent = res.ok ? `✓ Zusammengefügt (${res.total_pages || ''} Seiten): ${res.output_path || out}` : (res.error || 'Fehler');
   loadPane(STATE.activeSide);
 }
 
 async function runPdfSplit() {
   const item = getSelectedSingleItem();
   if (!item) return;
-  const outDir = document.getElementById('pdf-split-dir').value;
-  const res = await rpc('pdf_toolkit', { sub: 'split', path: item.full_path, output_dir: outDir });
-  document.getElementById('pdf-msg').textContent = res.ok ? `✓ ${(res.files||[]).length} Einzelseiten erstellt.` : (res.error || 'Fehler');
+  const outPath = document.getElementById('pdf-split-dir').value;
+  const range = document.getElementById('pdf-split-range')?.value || '1';
+  const res = await rpc('pdf_toolkit', { sub: 'extract', path: item.full_path, range, output_path: outPath });
+  document.getElementById('pdf-msg').textContent = res.ok ? `✓ ${res.extracted_pages || 1} Seite(n) extrahiert nach ${res.output_path || outPath}.` : (res.error || 'Fehler');
   loadPane(STATE.activeSide);
 }
 
@@ -6934,7 +6964,7 @@ function openFileVaultModal() {
   showToolModal('🔒 Kryptografischer Datei-Tresor — AES-256-GCM & PBKDF2 (Strg+Shift+V)', `
     <div class="prefs-card" style="display:flex;flex-direction:column;gap:10px;">
       <div>
-        <label>Zieldatei (Datei zum Verschlüsseln oder <code>.vault</code>-Datei zum Entschlüsseln):</label>
+        <label>Zieldatei (Datei zum Verschlüsseln oder <code>.menc</code>-Datei zum Entschlüsseln):</label>
         <input class="input" id="vault-path" value="${esc(p)}" style="width:100%;margin-top:4px;">
       </div>
       <div>
@@ -6943,8 +6973,8 @@ function openFileVaultModal() {
       </div>
       <label><input type="checkbox" id="vault-del"> Originaldatei nach dem Ver-/Entschlüsseln automatisch entfernen</label>
       <div style="display:flex;gap:10px;">
-        <button class="btn primary" onclick="runVaultAction('encrypt')">🔒 Jetzt in .vault verschlüsseln</button>
-        <button class="btn primary" onclick="runVaultAction('decrypt')">🔓 .vault entschlüsseln</button>
+        <button class="btn primary" onclick="runVaultAction('encrypt')">🔒 Jetzt verschlüsseln (.menc)</button>
+        <button class="btn primary" onclick="runVaultAction('decrypt')">🔓 Datei entschlüsseln</button>
       </div>
     </div>
     <div id="vault-msg" style="margin-top:10px;font-weight:600;"></div>
@@ -6977,8 +7007,9 @@ async function openNtfsLocksmithModal() {
   const item = getSelectedSingleItem();
   if (!item) { toast('Bitte eine Datei oder einen Ordner auswählen.'); return; }
   const res = await rpc('ntfs_locksmith', { sub: 'inspect', path: item.full_path });
-  const ads = res.ads_streams || [];
-  const locks = res.locking_processes || [];
+  const info = res.info || res || {};
+  const ads = info.ads_streams || [];
+  const locks = info.locking_processes || [];
   showToolModal(`🔓 NTFS-Streams, Berechtigungen & File-Locksmith — ${esc(item.name)}`, `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:220px;">
       <div class="prefs-card" style="display:flex;flex-direction:column;">
@@ -6988,7 +7019,7 @@ async function openNtfsLocksmithModal() {
         </div>
         <div style="flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px;">
           <table class="data-tbl"><thead><tr><th>Stream-Name</th><th>Größe</th></tr></thead><tbody>
-            ${ads.map(s => `<tr><td>${esc(s.stream_name)}</td><td>${s.size_bytes} B</td></tr>`).join('') || '<tr><td colspan="2">Keine zusätzlichen ADS-Streams gefunden.</td></tr>'}
+            ${ads.map(s => `<tr><td>${esc(s.name || s.stream_name)}</td><td>${s.size_bytes} B</td></tr>`).join('') || '<tr><td colspan="2">Keine zusätzlichen ADS-Streams gefunden.</td></tr>'}
           </tbody></table>
         </div>
         <strong style="margin-top:10px;">Gesperrt durch Prozesse (File Locksmith):</strong>
@@ -7000,14 +7031,14 @@ async function openNtfsLocksmithModal() {
       </div>
       <div class="prefs-card" style="display:flex;flex-direction:column;">
         <strong>NTFS-ACL Berechtigungen (icacls):</strong>
-        <pre style="flex:1;margin-top:6px;padding:8px;background:var(--bg-sunken);border-radius:6px;overflow:auto;font-family:var(--font-mono);font-size:11.5px;">${esc(res.acl_summary || '')}</pre>
+        <pre style="flex:1;margin-top:6px;padding:8px;background:var(--bg-sunken);border-radius:6px;overflow:auto;font-family:var(--font-mono);font-size:11.5px;">${esc(info.acl_summary || '')}</pre>
       </div>
     </div>
   `, null, 'tool:NtfsLocksmith');
 }
 
 async function unblockZoneIdentifier(path) {
-  await rpc('ntfs_locksmith', { sub: 'unblock', path });
+  await rpc('ntfs_locksmith', { sub: 'remove_stream', path });
   toast('Zone.Identifier ADS entfernt (Datei entsperrt).');
   openNtfsLocksmithModal();
 }
@@ -7020,8 +7051,8 @@ async function openDataConverterModal() {
     const prev = await rpc('quick_preview', { path: item.full_path });
     initialText = prev?.text || '';
   }
-  const clipRes = await rpc('data_converter', { sub: 'clipboard_list' });
-  const clips = clipRes.entries || [];
+  const clipRes = await rpc('data_converter', { sub: 'list_clipboard' });
+  const clips = clipRes.history || clipRes.entries || [];
   showToolModal('🔄 Strukturierter Daten-Konverter (JSON/YAML/TOML/CSV) & Zwischenablage-Verlauf (Strg+Alt+D)', `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-shrink:0;">
       <span>Von:</span>
@@ -7038,10 +7069,13 @@ async function openDataConverterModal() {
     <div style="margin-top:10px;flex-shrink:0;">
       <strong>📋 Multi-Step Zwischenablage-Verlauf (${clips.length} Einträge):</strong>
       <div id="dc-clip-list" style="max-height:110px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;padding:4px;">
-        ${clips.map(c => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-bottom:1px solid var(--border);font-size:11.5px;">
-          <span style="font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%;">${esc(c.content)}</span>
-          <button class="btn" style="padding:1px 6px;font-size:10.5px;" onclick="copyText(${JSON.stringify(c.content)})">Kopieren</button>
-        </div>`).join('') || '<div style="color:var(--fg-muted);padding:4px;">Noch keine Einträge im Verlauf.</div>'}
+        ${clips.map(c => {
+          const txt = c.text || c.content || '';
+          return `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-bottom:1px solid var(--border);font-size:11.5px;">
+            <span style="font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%;">${esc(txt)}</span>
+            <button class="btn" style="padding:1px 6px;font-size:10.5px;" onclick="copyText(${JSON.stringify(txt)})">Kopieren</button>
+          </div>`;
+        }).join('') || '<div style="color:var(--fg-muted);padding:4px;">Noch keine Einträge im Verlauf.</div>'}
       </div>
     </div>
   `, null, 'tool:DataConverter');
@@ -7063,17 +7097,29 @@ async function runStructuredDataConvert() {
 
 async function copyConverterOutput() {
   const txt = document.getElementById('dc-out').value || document.getElementById('dc-in').value;
-  await rpc('data_converter', { sub: 'clipboard_push', kind: 'text', content: txt });
+  await rpc('data_converter', { sub: 'push_clipboard', text: txt });
   copyText(txt);
 }
 
 /* Feature 15: User-Defined Tools & Script Buttons (Ctrl+Alt+U) */
+function getUserCmdDisplay(c) {
+  const label = (c.label || c.name || '').trim() || (c.id === 'vscode' ? 'VS Code' : (c.id === 'os_explorer' ? 'System-Explorer' : 'Skript'));
+  const icon = (c.icon || '⚡').trim();
+  const prog = (c.program || '').trim();
+  const args = (c.args_template || '').trim();
+  const fullTpl = (prog && args) ? `${prog} ${args}` : (prog || args || (c.command_template || '').trim() || (c.id === 'vscode' ? 'code %P' : 'explorer %P'));
+  const shortcut = (c.shortcut || '').trim();
+  return { id: c.id, label, icon, prog, args, fullTpl, shortcut };
+}
+
 function renderUserCommandBar() {
   const host = document.getElementById('userCmdBar');
   if (!host) return;
-  host.innerHTML = (STATE.userCommands || []).map(c => `
-    <button class="ibtn" style="height:22px;font-size:11px;" title="${esc(c.command_template)} (${esc(c.shortcut || '')})" onclick="executeUserCommandById('${esc(c.id)}')">${esc(c.icon || '⚡')} ${esc(c.name)}</button>
-  `).join('');
+  host.innerHTML = (STATE.userCommands || []).map(raw => {
+    const c = getUserCmdDisplay(raw);
+    const titleStr = c.shortcut ? `${c.fullTpl} (${c.shortcut})` : c.fullTpl;
+    return `<button class="ibtn" style="height:22px;font-size:11px;" title="${esc(titleStr)}" onclick="executeUserCommandById('${esc(c.id)}')">${esc(c.icon)} ${esc(c.label)}</button>`;
+  }).join('');
 }
 
 async function executeUserCommandById(id) {
@@ -7082,13 +7128,15 @@ async function executeUserCommandById(id) {
   const res = await rpc('user_commands', {
     sub: 'execute',
     id,
-    file: item ? item.full_path : '',
-    dir: getTab(STATE.activeSide).path,
-    other_dir: getTab(otherSide).path,
-    selected: getActionPaths()
+    active_dir: getTab(STATE.activeSide).path,
+    target_dir: getTab(otherSide).path,
+    left_dir: getTab('left').path,
+    right_dir: getTab('right').path,
+    selected_file: item ? item.full_path : '',
+    selected_list: getActionPaths()
   });
   if (res && res.ok) {
-    toast(`Befehl ausgeführt (${res.expanded}): ${(res.output || 'OK').slice(0, 80)}`);
+    toast(`Befehl gestartet: ${res.message || 'OK'}`);
     loadPane(STATE.activeSide);
   } else {
     toast(res?.error || 'Fehler beim Ausführen');
@@ -7097,15 +7145,21 @@ async function executeUserCommandById(id) {
 
 function openUserCommandsModal() {
   showToolModal('⚡ Benutzerdefinierte Werkzeuge & Skript-Buttons (Strg+Alt+U)', `
-    <div class="prefs-card" style="display:grid;grid-template-columns:70px 1fr 2fr 110px auto;gap:6px;align-items:center;flex-shrink:0;">
-      <input class="input" id="uc-icon" value="⚡" placeholder="Icon">
-      <input class="input" id="uc-name" placeholder="Button-Name (z.B. VS Code)">
-      <input class="input" id="uc-cmd" placeholder="Befehl mit {file}, {dir}, {other_dir}, {selected}">
-      <input class="input" id="uc-kbd" placeholder="Shortcut">
-      <button class="btn primary" onclick="saveNewUserCommand()">+ Speichern</button>
+    <div class="prefs-card" style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div style="display:grid;grid-template-columns:60px 1.2fr 1.2fr 1.6fr 110px auto;gap:6px;align-items:center;">
+        <input class="input" id="uc-icon" value="⚡" placeholder="Icon" title="Symbol/Emoji">
+        <input class="input" id="uc-name" placeholder="Name (z.B. VS Code)">
+        <input class="input" id="uc-prog" placeholder="Programm (z.B. code, pwsh)">
+        <input class="input" id="uc-args" value="%P" placeholder="Parameter (%P, %T, %N, %F)">
+        <input class="input" id="uc-kbd" placeholder="Shortcut">
+        <button class="btn primary" onclick="saveNewUserCommand()">+ Speichern</button>
+      </div>
+      <div style="font-size:11px;color:var(--fg-muted);">
+        Platzhalter im Befehls-Template: <code>%P</code> / <code>{dir}</code> = Aktiver Ordner • <code>%T</code> / <code>{other_dir}</code> = Zielordner • <code>%N</code> / <code>{file}</code> = Fokussierte Datei • <code>%F</code> / <code>{selected}</code> = Markierte Dateien
+      </div>
     </div>
     <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
-      <table class="data-tbl"><thead><tr><th>Icon</th><th>Name</th><th>Befehls-Template</th><th>Aktion</th></tr></thead><tbody id="uc-tbody"></tbody></table>
+      <table class="data-tbl"><thead><tr><th style="width:50px;">Icon</th><th>Name</th><th>Befehls-Template (Programm &amp; Parameter)</th><th style="width:155px;">Aktion</th></tr></thead><tbody id="uc-tbody"></tbody></table>
     </div>
   `, null, 'tool:UserCommands');
   renderUserCommandsTable();
@@ -7114,31 +7168,68 @@ function openUserCommandsModal() {
 function renderUserCommandsTable() {
   const tbody = document.getElementById('uc-tbody');
   if (!tbody) return;
-  tbody.innerHTML = (STATE.userCommands || []).map(c => `
+  tbody.innerHTML = (STATE.userCommands || []).map((raw, idx) => {
+    const c = getUserCmdDisplay(raw);
+    return `
     <tr>
-      <td>${esc(c.icon)}</td>
-      <td><strong>${esc(c.name)}</strong></td>
-      <td style="font-family:var(--font-mono);font-size:11.5px;">${esc(c.command_template)}</td>
+      <td style="text-align:center;font-size:14px;">${esc(c.icon)}</td>
+      <td><strong>${esc(c.label)}</strong>${c.shortcut ? ` <span class="badge" style="margin-left:6px;font-size:10px;">${esc(c.shortcut)}</span>` : ''}</td>
+      <td style="font-family:var(--font-mono);font-size:11.5px;"><code>${esc(c.fullTpl)}</code></td>
       <td style="display:flex;gap:6px;">
         <button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="executeUserCommandById('${esc(c.id)}')">▶ Starten</button>
+        <button class="btn" style="padding:2px 8px;font-size:11px;" onclick="editUserCommandByIdx(${idx})" title="In Eingabefelder übernehmen">✏</button>
         <button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteUserCommandById('${esc(c.id)}')">Löschen</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('') || '<tr><td colspan="4" style="color:var(--fg-muted)">Keine benutzerdefinierten Skripte vorhanden.</td></tr>';
+}
+
+function editUserCommandByIdx(idx) {
+  const raw = (STATE.userCommands || [])[idx];
+  if (!raw) return;
+  const c = getUserCmdDisplay(raw);
+  const iconEl = document.getElementById('uc-icon');
+  const nameEl = document.getElementById('uc-name');
+  const progEl = document.getElementById('uc-prog');
+  const argsEl = document.getElementById('uc-args');
+  const kbdEl = document.getElementById('uc-kbd');
+  if (iconEl) iconEl.value = c.icon;
+  if (nameEl) { nameEl.value = c.label; nameEl.dataset.editId = c.id; }
+  if (progEl) progEl.value = c.prog || c.fullTpl.split(/\s+/)[0] || '';
+  if (argsEl) argsEl.value = c.args || c.fullTpl.split(/\s+/).slice(1).join(' ') || '%P';
+  if (kbdEl) kbdEl.value = c.shortcut || '';
 }
 
 async function saveNewUserCommand() {
-  const name = document.getElementById('uc-name').value.trim() || 'Tool';
-  const command = {
-    id: 'cmd_' + Date.now(),
-    name,
-    icon: document.getElementById('uc-icon').value.trim() || '⚡',
-    command_template: document.getElementById('uc-cmd').value.trim() || 'code {dir}',
-    shortcut: document.getElementById('uc-kbd').value.trim(),
-    run_in_terminal: false
+  const nameEl = document.getElementById('uc-name');
+  const label = (nameEl?.value || '').trim() || 'Tool';
+  let program = (document.getElementById('uc-prog')?.value || '').trim();
+  let args_template = (document.getElementById('uc-args')?.value || '').trim();
+  if (!program && args_template) {
+    const parts = args_template.split(/\s+/);
+    program = parts[0] || 'cmd';
+    args_template = parts.slice(1).join(' ') || '%P';
+  } else if (program && !args_template && /\s+/.test(program)) {
+    const parts = program.split(/\s+/);
+    program = parts[0];
+    args_template = parts.slice(1).join(' ');
+  }
+  if (!program) program = 'code';
+  if (!args_template) args_template = '%P';
+
+  const editId = nameEl?.dataset?.editId;
+  const item = {
+    id: editId || ('cmd_' + Date.now()),
+    label,
+    icon: (document.getElementById('uc-icon')?.value || '').trim() || '⚡',
+    program,
+    args_template,
+    shortcut: (document.getElementById('uc-kbd')?.value || '').trim()
   };
-  const res = await rpc('user_commands', { sub: 'save', command });
-  STATE.userCommands = res.commands || [];
+  if (nameEl) delete nameEl.dataset.editId;
+  const res = await rpc('user_commands', { sub: 'save', item });
+  STATE.userCommands = res.items || res.commands || [];
   renderUserCommandBar();
   renderUserCommandsTable();
   toast('Benutzerdefiniertes Werkzeug gespeichert.');
@@ -7146,7 +7237,7 @@ async function saveNewUserCommand() {
 
 async function deleteUserCommandById(id) {
   const res = await rpc('user_commands', { sub: 'delete', id });
-  STATE.userCommands = res.commands || [];
+  STATE.userCommands = res.items || res.commands || [];
   renderUserCommandBar();
   renderUserCommandsTable();
 }
@@ -7155,9 +7246,11 @@ async function deleteUserCommandById(id) {
 async function openShareServerModal() {
   const st = await rpc('share_server', { sub: 'status' });
   const dir = getTab(STATE.activeSide).path;
+  const isRun = !!(st.running || st.is_running);
+  const sharedRoot = st.shared_root || st.shared_dir || dir;
   showToolModal('📡 Ad-hoc Lokaler HTTP-Teilen-Server mit QR-Code (Strg+Alt+S)', `
     <div class="prefs-card" style="display:flex;gap:8px;align-items:center;">
-      <input class="input" id="sh-dir" value="${esc(st.is_running ? st.shared_dir : dir)}" style="flex:1">
+      <input class="input" id="sh-dir" value="${esc(isRun ? sharedRoot : dir)}" style="flex:1">
       <input class="input" id="sh-port" type="number" value="${st.port || 8787}" style="width:90px">
       <button class="btn primary" onclick="startLocalShareServer()">▶ Server starten</button>
       <button class="btn danger" onclick="stopLocalShareServer()">⏹ Stoppen</button>
@@ -7170,16 +7263,18 @@ async function openShareServerModal() {
 function renderShareServerStatus(st) {
   const box = document.getElementById('sh-status-box');
   if (!box) return;
-  if (!st || !st.is_running) {
+  const isRun = !!(st && (st.running || st.is_running));
+  if (!isRun) {
     box.innerHTML = `<div style="color:var(--fg-muted)">HTTP-Share-Server ist derzeit gestoppt.</div>`;
     return;
   }
+  const sharedRoot = st.shared_root || st.shared_dir || '';
   box.innerHTML = `
     <div style="background:#fff;padding:8px;border-radius:8px;width:160px;height:160px;flex-shrink:0;">${st.qr_svg || ''}</div>
     <div>
       <div style="font-size:14px;font-weight:700;color:var(--ok);margin-bottom:6px;">✓ Server aktiv im lokalen Netzwerk (LAN)</div>
       <div style="margin-bottom:6px;">URL: <a href="#" onclick="rpc('open_url',{url:'${esc(st.url)}'});return false;" style="color:var(--accent);font-family:var(--font-mono);font-weight:700;">${esc(st.url)}</a></div>
-      <div style="font-size:12px;color:var(--fg-dim);">Freigegebener Ordner: <code>${esc(st.shared_dir)}</code></div>
+      <div style="font-size:12px;color:var(--fg-dim);">Freigegebener Ordner: <code>${esc(sharedRoot)}</code></div>
       <div style="font-size:11.5px;color:var(--fg-muted);margin-top:6px;">QR-Code mit dem Smartphone scannen, um Dateien direkt über WLAN im Browser herunterzuladen.</div>
     </div>
   `;
@@ -7206,14 +7301,9 @@ function startLiveFsWatcherLoop() {
     const activeTag = document.activeElement?.tagName;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
     const res = await rpc('fs_watcher_poll');
-    const changed = res?.changed_dirs || [];
-    if (!changed.length) return;
-    ['left', 'right'].forEach(side => {
-      const p = getTab(side)?.path || '';
-      if (changed.some(c => p.toLowerCase().startsWith(c.toLowerCase()) || c.toLowerCase().startsWith(p.toLowerCase()))) {
-        loadPane(side, false);
-      }
-    });
+    if (!res) return;
+    if (res.dirty_left) loadPane('left', false);
+    if (res.dirty_right && STATE.isDualPane) loadPane('right', false);
   }, 2500);
 }
 
@@ -7228,9 +7318,9 @@ function openLinkManagerModal() {
       <div>
         <label>Verknüpfungstyp:</label>
         <select class="select" id="lnk-kind" style="width:100%;margin-top:4px;">
-          <option value="Junction">Directory Junction / Reparse Point (Ordner, keine Admin-Rechte nötig)</option>
-          <option value="Hardlink">Dateisystem-Hardlink (Datei auf gleichem Laufwerk)</option>
-          <option value="Symlink">Symbolischer Link (Symlink für Datei oder Ordner)</option>
+          <option value="junction">Directory Junction / Reparse Point (Ordner, keine Admin-Rechte nötig)</option>
+          <option value="hardlink">Dateisystem-Hardlink (Datei auf gleichem Laufwerk)</option>
+          <option value="symlink">Symbolischer Link (Symlink für Datei oder Ordner)</option>
         </select>
       </div>
       <div>
@@ -7248,16 +7338,15 @@ function openLinkManagerModal() {
 
 async function createFilesystemLinkNow() {
   const res = await rpc('link_manager', {
-    sub: 'create',
+    link_type: document.getElementById('lnk-kind').value.toLowerCase(),
     link_path: document.getElementById('lnk-path').value,
-    target_path: document.getElementById('lnk-target').value,
-    kind: document.getElementById('lnk-kind').value
+    target_path: document.getElementById('lnk-target').value
   });
   if (res && res.ok) {
     closeModal('modalTool');
     loadPane('left');
     loadPane('right');
-    toast('Verknüpfung erfolgreich erstellt!');
+    toast(res.message || 'Verknüpfung erfolgreich erstellt!');
   } else {
     document.getElementById('lnk-msg').textContent = res?.error || 'Fehler beim Erstellen der Verknüpfung';
   }
