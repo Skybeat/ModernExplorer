@@ -58,30 +58,44 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 | **Recursive Deep Search** | `Alt+F7` / `🔍 Deep Search` | High-speed recursive file search by wildcard (`*.rs;*.toml;*.json`), Regular Expression, file size, date range, attributes, and **full-text content search** inside files. Results can be jumped to directly in the active pane. |
 | **Duplicate File Finder** | `Ctrl+Shift+D` / `🧹 Duplicates` | 3-stage duplicate scanner (**File Size grouping → 4 KB Partial Hash → Full SHA-256 Hash**) with live progress and wasted disk space calculation, plus one-click selection of all duplicates (preserving the original per group). |
 | **Graphical Disk Space Analyzer & Treemap (WinDirStat / WizTree)** | `Ctrl+Shift+W` / `🗺 Treemap` | Interactive **Squarified Treemap** visualizer in a freely resizable analyzer window with **interactive vertical & horizontal drag splitters**, an **integrated `🌳 Explorer Tree ▾` dropdown**, **toggleable `🔥 Top 100 Largest Files` view**, **live Color Mode switcher (`🎨 Categories` vs. `⏳ File Age Heatmap`)**, **Markdown/CSV Storage Report export (`📄 Report`)**, **7 customizable category colors**, **Drill-Down zooming**, and direct deletion via the **Right-Click Context Menu (`🗑 Delete [Del]`)** or **`Delete` (`Entf`) key** with instant in-place Treemap recalculation. |
-| **Archive Browser, Packer & Virtual Folder Navigation** | `Alt+F5` (`📦 Pack`) | Configurable archive double-click behavior (`archive_open_action`): either open archives in the dedicated **Archive Browser** modal or browse inside archives (`.zip`, `.tar.gz`, `.tgz`, `.jar`, `.nupkg`) directly inside the Explorer panes like normal folders (`archive://`), extract individual or all entries, and pack selected files/folders into `.zip` or `.tar.gz` archives. |
-| **Built-in FTP / FTPS / SFTP Client** | `Ctrl+Shift+C` / `🌐 FTP/SFTP` | Connect to remote servers via **SFTP (SSH)**, **FTPS (Explicit TLS)**, or **FTP** with a built-in Connection Manager, saved profiles, and remote directory browsing/transfers. |
+| **Archive Browser, Packer & Virtual Folder Navigation** | `Alt+F5` (`📦 Archiv`) | Configurable archive double-click behavior (`archive_open_action`): either open archives in the dedicated **Archive Browser** modal or browse inside archives (`.zip`, `.7z`, `.tar.gz`, `.tgz`, `.tar.zst`, `.tzst`, `.tar.xz`, `.txz`, `.rar`, `.jar`, `.nupkg`) directly inside the Explorer panes like normal folders (`archive://`), extract entries, and pack selected files/folders into `.zip`, `.7z`, `.tar.gz`, `.tar.zst`, or `.tar.xz`. |
+| **Cloud & Remote Storage (SFTP / FTPS / FTP / WebDAV / S3)** | `Ctrl+Shift+C` / `🌐 Cloud/SFTP` | Connect to remote servers and cloud storage via **SFTP (SSH)**, **FTPS (TLS)**, **FTP**, **WebDAV** (Nextcloud/ownCloud), and **S3-compatible object storage** (AWS S3, MinIO, Cloudflare R2 with native AWS SigV4 signing). |
+| **Rule-Based Selection Engine & Presets** | `Num +` / `Num -` / `Num *` | Select or deselect items by wildcard mask, regular expression, minimum/maximum byte size, or maximum file age (days), invert selection (`Num *`), and save reusable filter presets. |
+| **Background Transfer Queue & Speed Limiter** | `Ctrl+Shift+Q` / `⚡ Queue` | Enqueue sequential Copy/Move jobs with pause/resume/cancel controls, conflict resolution policies (`Overwrite`, `SkipExisting`, `AutoRename`), and configurable bandwidth throttling (MB/s). |
+| **Collapsible Directory Tree Sidebar** | `Alt+F10` / `🌲 Baum` | Toggleable hierarchical directory tree sidebar for rapid navigation across deep folder structures. |
+| **Smart Jump (Frecency & Bookmark Launcher)** | `Ctrl+G` / `Alt+Down` / `🚀 Jump` | `zoxide`-style fuzzy launcher ranking visited directories by frequency and recency (frecency). |
+| **Synchronized Navigation & Scroll-Lock (`Sync-Lock`)** | `Ctrl+Shift+Y` / `🔗 Sync-Lock` | Locks both panes together so navigating into a subfolder in one pane automatically enters the matching subfolder in the opposite pane and synchronizes vertical scrolling. |
+| **Batch Image Converter & Optimizer** | `Ctrl+Shift+I` / `🖼 Bild-Tool` | Batch convert, resize, rotate (`90°`/`180°`/`270°`), and grayscale images across `PNG`, `JPEG`, `WEBP`, `BMP`, and `ICO`. |
+| **Integrated PDF Toolkit** | `Ctrl+Alt+P` / `📄 PDF` | Inspect PDF metadata/page counts, merge multiple selected PDF files into a single document, or split a PDF into individual single-page PDFs. |
+| **Cryptographic File Vault (`AES-256-GCM`)** | `Ctrl+Shift+V` / `🔒 Tresor` | Encrypt and decrypt sensitive files into authenticated `.vault` containers using **AES-256-GCM** and **PBKDF2-HMAC-SHA256** (100,000 iterations). |
+| **NTFS Streams, ACL Permissions & File Locksmith** | `Ctrl+Alt+L` / `🔓 NTFS/Locks` | Inspect NTFS Alternate Data Streams (`ADS`) with one-click `Zone.Identifier` unblocking, view `icacls` ACL permissions, and detect processes locking a file. |
+| **Interactive Binary Hex-Editor & Patcher** | `F3` / `F4` (`🛠 Hex-Editor`) | Inspect and edit individual bytes at any hex/decimal offset, search for binary hex patterns or ASCII strings, and patch bytes directly in-place. |
+| **Structured Data Converter & Clipboard History** | `Ctrl+Alt+D` / `🔄 Daten/Clip` | Convert and pretty-print structured data between **JSON ↔ YAML ↔ TOML ↔ CSV** and browse/reuse a persistent multi-step clipboard history. |
+| **Custom User Commands & Script Bar** | `Ctrl+Alt+U` / `⚡ Skripte` | Create custom one-click toolbar buttons with placeholders (`{file}`, `{dir}`, `{other_dir}`, `{selected}`) to launch external tools or scripts. |
+| **Ad-hoc Local HTTP Share Server with QR-Code** | `Ctrl+Alt+S` / `📡 LAN-Share` | Instantly share any folder on your local Wi-Fi/LAN via an embedded HTTP server with an automatically generated SVG QR-Code for mobile devices. |
+| **Symlink, Hardlink & Directory Junction Manager** | `Ctrl+Alt+K` / `⛓ Links` | Create Symbolic Links, Hardlinks, or Directory Junctions between panes and inspect link targets (`⛓ → target`) inline in the file list. |
+| **Live Filesystem Watcher (`notify`)** | Automatic | Automatically refreshes open panes in the background when external applications create, modify, rename, or delete files. |
 | **Branch View (Flat View)** | `Ctrl+B` / `🌿` | Flattens the current directory and all subdirectories into a single unified file list showing relative subpaths. |
 | **TreeSize Disk Space Analyzer** | `📊` | Recursively calculates folder sizes in the background and renders proportional visual allocation bars directly inside the `Size` column. |
 | **Minimizable & Resizable Right Inspector Dock** | `Ctrl+Q` / `👁 Preview` | Toggleable, resizable (`210px–640px`), and minimizable right dock displaying live previews for the currently selected file (images, Markdown/code/text, CSV/JSON/XML, media, and SHA-256/MD5/CRC32 file metadata) as you navigate with the arrow keys. |
 | **Favorites / Bookmarks Bar & Undo** | `Ctrl+D` (`☆`) / `Ctrl+Z` (`↶ Undo`) | Pin frequently used folders to the Favorites bar for one-click navigation and undo recent file operations (rename, batch rename, copy, move, new folder/file) via `Ctrl+Z`. |
 
-### 3. Intelligent Quick Viewer (`F3`) & Internal Editor (`F4`)
-- **Quick Viewer (`F3`)**:
+### 3. Intelligent Quick Viewer (`F3`), Internal Editor (`F4`) & Binary Hex-Editor
+- **Quick Viewer (`F3`) & Hex-Editor**:
   - **Images**: PNG, JPG, GIF, WEBP, BMP, ICO, SVG, TIFF with zoom and pixel dimensions, plus optional hover preview cards in the file list (`enable_image_hover_preview`).
   - **Documents**: PDF and Office/OpenXML package inspection.
   - **Audio & Video**: Built-in media playback.
   - **Structured Data**: Formatted JSON/XML viewer and tabular CSV/TSV preview.
-  - **Log Viewer**: Filter by log level (`ERROR`, `WARN`, `INFO`) and live log inspection.
-  - **Hex & Checksums**: Binary hex dump and instant SHA-256 checksum inspector.
+  - **Interactive Binary Hex-Editor & Patcher**: Edit individual bytes, jump to offsets, search hex/ASCII sequences, and apply binary patches in-place.
 - **Internal Editor (`F4`)**:
   - Edit text, configuration, and source code files directly in a resizable child window with line/character counters and `Ctrl+S` save support, or configure an external editor in Settings.
 
 ### 4. Background Operations Queue & Conflict Resolution
-- Background operations for Copy (`F5`), Move (`F6`), and Delete (`F8` / `Delete`) with real-time throughput, item progress, and conflict handling (`Overwrite`, `Skip`, `Keep Both / Auto-Rename`).
+- Background operations for Copy (`F5`), Move (`F6`), Delete (`F8` / `Delete`), and queued transfers (`Ctrl+Shift+Q`) with real-time throughput, bandwidth limiting, pause/resume, and conflict handling (`Overwrite`, `Skip`, `Keep Both / Auto-Rename`).
 
 ### 5. Multi-Language Support & Configurable Feature Tooltips
 - **14 Built-in Languages**: Automatically detects the OS language (`system`) or lets you switch live without restart between **Deutsch**, **English**, **Español**, **Français**, **Italiano**, **Nederlands**, **Polski**, **Português**, **Русский**, **Türkçe**, **Українська**, **العربية**, **日本語**, and **中文**.
-- **Complete Localization Across All Windows**: Main Window, Menus, Toolbars, Column Headers, Right Inspector Dock, Settings, Storage Analyzer (`Treemap`), Quick Viewer (`F3`), Editor (`F4`), Context Menus, and all 20 Power Tool dialogs dynamically update in the selected UI language.
+- **Complete Localization Across All Windows**: Main Window, Menus, Toolbars, Column Headers, Right Inspector Dock, Settings, Storage Analyzer (`Treemap`), Quick Viewer (`F3`), Editor (`F4`), Context Menus, and all Power Tool dialogs dynamically update in the selected UI language.
 - **Localized Feature Tooltips**: Toolbar buttons, feature buttons, panel controls, and function keys (`F1`–`F12`) provide localized explanations that can be toggled at any time in **Settings → Appearance & Design → Tooltips**.
 
 ### 6. Live Customization, Interactive Color Picker & In-Place Self-Updater
@@ -96,16 +110,29 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 | :--- | :--- |
 | `F1` | Show Keyboard Shortcuts Reference |
 | `F2` | Inline Rename (single item) or Batch Rename (`Ctrl+M`) |
-| `F3` | Open Quick Viewer |
-| `F4` | Open Internal Text Editor |
+| `F3` | Open Quick Viewer & Interactive Hex-Editor |
+| `F4` | Open Internal Text & Hex Editor |
 | `F5` | Copy selected items to opposite pane |
 | `F6` | Move selected items to opposite pane |
-| `F7` / `Shift+F7` | New Folder (`F7`) / New File (`Shift+F7`) |
+| `F7` / `Shift+F7` | New File (`F7`) / New Folder (`Shift+F7`) |
 | `F8` / `Delete` | Delete selected items |
 | `F9` | Open Terminal in current directory |
 | `F10` / `Ctrl+Shift+P` | Open Command Palette |
+| `Alt+F10` | Toggle Collapsible Directory Tree Sidebar |
 | `F12` | Toggle Dual-Pane / Single-Pane layout |
 | `Tab` | Switch active pane (Left ↔ Right) |
+| `Num +` / `Num -` / `Num *` | Rule-based Select (`Num +`), Deselect (`Num -`), Invert Selection (`Num *`) |
+| `Ctrl+G` / `Alt+Down` | Open Smart Jump (Frecency & Bookmark Launcher) |
+| `Ctrl+Shift+Y` | Toggle Synchronized Navigation & Scroll-Lock (`Sync-Lock`) |
+| `Ctrl+Shift+Q` | Open Background Transfer Queue & Job Manager |
+| `Ctrl+Shift+I` | Open Batch Image Converter & Optimizer |
+| `Ctrl+Alt+P` | Open Integrated PDF Toolkit (Merge / Split / Info) |
+| `Ctrl+Shift+V` | Open Cryptographic File Vault (`AES-256-GCM`) |
+| `Ctrl+Alt+L` | Open NTFS Streams, ACL Permissions & File Locksmith |
+| `Ctrl+Alt+D` | Open Structured Data Converter (`JSON/YAML/TOML/CSV`) & Clipboard History |
+| `Ctrl+Alt+U` | Open Custom User Commands & Script Manager |
+| `Ctrl+Alt+S` | Open Ad-hoc Local HTTP Share Server (QR-Code) |
+| `Ctrl+Alt+K` | Open Symlink, Hardlink & Directory Junction Manager |
 | `A–Z` / `0–9` | Type-Ahead Quick Search (jump to folder/file, repeat single key to cycle matches) |
 | `Backspace` | Edit Type-Ahead Quick Search query (or navigate to parent directory when not searching) |
 | `Space` / `Insert` | Mark / unmark item (`Insert` also advances selection down) |
@@ -123,9 +150,9 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 | `Ctrl+Shift+S` | Open Directory Compare & Synchronize |
 | `Ctrl+Shift+W` | Open Graphical Disk Space Analyzer & Squarified Treemap |
 | `Ctrl+Shift+D` | Open Duplicate File Finder |
-| `Ctrl+Shift+C` | Open Built-in FTP / FTPS / SFTP Client |
+| `Ctrl+Shift+C` | Open Cloud & Remote Client (`SFTP`, `FTPS`, `FTP`, `WebDAV`, `S3`) |
 | `Alt+F7` | Open Recursive Deep Search |
-| `Alt+F5` | Open Archive Browser & Packer (`.zip`, `.tar.gz`) |
+| `Alt+F5` | Open Archive Browser & Packer (`.zip`, `.7z`, `.tar.gz`, `.tar.zst`, `.tar.xz`, `.rar`) |
 | `Ctrl+B` | Toggle Branch View (Flat View) |
 | `Ctrl+Q` | Toggle Right Inspector & Preview Dock |
 | `Ctrl+D` | Add / Remove current folder in Favorites Bar |

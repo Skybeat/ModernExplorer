@@ -38,5 +38,22 @@ impl AppPaths {
     pub fn remote_connections_file() -> PathBuf {
         Self::app_data_dir().join("remote-connections.json")
     }
+
+    pub fn frecency_file() -> PathBuf {
+        Self::app_data_dir().join("directory-frecency.json")
+    }
+
+    pub fn user_commands_file() -> PathBuf {
+        Self::app_data_dir().join("user-commands.json")
+    }
+
+    pub fn selection_presets_file() -> PathBuf {
+        Self::app_data_dir().join("selection-presets.json")
+    }
+
+    pub fn clipboard_history_file() -> PathBuf {
+        Self::app_data_dir().join("clipboard-history.json")
+    }
 }
+
 

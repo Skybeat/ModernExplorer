@@ -4,6 +4,7 @@ pub mod features;
 pub mod filesystem;
 pub mod localization;
 pub mod operations;
+pub mod power_tools_v2;
 pub mod remote;
 pub mod session;
 pub mod settings;
@@ -16,9 +17,12 @@ mod tests {
     use crate::features::*;
     use crate::filesystem::*;
     use crate::operations::*;
+    use crate::power_tools_v2::*;
+    use crate::remote::*;
     use crate::settings::*;
     use crate::treemap::*;
     use crate::update::*;
+    use crate::viewer::*;
     use std::fs;
     use tempfile::TempDir;
 
@@ -384,5 +388,126 @@ mod tests {
         let text = fs::read_to_string(&extracted).unwrap();
         assert_eq!(text, "Hello Virtual Archive!");
     }
+
+    #[test]
+    fn extended_archive_formats_7z_zst_xz_roundtrip() {
+        use crate::archive::{ArchiveFormat, ArchiveService};
+        let dir = TempDir::new().unwrap();
+        let src_file = dir.path().join("readme.txt");
+        fs::write(&src_file, "Hello 7z, zst, xz archives in Rust!").unwrap();
+        let src_list = vec![src_file.to_string_lossy().to_string()];
+
+        for (ext, fmt) in [
+            ("bundle.7z", ArchiveFormat::SevenZ),
+            ("bundle.tar.zst", ArchiveFormat::TarZst),
+            ("bundle.tar.xz", ArchiveFormat::TarXz),
+        ] {
+            let arch_path = dir.path().join(ext);
+            let packed = ArchiveService::pack_archive(&src_list, &arch_path, fmt).unwrap();
+            assert_eq!(packed, 1);
+            assert!(ArchiveService::is_supported_archive(&arch_path));
+
+            let listed = ArchiveService::list_entries(&arch_path).unwrap();
+            assert_eq!(listed.len(), 1);
+            assert_eq!(listed[0].name, "readme.txt");
+
+            let out_dir = dir.path().join(format!("out_{}", ext));
+            ArchiveService::extract_all(&arch_path, &out_dir).unwrap();
+            assert_eq!(
+                fs::read_to_string(out_dir.join("readme.txt")).unwrap(),
+                "Hello 7z, zst, xz archives in Rust!"
+            );
+        }
+    }
+
+    #[test]
+    fn vault_encryption_hex_editor_data_converter_and_image_converter_work() {
+        let dir = TempDir::new().unwrap();
+
+        // 1. AES-256-GCM File Vault
+        let plain_path = dir.path().join("secret.txt");
+        let menc_path = dir.path().join("secret.txt.menc");
+        let dec_path = dir.path().join("secret_restored.txt");
+        fs::write(&plain_path, "Top Secret Payload 2026").unwrap();
+
+        FileVaultService::encrypt_file(&plain_path, &menc_path, "CorrectHorseBatteryStaple", None)
+            .unwrap();
+        assert!(menc_path.exists());
+        assert!(FileVaultService::decrypt_file(&menc_path, &dec_path, "WrongPass", None).is_err());
+        FileVaultService::decrypt_file(&menc_path, &dec_path, "CorrectHorseBatteryStaple", None)
+            .unwrap();
+        assert_eq!(
+            fs::read_to_string(&dec_path).unwrap(),
+            "Top Secret Payload 2026"
+        );
+
+        // 2. Hex Editor Read, Search & Patch
+        let bin_path = dir.path().join("sample.bin");
+        fs::write(&bin_path, b"ABCD1234EFGH").unwrap();
+        let hits = FileContentService::search_binary(&bin_path, "31 32 33 34", true, 10).unwrap();
+        assert_eq!(hits, vec![4]);
+        FileContentService::apply_hex_patches(&bin_path, &[(4, b'9'), (5, b'9')]).unwrap();
+        let page = FileContentService::read_hex_editor_page(&bin_path, 0, 32).unwrap();
+        assert_eq!(&page.bytes, b"ABCD9934EFGH");
+
+        // 3. Structured Data Converter (JSON <-> YAML <-> TOML <-> CSV)
+        let json_in = r#"[{"name":"alpha","port":"8080"},{"name":"beta","port":"9090"}]"#;
+        let yaml_out =
+            DataConverterService::convert_structured_data(json_in, "json", "yaml").unwrap();
+        assert!(yaml_out.contains("alpha"));
+        let csv_out =
+            DataConverterService::convert_structured_data(&yaml_out, "yaml", "csv").unwrap();
+        assert!(csv_out.contains("name,port"));
+        let back_json =
+            DataConverterService::convert_structured_data(&csv_out, "csv", "json").unwrap();
+        assert!(back_json.contains("9090"));
+
+        // 4. Image Converter & Optimizer
+        let img_in = dir.path().join("src.png");
+        let mut img_buf = image::RgbaImage::new(40, 20);
+        for px in img_buf.pixels_mut() {
+            *px = image::Rgba([20, 140, 240, 255]);
+        }
+        img_buf.save(&img_in).unwrap();
+
+        let opts = ImageConvertOptions {
+            target_format: "webp".to_string(),
+            scale_percent: Some(50),
+            max_width: None,
+            max_height: None,
+            rotate_degrees: 90,
+            flip_horizontal: false,
+            flip_vertical: false,
+            grayscale: false,
+            watermark_banner: true,
+            output_dir: dir.path().to_string_lossy().to_string(),
+            filename_suffix: "_opt".to_string(),
+        };
+        let conv = ImageConverterService::convert_batch(
+            &[img_in.to_string_lossy().to_string()],
+            &opts,
+        );
+        assert_eq!(conv.len(), 1);
+        assert!(conv[0].ok);
+        assert_eq!(conv[0].dimensions, "10x20");
+
+        // 5. QR SVG, Selection Engine, Frecency & WebDAV/S3 XML parsers
+        let qr_svg = LocalShareServerState::generate_qr_svg("http://192.168.1.10:8787/");
+        assert!(qr_svg.starts_with("<svg"));
+
+        let mut frec = FrecencyStore::default();
+        frec.entries.push(FrecencyEntry {
+            path: "I:\\AI_Projects\\ModernExplorer\\rust".to_string(),
+            visit_count: 10,
+            last_visited_unix: 1_900_000_000,
+        });
+        let jump_hits = frec.query_smart_jump("mod rust", 5);
+        assert_eq!(jump_hits.len(), 1);
+
+        let s3_xml = "<ListBucketResult><CommonPrefixes><Prefix>backups/</Prefix></CommonPrefixes><Contents><Key>report.pdf</Key><Size>4096</Size><LastModified>2026-10-17</LastModified></Contents></ListBucketResult>";
+        let s3_items = RemoteFileSystemService::parse_s3_list_xml(s3_xml);
+        assert_eq!(s3_items.len(), 2);
+    }
 }
+
 

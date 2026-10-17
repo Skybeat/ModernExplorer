@@ -885,7 +885,7 @@
   </div>
 
   <!-- 2. STUDIO OPTIONS BAR (.optbar) -->
-  <div class="optbar">
+  <div class="optbar" style="flex-wrap:wrap;height:auto;min-height:36px;padding:3px 8px;gap:4px;">
     <div class="opt-group">
       <button class="ibtn" id="btnUndo" onclick="doUndo()" title="Letzte Datei-Aktion rückgängig machen (Strg+Z)">↶ Rückgängig</button>
       <button class="ibtn" onclick="openCreateModal(false)" title="Neue Datei aus Vorlage erstellen (F7)">+ Datei</button>
@@ -895,6 +895,8 @@
       <button class="ibtn" onclick="copyOrMoveActive(false)" title="Markierte Elemente in das andere Panel kopieren (F5)">➔ Kopieren</button>
       <button class="ibtn" onclick="copyOrMoveActive(true)" title="Markierte Elemente in das andere Panel verschieben (F6)">➔ Verschieben</button>
       <button class="ibtn" onclick="deleteSelected()" title="Markierte Elemente löschen (F8 / Entf)">🗑 Löschen</button>
+      <button class="ibtn" onclick="openSelectionEngineModal('select')" title="Regel- & Filter-Auswahl-Engine (Num + / - / *)">🎯 Auswahl</button>
+      <button class="ibtn" onclick="openTransferQueueModal()" title="Transfer-Warteschlange & Job-Manager (Strg+Umschalt+Q)">⚡ Queue</button>
     </div>
     <div class="opt-group">
       <button class="ibtn" onclick="openBatchRenameModal()" title="Mehrfach-Umbenennungstool (Strg+M)">🏷 Multi-Rename</button>
@@ -910,13 +912,26 @@
       <button class="ibtn" onclick="openTagModal()" title="Farbige Datei-Tags & Notizen (Strg+Umschalt+L)">🎨 Tags</button>
       <button class="ibtn" onclick="openAttrExifModal()" title="Attribute, Zeitstempel & EXIF/Medien-Metadaten (Strg+Umschalt+A)">🛠 Attr/EXIF</button>
       <button class="ibtn" onclick="openSmartExportModal()" title="Smart Copy & Tabellen-Exporter (Strg+Umschalt+E)">📋 Export</button>
-      <button class="ibtn" onclick="openArchiveModal()" title="Archiv packen / durchsuchen / entpacken (Alt+F5)">📦 Archiv</button>
-      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP Verbindungsmanager (Strg+Umschalt+C)">🌐 FTP/SFTP</button>
+      <button class="ibtn" onclick="openArchiveModal()" title="Archiv packen / durchsuchen / entpacken (.zip, .7z, .tar.gz, .tar.zst, .tar.xz, .rar — Alt+F5)">📦 Archiv</button>
+      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP / WebDAV / S3 Verbindungsmanager (Strg+Umschalt+C)">🌐 Cloud/SFTP</button>
       <button class="ibtn" onclick="openGitModal()" title="Erweitertes Git-Panel (Strg+Umschalt+G)">⎇ Git</button>
       <button class="ibtn" onclick="openWorkspacesModal()" title="Arbeitsbereiche / Workspace-Profile (Strg+Umschalt+O)">🗂 Workspaces</button>
     </div>
+    <div class="opt-group">
+      <button class="ibtn" onclick="openSmartJumpModal()" title="Smart Jump Frecency & Bookmark-Launcher (Strg+G)">🚀 Jump</button>
+      <button class="ibtn" onclick="openImageConverterModal()" title="Batch Bild-Konverter & Skalierer (Strg+Umschalt+I)">🖼 Bild-Tool</button>
+      <button class="ibtn" onclick="openPdfToolkitModal()" title="PDF-Toolkit: Merge, Split, Info (Strg+Alt+P)">📄 PDF</button>
+      <button class="ibtn" onclick="openFileVaultModal()" title="AES-256-GCM Datei-Tresor (Strg+Umschalt+V)">🔒 Tresor</button>
+      <button class="ibtn" onclick="openNtfsLocksmithModal()" title="NTFS-Streams, Berechtigungen & File-Locksmith (Strg+Alt+L)">🔓 NTFS/Locks</button>
+      <button class="ibtn" onclick="openDataConverterModal()" title="Daten-Konverter JSON/YAML/TOML/CSV & Zwischenablage-Verlauf (Strg+Alt+D)">🔄 Daten/Clip</button>
+      <button class="ibtn" onclick="openLinkManagerModal()" title="Symlink, Hardlink & Junction-Manager (Strg+Alt+K)">⛓ Links</button>
+      <button class="ibtn" onclick="openShareServerModal()" title="Ad-hoc Lokaler HTTP-Teilen-Server mit QR-Code (Strg+Alt+S)">📡 LAN-Share</button>
+      <button class="ibtn" onclick="openUserCommandsModal()" title="Benutzerdefinierte Werkzeuge & Skript-Buttons (Strg+Alt+U)">⚡ Skripte</button>
+    </div>
     <div style="flex:1"></div>
     <div class="seg">
+      <button id="segTree" onclick="toggleDirTreeSidebar()" title="Verzeichnisbaum-Seitenleiste ein-/ausblenden (Alt+F10)">🌲 Baum</button>
+      <button id="segSyncLock" onclick="toggleSyncLock()" title="Synchronisierte Navigation & Scroll-Kopplung (Strg+Umschalt+Y)">🔗 Sync-Lock</button>
       <button id="segDual" class="active" onclick="setDualPaneMode(true)" title="Zwei-Fenster-Ansicht (F12)">Dual-Pane</button>
       <button id="segSingle" onclick="setDualPaneMode(false)" title="Einzel-Fenster-Ansicht (F12)">Single</button>
       <button id="segDock" class="active" onclick="toggleDock()" title="Rechtes Inspector-Dock ein-/ausblenden (Strg+Q)">👁 Inspector</button>
@@ -924,19 +939,23 @@
     </div>
   </div>
 
-  <!-- 3. FAVORITES STRIP (.favbar) -->
+  <!-- 3. FAVORITES & USER COMMANDS STRIP (.favbar) -->
   <div class="favbar" id="favBar">
     <span class="fav-label">★ Favoriten:</span>
     <div id="favList" style="display:flex;align-items:center;gap:4px;"></div>
     <button class="ibtn" style="height:22px;font-size:11px;" onclick="toggleCurrentFavorite()" title="Aktuellen Ordner zu Favoriten hinzufügen/entfernen (Strg+D)">+ Aktuellen Ordner anheften</button>
+    <div style="width:1px;height:16px;background:var(--border);margin:0 6px;"></div>
+    <span class="fav-label">⚡ Tools:</span>
+    <div id="userCmdBar" style="display:flex;align-items:center;gap:4px;"></div>
+    <button class="ibtn" style="height:22px;font-size:11px;" onclick="openUserCommandsModal()" title="Benutzerdefinierte Befehle verwalten (Strg+Alt+U)">+ Skript</button>
   </div>
 
-  <!-- 4. STUDIO MAIN AREA (Left .tools Rail + Dual-Pane .workspace + Right .dock) -->
+  <!-- 4. STUDIO MAIN AREA (Left .tools Rail + Collapsible #treeSidebar + Dual-Pane .workspace + Right .dock) -->
   <div class="main">
     <!-- Left Vertical Icon Rail (.tools) -->
     <div class="tools">
-      <button class="ibtn" onclick="openViewerModal(false)" title="Quick Viewer / Schnellansicht (F3)"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      <button class="ibtn" onclick="openViewerModal(true)" title="Interner Text- & Code-Editor (F4)"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+      <button class="ibtn" onclick="openViewerModal(false)" title="Quick Viewer / Schnellansicht & Hex-Editor (F3)"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="ibtn" onclick="openViewerModal(true)" title="Interner Text-, Code- & Hex-Editor (F4)"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
       <div class="sep"></div>
       <button class="ibtn" onclick="openBatchRenameModal()" title="Mehrfach-Umbenennungstool (Strg+M)"><svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></button>
       <button class="ibtn" onclick="openDiffModal()" title="Side-by-Side Datei-Diff (Strg+Shift+U)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg></button>
@@ -949,12 +968,24 @@
       <button class="ibtn" onclick="openSplitShredModal()" title="Datei-Splitter & Shredder (Strg+Shift+X)"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/></svg></button>
       <button class="ibtn" onclick="openTagModal()" title="Farb-Tags & Notizen (Strg+Shift+L)"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
       <button class="ibtn" onclick="openAttrExifModal()" title="Attribute, Zeitstempel & EXIF (Strg+Shift+A)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
-      <button class="ibtn" onclick="openArchiveModal()" title="Archiv-Manager .zip/.tar.gz (Alt+F5)"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>
-      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP Client (Strg+Shift+C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
+      <button class="ibtn" onclick="openArchiveModal()" title="Archiv-Manager .zip/.7z/.tar.gz/.tar.zst/.tar.xz/.rar (Alt+F5)"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>
+      <button class="ibtn" onclick="openRemoteModal()" title="FTP / FTPS / SFTP / WebDAV / S3 Client (Strg+Shift+C)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
       <button class="ibtn" onclick="openGitModal()" title="Erweitertes Git-Panel (Strg+Shift+G)"><svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg></button>
       <div style="flex:1"></div>
       <button class="ibtn" onclick="openExternalTerminal()" title="Externes PowerShell-Terminal hier öffnen (F9)"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></button>
       <button class="ibtn" onclick="openSettingsModal('Appearance')" title="Einstellungen (Strg+,)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+
+    <!-- Collapsible Directory Tree Sidebar (#treeSidebar, Alt+F10) -->
+    <div id="treeSidebar" style="display:none;width:250px;background:var(--bg-panel);border-right:1px solid var(--border);flex-direction:column;flex-shrink:0;min-height:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;">
+        <span>🌲 Verzeichnisbaum</span>
+        <div style="display:flex;gap:4px;">
+          <button class="ibtn" style="height:20px;padding:0 5px;" onclick="refreshDirTreeSidebar()" title="Baum aktualisieren">↻</button>
+          <button class="ibtn" style="height:20px;padding:0 5px;" onclick="toggleDirTreeSidebar(false)" title="Schließen (Alt+F10)">✕</button>
+        </div>
+      </div>
+      <div id="treeSidebarBody" style="flex:1;overflow:auto;padding:6px;font-size:12px;"></div>
     </div>
 
     <!-- Dual-Pane Center Workspace (.workspace) -->
@@ -1543,6 +1574,7 @@
           <button id="vtab-text" class="active" onclick="switchViewerTab('text')">Text / Code</button>
           <button id="vtab-image" onclick="switchViewerTab('image')">Bild</button>
           <button id="vtab-hex" onclick="switchViewerTab('hex')">Hex-Dump</button>
+          <button id="vtab-hexedit" onclick="switchViewerTab('hexedit')">🛠 Hex-Editor &amp; Patcher</button>
           <button id="vtab-csv" onclick="switchViewerTab('csv')">CSV-Tabelle</button>
         </div>
         <button class="ibtn" onclick="closeModal('modalViewer')">✕</button>
@@ -1555,6 +1587,20 @@
         <div id="viewerImgMeta" style="color:var(--fg-dim);font-family:var(--font-mono);flex-shrink:0;"></div>
       </div>
       <pre id="viewerHexPre" style="display:none;flex:1;min-height:0;margin:0;padding:10px;background:var(--bg-sunken);border-radius:6px;font-family:var(--font-mono);font-size:12px;overflow:auto;"></pre>
+      <div id="viewerHexEditWrap" style="display:none;flex:1;min-height:0;flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
+          <label style="font-size:12px;">Offset (Hex/Dez):</label>
+          <input class="input" id="hexEditOffset" value="0" style="width:110px;font-family:var(--font-mono);" onkeydown="if(event.key==='Enter')loadHexEditorPage()">
+          <button class="btn" onclick="stepHexPage(-512)">◀ -512B</button>
+          <button class="btn" onclick="stepHexPage(512)">+512B ▶</button>
+          <input class="input" id="hexSearchQuery" placeholder="Hex (z.B. 50 4B 03 04) oder ASCII suchen…" style="flex:1">
+          <label style="font-size:11.5px;"><input type="checkbox" id="hexSearchIsHex"> Hex-Muster</label>
+          <button class="btn" onclick="runHexBinarySearch()">🔍 Suchen</button>
+          <button class="btn primary" onclick="applyHexPatchesNow()">💾 Gepatchte Bytes speichern</button>
+        </div>
+        <div id="hexSearchMatches" style="font-size:11.5px;color:var(--accent);flex-shrink:0;"></div>
+        <div id="hexEditTableHost" style="flex:1;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg-sunken);padding:6px;font-family:var(--font-mono);font-size:12px;"></div>
+      </div>
       <div id="viewerCsvWrap" style="display:none;flex:1;min-height:0;overflow:auto;"></div>
     </div>
     <div class="modal-foot">
@@ -1609,6 +1655,8 @@ const STATE = {
   favorites: [],
   workspaces: [],
   remoteProfiles: [],
+  selectionPresets: [],
+  userCommands: [],
   drives: [],
   templates: [],
   commands: [],
@@ -1621,10 +1669,13 @@ const STATE = {
   isDualPane: true,
   dockOpen: true,
   dockTab: 'preview',
+  treeOpen: false,
+  syncLock: false,
   zoom: 100,
   createIsFolder: false,
   viewerPath: '',
   viewerData: null,
+  hexPatches: {},
   qcHistoryIdx: -1,
   qcHistory: [],
   panes: {
@@ -2044,15 +2095,22 @@ function getLocalizedMenus() {
       'sep',
       { label: t('menu.edit.copy'), kbd: 'F5', run: () => copyOrMoveActive(false) },
       { label: t('menu.edit.move'), kbd: 'F6', run: () => copyOrMoveActive(true) },
+      { label: '⚡ Transfer-Warteschlange & Job-Manager…', kbd: 'Ctrl+Shift+Q', run: () => openTransferQueueModal() },
       { label: t('menu.edit.rename'), kbd: 'F2', run: () => renameSelected() },
       { label: t('menu.edit.batch_rename'), kbd: 'Ctrl+M', run: () => openBatchRenameModal() },
       { label: t('menu.edit.delete'), kbd: 'F8 / Del', run: () => deleteSelected() },
       'sep',
       { label: t('menu.edit.mark_all'), kbd: 'Ctrl+A', run: () => toggleMarkAll(STATE.activeSide) },
+      { label: '🎯 Auswahl erweitern nach Regel/Maske…', kbd: 'Num +', run: () => openSelectionEngineModal('select') },
+      { label: '🎯 Auswahl abziehen nach Regel/Maske…', kbd: 'Num -', run: () => openSelectionEngineModal('deselect') },
+      { label: '🎯 Auswahl umkehren (Invertieren)', kbd: 'Num *', run: () => invertSelectionInActivePane() },
       { label: t('menu.edit.export'), kbd: 'Ctrl+Shift+E', run: () => openSmartExportModal() }
     ]},
     { label: t('menu.view'), items: [
       { label: t('menu.view.dual_pane'), kbd: 'F12', run: () => setDualPaneMode(!STATE.isDualPane) },
+      { label: '🌲 Verzeichnisbaum-Seitenleiste ein-/ausblenden', kbd: 'Alt+F10', run: () => toggleDirTreeSidebar() },
+      { label: '🔗 Synchronisierte Navigation & Scroll-Kopplung (Sync-Lock)', kbd: 'Ctrl+Shift+Y', run: () => toggleSyncLock() },
+      { label: '🚀 Smart Jump (Frecency & Lesezeichen)…', kbd: 'Ctrl+G', run: () => openSmartJumpModal() },
       { label: t('menu.view.dock'), kbd: 'Ctrl+Q', run: () => toggleDock() },
       { label: t('menu.view.console'), kbd: 'Ctrl+Shift+J', run: () => toggleQuickConsole() },
       { label: t('menu.view.branch'), kbd: 'Ctrl+B', run: () => toggleBranchView(STATE.activeSide) },
@@ -2081,10 +2139,19 @@ function getLocalizedMenus() {
       { label: '✂ Split / Join / Shred', kbd: 'Ctrl+Shift+X', run: () => openSplitShredModal() },
       { label: '🎨 Color Tags & Notes', kbd: 'Ctrl+Shift+L', run: () => openTagModal() },
       { label: '🛠 Attributes, Timestamps & EXIF', kbd: 'Ctrl+Shift+A', run: () => openAttrExifModal() },
-      { label: '📦 ' + t('opt.archive').replace(/^📦\s*/, ''), kbd: 'Alt+F5', run: () => openArchiveModal() },
-      { label: '🌐 FTP / FTPS / SFTP Client', kbd: 'Ctrl+Shift+C', run: () => openRemoteModal() },
+      { label: '📦 Archiv (.zip / .7z / .tar.gz / .tar.zst / .tar.xz / .rar)', kbd: 'Alt+F5', run: () => openArchiveModal() },
+      { label: '🌐 Cloud & Remote (FTP / SFTP / WebDAV / S3)', kbd: 'Ctrl+Shift+C', run: () => openRemoteModal() },
       { label: '⎇ Git Panel', kbd: 'Ctrl+Shift+G', run: () => openGitModal() },
-      { label: '🗂 Workspaces', kbd: 'Ctrl+Shift+O', run: () => openWorkspacesModal() }
+      { label: '🗂 Workspaces', kbd: 'Ctrl+Shift+O', run: () => openWorkspacesModal() },
+      'sep',
+      { label: '🖼 Batch Bild-Konverter & Skalierer…', kbd: 'Ctrl+Shift+I', run: () => openImageConverterModal() },
+      { label: '📄 PDF-Toolkit (Merge / Split / Seiten)…', kbd: 'Ctrl+Alt+P', run: () => openPdfToolkitModal() },
+      { label: '🔒 AES-256-GCM Datei-Tresor (File Vault)…', kbd: 'Ctrl+Shift+V', run: () => openFileVaultModal() },
+      { label: '🔓 NTFS-Streams, ACLs & File-Locksmith…', kbd: 'Ctrl+Alt+L', run: () => openNtfsLocksmithModal() },
+      { label: '🔄 Daten-Konverter (JSON/YAML/TOML/CSV) & Clipboard…', kbd: 'Ctrl+Alt+D', run: () => openDataConverterModal() },
+      { label: '⛓ Symlink, Hardlink & Junction-Manager…', kbd: 'Ctrl+Alt+K', run: () => openLinkManagerModal() },
+      { label: '📡 Lokaler HTTP-Teilen-Server (QR-Code)…', kbd: 'Ctrl+Alt+S', run: () => openShareServerModal() },
+      { label: '⚡ Benutzerdefinierte Werkzeuge & Skript-Buttons…', kbd: 'Ctrl+Alt+U', run: () => openUserCommandsModal() }
     ]},
     { label: t('menu.tabs'), items: [
       { label: t('menu.file.new_tab'), kbd: 'Ctrl+T', run: () => addTab(STATE.activeSide) },
@@ -2093,6 +2160,7 @@ function getLocalizedMenus() {
       { label: 'Lock / Unlock Active Tab (🔒)', run: () => toggleLockTab(STATE.activeSide, STATE.panes[STATE.activeSide].activeTab) },
       'sep',
       { label: '★ ' + t('fav.pin_current'), kbd: 'Ctrl+D', run: () => toggleCurrentFavorite() },
+      { label: '🚀 Smart Jump (Frecency & Lesezeichen)…', kbd: 'Ctrl+G', run: () => openSmartJumpModal() },
       { label: '🗂 Workspaces…', kbd: 'Ctrl+Shift+O', run: () => openWorkspacesModal() }
     ]},
     { label: t('menu.settings'), items: [
@@ -2333,6 +2401,8 @@ async function initApp() {
   STATE.favorites = data.favorites || [];
   STATE.workspaces = data.workspaces || [];
   STATE.remoteProfiles = data.remote_profiles || [];
+  STATE.selectionPresets = data.selection_presets || [];
+  STATE.userCommands = data.user_commands || [];
   STATE.drives = data.drives || [];
   STATE.templates = data.templates || [];
   STATE.commands = data.commands || [];
@@ -2344,8 +2414,11 @@ async function initApp() {
 
   applySettingsToDom();
   renderFavorites();
+  renderUserCommandBar();
   updateUndoStatus();
   syncBasketBadge(STATE.basketCount);
+  initSyncScrollListeners();
+  startLiveFsWatcherLoop();
 
   const cwd = data.cwd || '.';
   const defView = STATE.settings.default_view_mode || 'Details';
@@ -2596,8 +2669,9 @@ function closeTab(side, idx) {
   loadPane(side);
 }
 
-async function navigateTo(side, newPath, selectPathOnLoad = null) {
+async function navigateTo(side, newPath, selectPathOnLoad = null, _fromSyncLock = false) {
   const tab = getTab(side);
+  const oldPath = tab.path;
   if (tab.lockState === 'Locked' && newPath !== tab.path) {
     // Open in a new tab when current tab is locked
     addTab(side, newPath);
@@ -2605,6 +2679,24 @@ async function navigateTo(side, newPath, selectPathOnLoad = null) {
   }
   tab.path = newPath;
   await loadPane(side, true, selectPathOnLoad);
+  if (STATE.treeOpen && side === STATE.activeSide) {
+    refreshDirTreeSidebar();
+  }
+  if (STATE.syncLock && STATE.isDualPane && !_fromSyncLock && oldPath && newPath && !newPath.startsWith('archive://')) {
+    const otherSide = side === 'left' ? 'right' : 'left';
+    const otherTab = getTab(otherSide);
+    if (otherTab && otherTab.path && !otherTab.path.startsWith('archive://')) {
+      const normOld = oldPath.replace(/[\\/]+$/, '');
+      const normNew = newPath.replace(/[\\/]+$/, '');
+      if (normNew.toLowerCase().startsWith(normOld.toLowerCase() + '\\') || normNew.toLowerCase().startsWith(normOld.toLowerCase() + '/')) {
+        const relSub = normNew.slice(normOld.length + 1);
+        if (relSub && !relSub.includes('\\') && !relSub.includes('/')) {
+          const candidate = otherTab.path.replace(/[\\/]+$/, '') + '\\' + relSub;
+          navigateTo(otherSide, candidate, null, true);
+        }
+      }
+    }
+  }
 }
 
 async function loadPane(side, recordHistory = false, selectPathOnLoad = null) {
@@ -2759,6 +2851,7 @@ function renderFileList(side) {
 
     const tagDot = item.tag_color_hex ? `<span class="f-tag-dot" style="background:${item.tag_color_hex}"></span>` : '';
     const tagBadge = item.tag_label ? `<span class="f-tag-badge">${esc(item.tag_label)}</span>` : '';
+    const linkBadge = item.link_target ? `<span class="f-tag-badge" style="color:var(--accent)" title="Link-Ziel: ${esc(item.link_target)}">⛓ → ${esc(item.link_target)}</span>` : '';
 
     row.innerHTML = `
       <div><span class="f-check" data-chk="1">${isMark ? '✓' : ''}</span></div>
@@ -2766,7 +2859,7 @@ function renderFileList(side) {
         <span class="f-ico">${fileIcon(item)}</span>
         ${tagDot}
         <span class="f-name">${esc(item.display_name)}</span>
-        ${tagBadge}
+        ${tagBadge}${linkBadge}
       </div>
       <div class="f-size-cell">
         ${item.size_bar_percent > 0 ? `<div class="f-size-bar" style="width:${item.size_bar_percent}%"></div>` : ''}
@@ -2786,6 +2879,11 @@ function renderFileList(side) {
       else selEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
   }
+}
+
+function isArchiveFileName(name) {
+  const lo = String(name || '').toLowerCase();
+  return ['.zip','.7z','.tar.gz','.tgz','.tar.zst','.tzst','.tar.xz','.txz','.rar','.jar','.nupkg'].some(x => lo.endsWith(x));
 }
 
 function bindItemEvents(el, side, item, idx) {
@@ -2838,7 +2936,7 @@ function bindItemEvents(el, side, item, idx) {
       e.preventDefault();
       if (item.is_directory) {
         addTab(side, item.full_path);
-      } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x))) {
+      } else if (isArchiveFileName(item.name)) {
         if ((STATE.settings.archive_open_action || 'archive_browser') === 'open_in_explorer') {
           addTab(side, 'archive://' + item.full_path);
         } else {
@@ -2911,7 +3009,9 @@ function activateItem(side, item) {
   } else if (item.is_directory) {
     const target = resolveTargetFolderWithOtherPane(side, item.full_path);
     navigateTo(side, target);
-  } else if (['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x))) {
+  } else if (String(item.name || '').toLowerCase().endsWith('.vault')) {
+    openFileVaultModal();
+  } else if (isArchiveFileName(item.name)) {
     const action = STATE.settings.archive_open_action || 'archive_browser';
     if (action === 'open_in_explorer') {
       navigateTo(side, 'archive://' + item.full_path);
@@ -3360,7 +3460,7 @@ function showContextMenuAt(e, items) {
 
 function openFileContextMenu(e, side, item) {
   const other = side === 'left' ? 'right' : 'left';
-  const isArch = ['.zip','.tar.gz','.tgz','.jar','.nupkg'].some(x => (item.name || '').toLowerCase().endsWith(x));
+  const isArch = isArchiveFileName(item.name);
   showContextMenuAt(e, [
     { label: item.is_directory ? '📂 Ordner öffnen' : '▶ Datei öffnen', kbd: 'Enter', run: () => activateItem(side, item) },
     ...(item.is_directory ? [
@@ -3373,12 +3473,13 @@ function openFileContextMenu(e, side, item) {
       { label: '📦 Im Archivbrowser öffnen…', run: () => openArchiveModal(item.full_path) },
     ] : []),
     'sep',
-    { label: '👁 Schnellansicht (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
-    { label: '✏️ Im Text- & Code-Editor bearbeiten', kbd: 'F4', run: () => openViewerModal(true) },
+    { label: '👁 Schnellansicht & Hex-Editor (Quick Viewer)', kbd: 'F3', run: () => openViewerModal(false) },
+    { label: '✏️ Im Text-, Code- & Hex-Editor bearbeiten', kbd: 'F4', run: () => openViewerModal(true) },
     { label: '⚖ Side-by-Side Datei-Diff', kbd: 'Strg+Shift+U', run: () => openDiffModal() },
     'sep',
     { label: '➔ Kopieren in anderes Panel', kbd: 'F5', run: () => copyOrMoveActive(false) },
     { label: '➔ Verschieben in anderes Panel', kbd: 'F6', run: () => copyOrMoveActive(true) },
+    { label: '⚡ Zur Transfer-Warteschlange hinzufügen…', kbd: 'Strg+Shift+Q', run: () => openTransferQueueModal(true) },
     { label: '🏷 Umbenennen…', kbd: 'F2', run: () => renameSelected() },
     { label: '🏷 Mehrfach-Umbenennen (Batch Rename)…', kbd: 'Strg+M', run: () => openBatchRenameModal() },
     { label: '🗑 Löschen', kbd: 'F8', run: () => deleteSelected() },
@@ -3389,7 +3490,15 @@ function openFileContextMenu(e, side, item) {
     { label: '🔐 Prüfsummen berechnen (SHA-256 / MD5 / CRC32)…', kbd: 'Strg+Shift+K', run: () => openChecksumsModal() },
     { label: '✂ Datei teilen (.001) / zusammenfügen / schreddern…', kbd: 'Strg+Shift+X', run: () => openSplitShredModal() },
     'sep',
-    { label: '📦 In Archiv packen (.zip / .tar.gz)…', kbd: 'Alt+F5', run: () => openArchiveModal() },
+    { label: '🔒 AES-256-GCM Datei-Tresor (Ver-/Entschlüsseln)…', kbd: 'Strg+Shift+V', run: () => openFileVaultModal() },
+    { label: '🔓 NTFS-Streams, Berechtigungen & File-Locksmith…', kbd: 'Strg+Alt+L', run: () => openNtfsLocksmithModal() },
+    { label: '⛓ Symlink, Hardlink oder Junction erstellen…', kbd: 'Strg+Alt+K', run: () => openLinkManagerModal() },
+    { label: '🖼 Batch Bild-Konverter & Skalierer…', kbd: 'Strg+Shift+I', run: () => openImageConverterModal() },
+    { label: '📄 PDF-Toolkit (Merge / Split / Seiten)…', kbd: 'Strg+Alt+P', run: () => openPdfToolkitModal() },
+    { label: '🔄 Daten-Konverter (JSON/YAML/TOML/CSV)…', kbd: 'Strg+Alt+D', run: () => openDataConverterModal() },
+    'sep',
+    { label: '📦 In Archiv packen (.zip / .7z / .tar.gz / .tar.zst / .tar.xz)…', kbd: 'Alt+F5', run: () => openArchiveModal() },
+    { label: '📡 Ordner per HTTP / QR-Code im LAN teilen…', kbd: 'Strg+Alt+S', run: () => openShareServerModal() },
     { label: '📋 Pfad kopieren', run: () => copyText(item.full_path) },
     { label: '📋 Smart Export (Markdown / CSV / JSON)…', kbd: 'Strg+Shift+E', run: () => openSmartExportModal() },
     { label: '🖥 PowerShell-Terminal hier öffnen', kbd: 'F9', run: () => openExternalTerminal() }
@@ -4383,6 +4492,21 @@ function runCommandById(id) {
     'tools.remote': () => openRemoteModal(),
     'view.branchView': () => toggleBranchView(STATE.activeSide),
     'view.previewPane': () => toggleDock(),
+    'view.dirTree': () => toggleDirTreeSidebar(),
+    'view.smartJump': () => openSmartJumpModal(),
+    'view.syncLock': () => toggleSyncLock(),
+    'edit.selectMask': () => openSelectionEngineModal('select'),
+    'edit.deselectMask': () => openSelectionEngineModal('deselect'),
+    'edit.invertSelection': () => invertSelectionInActivePane(),
+    'tools.transferQueue': () => openTransferQueueModal(),
+    'tools.imageConverter': () => openImageConverterModal(),
+    'tools.pdfToolkit': () => openPdfToolkitModal(),
+    'tools.fileVault': () => openFileVaultModal(),
+    'tools.ntfsLocksmith': () => openNtfsLocksmithModal(),
+    'tools.dataConverter': () => openDataConverterModal(),
+    'tools.userCommands': () => openUserCommandsModal(),
+    'tools.shareServer': () => openShareServerModal(),
+    'tools.linkManager': () => openLinkManagerModal(),
     'edit.undo': () => doUndo(),
     'app.settings': () => openSettingsModal('Appearance'),
     'app.about': () => openAboutModal(false)
@@ -4390,11 +4514,12 @@ function runCommandById(id) {
   if (map[id]) map[id]();
 }
 
-/* ==================== F3 VIEWER / F4 EDITOR ==================== */
+/* ==================== F3 VIEWER / F4 EDITOR / HEX-EDITOR ==================== */
 async function openViewerModal(editable) {
   const item = getSelectedSingleItem();
   if (!item || item.is_directory) { toast('Bitte eine Datei für F3/F4 auswählen.'); return; }
   STATE.viewerPath = item.full_path;
+  STATE.hexPatches = {};
   const res = await rpc('quick_preview', { path: item.full_path });
   STATE.viewerData = res;
   document.getElementById('viewerTitle').textContent = (editable ? '✏️ Editor: ' : '👁 Quick Viewer: ') + item.name;
@@ -4405,6 +4530,8 @@ async function openViewerModal(editable) {
   document.getElementById('viewerHexPre').textContent = res.hex || '';
   document.getElementById('viewerImgEl').src = isImageExt(item.extension) ? filePreviewUrl(item.full_path) : '';
   document.getElementById('viewerImgMeta').textContent = `${item.name} • ${res.resolution || ''} • ${item.size_text}`;
+  document.getElementById('hexEditOffset').value = '0';
+  document.getElementById('hexSearchMatches').textContent = '';
 
   const csvRows = res.csv_rows || [];
   document.getElementById('viewerCsvWrap').innerHTML = csvRows.length
@@ -4416,13 +4543,104 @@ async function openViewerModal(editable) {
 }
 
 function switchViewerTab(tab) {
-  ['text','image','hex','csv'].forEach(t => {
-    document.getElementById('vtab-' + t).classList.toggle('active', t === tab);
+  ['text','image','hex','hexedit','csv'].forEach(t => {
+    const el = document.getElementById('vtab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
   });
   document.getElementById('viewerTextarea').style.display = tab === 'text' ? 'block' : 'none';
   document.getElementById('viewerImageWrap').style.display = tab === 'image' ? 'flex' : 'none';
   document.getElementById('viewerHexPre').style.display = tab === 'hex' ? 'block' : 'none';
+  document.getElementById('viewerHexEditWrap').style.display = tab === 'hexedit' ? 'flex' : 'none';
   document.getElementById('viewerCsvWrap').style.display = tab === 'csv' ? 'block' : 'none';
+  if (tab === 'hexedit') {
+    loadHexEditorPage();
+  }
+}
+
+function parseHexOrDecOffset(val) {
+  const s = String(val || '0').trim().toLowerCase();
+  if (s.startsWith('0x')) return parseInt(s.slice(2), 16) || 0;
+  if (/[a-f]/.test(s)) return parseInt(s, 16) || 0;
+  return parseInt(s, 10) || 0;
+}
+
+function stepHexPage(delta) {
+  const cur = parseHexOrDecOffset(document.getElementById('hexEditOffset').value);
+  const next = Math.max(0, cur + delta);
+  document.getElementById('hexEditOffset').value = '0x' + next.toString(16).toUpperCase();
+  loadHexEditorPage();
+}
+
+async function loadHexEditorPage() {
+  if (!STATE.viewerPath) return;
+  const offset = parseHexOrDecOffset(document.getElementById('hexEditOffset').value);
+  const page = await rpc('hex_editor', { sub: 'read_page', path: STATE.viewerPath, offset, length: 512 });
+  if (!page || page.error) {
+    document.getElementById('hexEditTableHost').innerHTML = `<div style="color:var(--danger)">${esc(page?.error || 'Fehler')}</div>`;
+    return;
+  }
+  const rows = page.rows || [];
+  let html = `<div style="margin-bottom:6px;color:var(--fg-dim);">Dateigröße: <strong>${page.total_size} Bytes</strong> • Zeige Offset 0x${(page.offset||0).toString(16).toUpperCase()} (${rows.length * 16} Bytes) • Geänderte Bytes: <strong id="hexPatchCount">${Object.keys(STATE.hexPatches).length}</strong></div>`;
+  html += `<table class="data-tbl" style="font-family:var(--font-mono);font-size:12px;"><thead><tr><th>Offset</th><th>Hex-Bytes (klicken/editieren)</th><th>ASCII</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    const cells = (r.bytes || []).map((b, idx) => {
+      const absOff = r.offset + idx;
+      const patched = STATE.hexPatches[absOff];
+      const valHex = (patched !== undefined ? patched : b).toString(16).toUpperCase().padStart(2, '0');
+      const style = patched !== undefined ? 'background:var(--accent);color:#fff;font-weight:700;' : '';
+      return `<input data-off="${absOff}" value="${valHex}" maxlength="2" style="width:24px;text-align:center;border:1px solid var(--border);border-radius:3px;background:var(--bg-elev);color:var(--fg);font-family:var(--font-mono);font-size:11.5px;padding:1px;margin-right:2px;${style}" oninput="onHexByteInput(this,${absOff},${b})">`;
+    }).join('');
+    html += `<tr><td style="color:var(--accent)">${esc(r.offset_hex)}</td><td>${cells}</td><td style="letter-spacing:1px;color:var(--fg-dim)">${esc(r.ascii)}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('hexEditTableHost').innerHTML = html;
+}
+
+function onHexByteInput(inp, absOff, origByte) {
+  const v = inp.value.trim();
+  if (/^[0-9a-fA-F]{1,2}$/.test(v)) {
+    const parsed = parseInt(v, 16);
+    if (parsed === origByte) {
+      delete STATE.hexPatches[absOff];
+      inp.style.background = 'var(--bg-elev)';
+      inp.style.color = 'var(--fg)';
+    } else {
+      STATE.hexPatches[absOff] = parsed;
+      inp.style.background = 'var(--accent)';
+      inp.style.color = '#fff';
+    }
+    const cnt = document.getElementById('hexPatchCount');
+    if (cnt) cnt.textContent = String(Object.keys(STATE.hexPatches).length);
+  }
+}
+
+async function runHexBinarySearch() {
+  const q = document.getElementById('hexSearchQuery').value.trim();
+  if (!q) return;
+  const isHex = document.getElementById('hexSearchIsHex').checked;
+  const res = await rpc('hex_editor', { sub: 'search', path: STATE.viewerPath, query: q, is_hex: isHex });
+  const matches = res.matches || [];
+  if (!matches.length) {
+    document.getElementById('hexSearchMatches').textContent = 'Keine Treffer gefunden.';
+    return;
+  }
+  document.getElementById('hexSearchMatches').innerHTML = `Treffer (${matches.length}): ` + matches.slice(0, 15).map(off =>
+    `<a href="#" style="color:var(--accent);margin-right:8px;" onclick="document.getElementById('hexEditOffset').value='0x${off.toString(16).toUpperCase()}';loadHexEditorPage();return false;">0x${off.toString(16).toUpperCase()}</a>`
+  ).join('');
+}
+
+async function applyHexPatchesNow() {
+  const entries = Object.entries(STATE.hexPatches).map(([off, b]) => [parseInt(off, 10), b]);
+  if (!entries.length) { toast('Keine geänderten Bytes zum Patchen vorhanden.'); return; }
+  const res = await rpc('hex_editor', { sub: 'patch', path: STATE.viewerPath, patches: entries });
+  if (res && res.ok) {
+    STATE.hexPatches = {};
+    toast(`${res.patched_bytes} Byte(s) erfolgreich in Datei gepatcht!`);
+    loadHexEditorPage();
+    loadPane(STATE.activeSide);
+  } else {
+    toast(res?.error || 'Fehler beim Binär-Patchen');
+  }
 }
 
 async function saveViewerFile() {
@@ -6008,7 +6226,7 @@ async function refreshSmartExport() {
   document.getElementById('se-out').value = res.output || '';
 }
 
-/* 12. Archive Browser & Packer (Alt+F5) */
+/* 12. Archive Browser & Packer (.zip / .7z / .tar.gz / .tar.zst / .tar.xz / .rar — Alt+F5) */
 async function openArchiveModal(archivePath) {
   const paths = getActionPaths();
   const dir = getTab(STATE.activeSide).path;
@@ -6022,19 +6240,35 @@ async function openArchiveModal(archivePath) {
           ${(lres.entries||[]).map(e => `<tr><td>${esc(e.full_name)}</td><td>${esc(e.size_text)}</td><td>${esc(e.compressed_text)}</td></tr>`).join('')}
         </tbody></table>
       </div>
-      <button class="btn primary" style="margin-top:8px;align-self:flex-start;" onclick="rpc('archive',{sub:'extract',archive_path:'${esc(archivePath).replace(/\\/g,'\\\\')}',dest_dir:'${esc(dir).replace(/\\/g,'\\\\')}'}).then(()=>{closeModal('modalTool');loadPane(STATE.activeSide);toast('Archiv entpackt!');})">📂 Komplettes Archiv hierher entpacken</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn primary" onclick="rpc('archive',{sub:'extract',archive_path:'${esc(archivePath).replace(/\\/g,'\\\\')}',dest_dir:'${esc(dir).replace(/\\/g,'\\\\')}'}).then(()=>{closeModal('modalTool');loadPane(STATE.activeSide);toast('Archiv entpackt!');})">📂 Komplettes Archiv hierher entpacken</button>
+        <button class="btn" onclick="closeModal('modalTool');navigateTo(STATE.activeSide,'archive://${esc(archivePath).replace(/\\/g,'\\\\')}')">📁 Als virtuellen Ordner im Panel öffnen</button>
+      </div>
     </div>`;
   }
-  showToolModal('📦 Archiv-Browser & Packer (.zip / .tar.gz — Alt+F5)', `
+  showToolModal('📦 Erweiterter Archiv-Browser & Packer (.zip / .7z / .tar.gz / .tar.zst / .tar.xz / .rar — Alt+F5)', `
     <div class="prefs-card" style="flex-shrink:0;">
       <div style="margin-bottom:6px;">Ausgewählte Elemente (${paths.length}) in neues Archiv packen:</div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="select" id="arch-fmt" onchange="onArchiveFormatChange(this.value)">
+          <option value=".zip">.zip (Deflate)</option>
+          <option value=".7z">.7z (LZMA2)</option>
+          <option value=".tar.gz">.tar.gz (GZip)</option>
+          <option value=".tar.zst">.tar.zst (Zstandard)</option>
+          <option value=".tar.xz">.tar.xz (XZ / LZMA)</option>
+        </select>
         <input class="input" id="arch-dest" value="${esc(defaultDest)}" style="flex:1">
         <button class="btn primary" onclick="packNewArchive()">📦 Jetzt packen</button>
       </div>
     </div>
     ${entriesHtml}
   `, null, 'tool:Archive');
+}
+
+function onArchiveFormatChange(ext) {
+  const inp = document.getElementById('arch-dest');
+  if (!inp) return;
+  inp.value = inp.value.replace(/\.(zip|7z|tar\.gz|tgz|tar\.zst|tzst|tar\.xz|txz)$/i, '') + ext;
 }
 
 async function packNewArchive() {
@@ -6049,47 +6283,101 @@ async function packNewArchive() {
   }
 }
 
-/* 13. Built-in FTP / FTPS / SFTP Client (Ctrl+Shift+C) */
+/* 13. Cloud & Remote Storage: FTP / FTPS / SFTP / WebDAV / S3 (Ctrl+Shift+C) */
 function openRemoteModal() {
-  showToolModal('🌐 FTP / FTPS / SFTP Verbindungsmanager (Strg+Shift+C)', `
-    <div style="display:grid;grid-template-columns:1fr 110px 1fr 80px 1fr 1fr auto;gap:6px;margin-bottom:12px;flex-shrink:0;">
+  showToolModal('🌐 Cloud & Remote-Speicher: SFTP / FTPS / FTP / WebDAV / S3 (Strg+Shift+C)', `
+    <div style="display:grid;grid-template-columns:1fr 130px 1.2fr 75px 1fr 1fr 1fr auto;gap:6px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="rm-name" placeholder="Profilname">
-      <select class="select" id="rm-proto"><option value="Sftp">SFTP (SSH)</option><option value="Ftps">FTPS (TLS)</option><option value="Ftp">FTP</option></select>
-      <input class="input" id="rm-host" placeholder="Host (z.B. sftp.example.com)">
+      <select class="select" id="rm-proto" onchange="onRemoteProtoChange(this.value)">
+        <option value="Sftp">SFTP (SSH)</option>
+        <option value="Ftps">FTPS (TLS)</option>
+        <option value="Ftp">FTP</option>
+        <option value="WebDav">WebDAV (Nextcloud)</option>
+        <option value="S3">S3 / MinIO / R2</option>
+      </select>
+      <input class="input" id="rm-host" placeholder="Host / Endpoint-URL">
       <input class="input" id="rm-port" type="number" value="22">
-      <input class="input" id="rm-user" placeholder="Benutzername">
-      <input class="input" id="rm-path" value="/var/www">
+      <input class="input" id="rm-user" placeholder="User / AccessKey">
+      <input class="input" id="rm-secret" type="password" placeholder="Passwort / SecretKey">
+      <input class="input" id="rm-path" value="/var/www" placeholder="Pfad / Bucket">
       <button class="btn primary" onclick="saveRemoteProfile()">+ Speichern</button>
     </div>
-    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
-      <table class="data-tbl"><thead><tr><th>Name</th><th>Protokoll</th><th>Host</th><th>Benutzer</th><th>Pfad</th><th>Aktion</th></tr></thead><tbody id="rm-tbody"></tbody></table>
+    <div style="flex:1;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">
+      <table class="data-tbl"><thead><tr><th>Name</th><th>Protokoll</th><th>Host / Endpoint</th><th>Benutzer / Key</th><th>Pfad / Bucket</th><th>Aktion</th></tr></thead><tbody id="rm-tbody"></tbody></table>
     </div>
+    <div id="rm-browse-box" style="flex:1;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:8px;display:none;"></div>
   `, null, 'tool:Remote');
   renderRemoteTable();
 }
 
+function onRemoteProtoChange(proto) {
+  const portEl = document.getElementById('rm-port');
+  if (!portEl) return;
+  if (proto === 'Sftp') portEl.value = '22';
+  else if (proto === 'Ftps') portEl.value = '990';
+  else if (proto === 'Ftp') portEl.value = '21';
+  else portEl.value = '443';
+}
+
 function renderRemoteTable() {
-  document.getElementById('rm-tbody').innerHTML = (STATE.remoteProfiles || []).map(p => `
+  document.getElementById('rm-tbody').innerHTML = (STATE.remoteProfiles || []).map((p, idx) => `
     <tr>
-      <td><strong>${esc(p.name)}</strong></td><td>${esc(p.protocol)}</td><td>${esc(p.host)}:${p.port}</td><td>${esc(p.username)}</td><td>${esc(p.remote_path)}</td>
-      <td><button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteRemoteProfile('${esc(p.name)}')">Löschen</button></td>
+      <td><strong>${esc(p.name)}</strong></td><td><span class="badge">${esc(p.protocol)}</span></td><td>${esc(p.host)}:${p.port}</td><td>${esc(p.username)}</td><td>${esc(p.remote_path || p.bucket || '/')}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="browseRemoteProfile(${idx})">🔍 Verbinden / Browse</button>
+        <button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteRemoteProfile('${esc(p.name)}')">Löschen</button>
+      </td>
     </tr>
   `).join('') || '<tr><td colspan="6">Noch keine Verbindungsprofile gespeichert.</td></tr>';
 }
 
 async function saveRemoteProfile() {
+  const proto = document.getElementById('rm-proto').value;
+  const pathOrBucket = document.getElementById('rm-path').value || '/';
   const res = await rpc('remote', {
     sub: 'save',
-    name: document.getElementById('rm-name').value || 'Server',
-    protocol: document.getElementById('rm-proto').value,
+    name: document.getElementById('rm-name').value || 'Cloud-Server',
+    protocol: proto,
     host: document.getElementById('rm-host').value || 'localhost',
-    port: parseInt(document.getElementById('rm-port').value, 10) || 22,
-    username: document.getElementById('rm-user').value || 'root',
-    remote_path: document.getElementById('rm-path').value || '/'
+    port: parseInt(document.getElementById('rm-port').value, 10) || 443,
+    username: document.getElementById('rm-user').value || '',
+    remote_path: pathOrBucket,
+    bucket: proto === 'S3' ? pathOrBucket.replace(/^\/+/, '') : '',
+    region: 'us-east-1',
+    secret_hint: document.getElementById('rm-secret').value ? '***' : ''
   });
   STATE.remoteProfiles = res.profiles || [];
   renderRemoteTable();
   toast('Verbindungsprofil gespeichert.');
+}
+
+async function browseRemoteProfile(idx) {
+  const p = STATE.remoteProfiles[idx];
+  if (!p) return;
+  const box = document.getElementById('rm-browse-box');
+  box.style.display = 'block';
+  box.innerHTML = '⏳ Verbinde mit Remote-Endpunkt…';
+  const secret = document.getElementById('rm-secret')?.value || '';
+  const res = await rpc('remote', {
+    sub: 'browse',
+    protocol: p.protocol,
+    host: p.host,
+    port: p.port,
+    username: p.username,
+    remote_path: p.remote_path,
+    bucket: p.bucket || p.remote_path.replace(/^\/+/, ''),
+    region: p.region || 'us-east-1',
+    secret
+  });
+  if (res.error) {
+    box.innerHTML = `<div style="color:var(--warn)">⚠ ${esc(res.error)}</div>`;
+    return;
+  }
+  const entries = res.entries || [];
+  box.innerHTML = `<strong>Remote-Inhalt (${entries.length} Einträge):</strong>
+    <table class="data-tbl" style="margin-top:6px;"><thead><tr><th>Name</th><th>Typ</th><th>Größe</th><th>Geändert</th></tr></thead><tbody>
+      ${entries.map(e => `<tr><td>${e.is_dir ? '📁' : '📄'} ${esc(e.name)}</td><td>${e.is_dir ? 'Ordner' : 'Datei'}</td><td>${e.size} B</td><td>${esc(e.modified)}</td></tr>`).join('') || '<tr><td colspan="4">Keine Einträge gefunden.</td></tr>'}
+    </tbody></table>`;
 }
 
 async function deleteRemoteProfile(name) {
@@ -6236,6 +6524,743 @@ async function deleteWorkspaceProfile(name) {
   const res = await rpc('workspaces', { sub: 'delete', name });
   STATE.workspaces = res.workspaces || [];
   renderWorkspacesTable();
+}
+
+/* ==================== 16–30. NEW POWER-TOOLS V2 (All 17 ToDo Features) ==================== */
+
+/* Feature 1: Rule-based Selection Engine (Num + / Num - / Num *) */
+function invertSelectionInActivePane() {
+  const p = STATE.panes[STATE.activeSide];
+  const next = new Set();
+  p.items.forEach(it => {
+    if (!p.marked.has(it.full_path)) next.add(it.full_path);
+  });
+  p.marked = next;
+  renderFileList(STATE.activeSide);
+  updatePaneFooter(STATE.activeSide);
+  toast(`Auswahl umgekehrt: ${p.marked.size} Element(e) markiert.`);
+}
+
+function openSelectionEngineModal(mode = 'select') {
+  showToolModal('🎯 Regel- & Filter-Auswahl-Engine (Num + / Num - / Num *)', `
+    <div class="prefs-card" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label>Namensmaske (Wildcard oder Regex, z.B. <code>*.rs;*.toml</code>):</label>
+        <input class="input" id="sel-pattern" value="*.*" style="width:100%;margin-top:4px;">
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-end;">
+        <label><input type="checkbox" id="sel-regex"> Als regulären Ausdruck (Regex) auswerten</label>
+        <label><input type="checkbox" id="sel-dirs"> Ordner einbeziehen</label>
+      </div>
+      <div>
+        <label>Mindestgröße (Bytes, optional):</label>
+        <input class="input" id="sel-min-size" type="number" placeholder="z.B. 1048576 (1 MB)" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Maximalgröße (Bytes, optional):</label>
+        <input class="input" id="sel-max-size" type="number" placeholder="unbegrenzt" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Maximal-Alter in Tagen (optional, z.B. 7 = letzte 7 Tage):</label>
+        <input class="input" id="sel-max-days" type="number" placeholder="unbegrenzt" style="width:100%;margin-top:4px;">
+      </div>
+      <div style="display:flex;gap:6px;align-items:flex-end;">
+        <input class="input" id="sel-preset-name" placeholder="Preset-Name…" style="flex:1">
+        <button class="btn" onclick="saveSelectionPresetNow()">💾 Preset speichern</button>
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <strong>Gespeicherte Auswahl-Presets:</strong>
+      <div id="sel-presets-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+    </div>
+  `, `
+    <button class="btn" onclick="invertSelectionInActivePane();closeModal('modalTool')">🔄 Invertieren (Num *)</button>
+    <button class="btn danger" onclick="applySelectionEngineRule('deselect')">➖ Abwählen (Num -)</button>
+    <button class="btn primary" onclick="applySelectionEngineRule('select')">➕ Auswählen (Num +)</button>
+  `, 'tool:SelectionEngine');
+  renderSelectionPresetsList();
+}
+
+function renderSelectionPresetsList() {
+  const host = document.getElementById('sel-presets-list');
+  if (!host) return;
+  host.innerHTML = (STATE.selectionPresets || []).map((p, idx) => `
+    <span class="fav-chip" onclick="loadSelectionPreset(${idx})">🎯 ${esc(p.name)} <small>(${esc(p.pattern)})</small></span>
+  `).join('') || '<span style="color:var(--fg-muted)">Noch keine Presets gespeichert.</span>';
+}
+
+function loadSelectionPreset(idx) {
+  const p = STATE.selectionPresets[idx];
+  if (!p) return;
+  document.getElementById('sel-pattern').value = p.pattern || '*.*';
+  document.getElementById('sel-regex').checked = !!p.is_regex;
+  document.getElementById('sel-dirs').checked = !!p.include_dirs;
+  document.getElementById('sel-min-size').value = p.min_size_bytes || '';
+  document.getElementById('sel-max-size').value = p.max_size_bytes || '';
+  document.getElementById('sel-max-days').value = p.max_age_days || '';
+}
+
+async function saveSelectionPresetNow() {
+  const preset = {
+    name: document.getElementById('sel-preset-name').value.trim() || 'Filter',
+    pattern: document.getElementById('sel-pattern').value.trim() || '*.*',
+    is_regex: document.getElementById('sel-regex').checked,
+    min_size_bytes: parseInt(document.getElementById('sel-min-size').value, 10) || null,
+    max_size_bytes: parseInt(document.getElementById('sel-max-size').value, 10) || null,
+    max_age_days: parseInt(document.getElementById('sel-max-days').value, 10) || null,
+    include_dirs: document.getElementById('sel-dirs').checked
+  };
+  const res = await rpc('selection_engine', { sub: 'save_preset', preset });
+  STATE.selectionPresets = res.presets || [];
+  renderSelectionPresetsList();
+  toast('Auswahl-Preset gespeichert.');
+}
+
+async function applySelectionEngineRule(mode) {
+  const dir = getTab(STATE.activeSide).path;
+  const preset = {
+    name: 'Live',
+    pattern: document.getElementById('sel-pattern').value.trim() || '*.*',
+    is_regex: document.getElementById('sel-regex').checked,
+    min_size_bytes: parseInt(document.getElementById('sel-min-size').value, 10) || null,
+    max_size_bytes: parseInt(document.getElementById('sel-max-size').value, 10) || null,
+    max_age_days: parseInt(document.getElementById('sel-max-days').value, 10) || null,
+    include_dirs: document.getElementById('sel-dirs').checked
+  };
+  const res = await rpc('selection_engine', { sub: 'evaluate', dir, preset });
+  const matches = new Set(res.matches || []);
+  const p = STATE.panes[STATE.activeSide];
+  if (mode === 'select') {
+    matches.forEach(m => p.marked.add(m));
+  } else {
+    matches.forEach(m => p.marked.delete(m));
+  }
+  closeModal('modalTool');
+  renderFileList(STATE.activeSide);
+  updatePaneFooter(STATE.activeSide);
+  toast(`${matches.size} Element(e) ${mode === 'select' ? 'markiert' : 'abgewählt'}.`);
+}
+
+/* Feature 2: Transfer Queue & Job Manager (Ctrl+Shift+Q) */
+let _tqTimer = null;
+async function openTransferQueueModal(autoEnqueue = false) {
+  if (autoEnqueue) {
+    const sources = getActionPaths();
+    const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
+    const dest = getTab(otherSide).path;
+    if (sources.length && dest) {
+      await rpc('transfer_queue', { sub: 'enqueue', kind: 'Copy', sources, destination: dest, conflict_policy: 'Overwrite' });
+      toast('Job zur Transfer-Warteschlange hinzugefügt.');
+    }
+  }
+  showToolModal('⚡ Transfer-Warteschlange & Job-Manager (Strg+Shift+Q)', `
+    <div class="prefs-card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
+      <span>Aktuelle Auswahl in Queue einreihen:</span>
+      <select class="select" id="tq-kind"><option value="Copy">Kopieren (Copy)</option><option value="Move">Verschieben (Move)</option></select>
+      <select class="select" id="tq-policy">
+        <option value="Overwrite">Überschreiben (Overwrite)</option>
+        <option value="SkipExisting">Vorhandene überspringen (Skip)</option>
+        <option value="AutoRename">Automatisch umbenennen (Auto-Rename)</option>
+      </select>
+      <label>Limit (MB/s, 0=Max): <input class="input" id="tq-limit" type="number" value="0" style="width:65px"></label>
+      <button class="btn primary" onclick="enqueueCurrentSelectionToQueue()">+ Zur Queue hinzufügen</button>
+      <button class="btn" onclick="clearFinishedQueueJobs()">🧹 Fertige leeren</button>
+    </div>
+    <div style="flex:1;min-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>ID</th><th>Typ</th><th>Ziel</th><th>Status</th><th>Fortschritt</th><th>Speed</th><th>Aktion</th></tr></thead><tbody id="tq-tbody"></tbody></table>
+    </div>
+  `, null, 'tool:TransferQueue');
+  await refreshTransferQueueTable();
+  clearInterval(_tqTimer);
+  _tqTimer = setInterval(() => {
+    if (document.querySelector('#modalTool.open') && document.getElementById('tq-tbody')) {
+      refreshTransferQueueTable();
+    } else {
+      clearInterval(_tqTimer);
+    }
+  }, 600);
+}
+
+async function enqueueCurrentSelectionToQueue() {
+  const sources = getActionPaths();
+  if (!sources.length) { toast('Bitte Dateien im aktiven Panel auswählen.'); return; }
+  const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
+  const destination = getTab(otherSide).path;
+  await rpc('transfer_queue', {
+    sub: 'enqueue',
+    kind: document.getElementById('tq-kind').value,
+    sources,
+    destination,
+    conflict_policy: document.getElementById('tq-policy').value,
+    speed_limit_kbps: (parseInt(document.getElementById('tq-limit').value, 10) || 0) * 1024
+  });
+  await refreshTransferQueueTable();
+  loadPane('left');
+  loadPane('right');
+}
+
+async function refreshTransferQueueTable() {
+  const res = await rpc('transfer_queue', { sub: 'list' });
+  const jobs = res.jobs || [];
+  const tbody = document.getElementById('tq-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = jobs.map(j => {
+    const pct = j.total_bytes > 0 ? Math.min(100, Math.round((j.processed_bytes / j.total_bytes) * 100)) : 100;
+    const spd = j.speed_bps > 0 ? (j.speed_bps / (1024 * 1024)).toFixed(1) + ' MB/s' : '—';
+    return `<tr>
+      <td>#${j.id}</td>
+      <td><strong>${esc(j.kind)}</strong> (${(j.sources||[]).length})</td>
+      <td>${esc(j.destination)}</td>
+      <td><span class="badge">${esc(j.status)}</span></td>
+      <td style="min-width:140px;">
+        <div class="drive-prog" style="width:100%;height:8px;"><span style="width:${pct}%"></span></div>
+        <div style="font-size:10.5px;color:var(--fg-dim)">${j.processed_files}/${j.total_files} Dateien (${pct}%)</div>
+      </td>
+      <td>${spd}</td>
+      <td style="display:flex;gap:4px;">
+        ${j.status === 'Running' ? `<button class="btn" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'pause',id:${j.id}}).then(refreshTransferQueueTable)">⏸</button>` : ''}
+        ${j.status === 'Paused' ? `<button class="btn primary" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'resume',id:${j.id}}).then(refreshTransferQueueTable)">▶</button>` : ''}
+        ${(j.status === 'Running' || j.status === 'Paused' || j.status === 'Queued') ? `<button class="btn danger" style="padding:2px 6px;font-size:11px;" onclick="rpc('transfer_queue',{sub:'cancel',id:${j.id}}).then(refreshTransferQueueTable)">✕</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7">Keine Jobs in der Warteschlange.</td></tr>';
+}
+
+async function clearFinishedQueueJobs() {
+  await rpc('transfer_queue', { sub: 'clear_finished' });
+  refreshTransferQueueTable();
+}
+
+/* Feature 3: Collapsible Directory Tree Sidebar (Alt+F10) */
+function toggleDirTreeSidebar(force) {
+  STATE.treeOpen = typeof force === 'boolean' ? force : !STATE.treeOpen;
+  const el = document.getElementById('treeSidebar');
+  if (el) el.style.display = STATE.treeOpen ? 'flex' : 'none';
+  const btn = document.getElementById('segTree');
+  if (btn) btn.classList.toggle('active', STATE.treeOpen);
+  if (STATE.treeOpen) refreshDirTreeSidebar();
+}
+
+async function refreshDirTreeSidebar() {
+  const host = document.getElementById('treeSidebarBody');
+  if (!host) return;
+  const curPath = getTab(STATE.activeSide).path;
+  const root = curPath.includes(':') ? curPath.slice(0, 3) : curPath;
+  const res = await rpc('dir_tree', { root, focus_path: curPath });
+  const nodes = res.nodes || [];
+  host.innerHTML = renderDirTreeNodes(nodes, 0, curPath);
+}
+
+function renderDirTreeNodes(nodes, depth, activePath) {
+  return (nodes || []).map(n => {
+    const isAct = String(n.full_path || '').toLowerCase() === String(activePath || '').toLowerCase();
+    const pad = depth * 12;
+    return `
+      <div style="padding:3px 6px 3px ${6 + pad}px;cursor:pointer;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isAct ? 'background:var(--accent-soft);color:var(--accent);font-weight:600;' : ''}"
+           onclick="navigateTo(STATE.activeSide, '${esc(n.full_path).replace(/\\/g,'\\\\')}')">
+        ${n.children && n.children.length ? '📂' : '📁'} ${esc(n.name)}
+      </div>
+      ${n.children && n.children.length ? renderDirTreeNodes(n.children, depth + 1, activePath) : ''}
+    `;
+  }).join('');
+}
+
+/* Feature 4: Smart Jump / Frecency & Bookmark Launcher (Ctrl+G / Alt+Down) */
+async function openSmartJumpModal() {
+  showToolModal('🚀 Smart Jump — Frecency-Verlauf & Lesezeichen (Strg+G / Alt+Unten)', `
+    <input class="input" id="sj-query" placeholder="Ordnernamen oder Pfad-Fragment tippen (Fuzzy-Frecency)…" style="width:100%;margin-bottom:10px;flex-shrink:0;" oninput="refreshSmartJumpList(this.value)">
+    <div style="flex:1;min-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Ordnerpfad</th><th>Aufrufe</th><th>Score</th><th>Aktion</th></tr></thead><tbody id="sj-tbody"></tbody></table>
+    </div>
+  `, null, 'tool:SmartJump');
+  await refreshSmartJumpList('');
+  setTimeout(() => document.getElementById('sj-query')?.focus(), 50);
+}
+
+async function refreshSmartJumpList(query) {
+  const res = await rpc('smart_jump', { sub: 'query', query: query || '' });
+  const entries = res.entries || [];
+  const tbody = document.getElementById('sj-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = entries.map(e => `
+    <tr style="cursor:pointer;" ondblclick="closeModal('modalTool');navigateTo(STATE.activeSide,'${esc(e.path).replace(/\\/g,'\\\\')}')">
+      <td><strong>📁 ${esc(e.path)}</strong></td>
+      <td>${e.visit_count}×</td>
+      <td>${(e.score || 0).toFixed(1)}</td>
+      <td><button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="closeModal('modalTool');navigateTo(STATE.activeSide,'${esc(e.path).replace(/\\/g,'\\\\')}')">Springen</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Noch keine Frecency-Einträge gefunden.</td></tr>';
+}
+
+/* Feature 5: Synchronized Navigation & Scroll-Lock (Ctrl+Shift+Y) */
+function toggleSyncLock() {
+  STATE.syncLock = !STATE.syncLock;
+  const btn = document.getElementById('segSyncLock');
+  if (btn) btn.classList.toggle('active', STATE.syncLock);
+  toast(STATE.syncLock ? '🔗 Sync-Lock aktiviert (Synchronisierte Ordnernavigation & Scroll-Kopplung)' : '🔓 Sync-Lock deaktiviert');
+}
+
+function initSyncScrollListeners() {
+  const l = document.getElementById('list-left');
+  const r = document.getElementById('list-right');
+  if (!l || !r) return;
+  let syncing = false;
+  l.addEventListener('scroll', () => {
+    if (!STATE.syncLock || syncing) return;
+    syncing = true;
+    r.scrollTop = l.scrollTop;
+    setTimeout(() => { syncing = false; }, 15);
+  });
+  r.addEventListener('scroll', () => {
+    if (!STATE.syncLock || syncing) return;
+    syncing = true;
+    l.scrollTop = r.scrollTop;
+    setTimeout(() => { syncing = false; }, 15);
+  });
+}
+
+/* Feature 8: Batch Image Converter & Resizer (Ctrl+Shift+I) */
+function openImageConverterModal() {
+  const paths = getActionPaths();
+  if (!paths.length) { toast('Bitte Bilddateien im aktiven Panel auswählen.'); return; }
+  showToolModal('🖼 Batch Bild-Konverter, Skalierer & Drehen (Strg+Shift+I)', `
+    <div class="prefs-card" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <div>
+        <label>Zielformat:</label>
+        <select class="select" id="img-fmt" style="width:100%;margin-top:4px;">
+          <option value="webp">WebP (.webp)</option>
+          <option value="png">PNG (.png)</option>
+          <option value="jpg">JPEG (.jpg)</option>
+          <option value="bmp">BMP (.bmp)</option>
+          <option value="ico">Icon (.ico)</option>
+        </select>
+      </div>
+      <div>
+        <label>Qualität (1–100):</label>
+        <input class="input" id="img-qual" type="number" value="85" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Drehung:</label>
+        <select class="select" id="img-rot" style="width:100%;margin-top:4px;">
+          <option value="0">Keine Drehung (0°)</option>
+          <option value="90">90° im Uhrzeigersinn</option>
+          <option value="180">180° drehen</option>
+          <option value="270">270° (90° gegen UZS)</option>
+        </select>
+      </div>
+      <div>
+        <label>Max. Breite (px, 0 = Original):</label>
+        <input class="input" id="img-w" type="number" value="0" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Max. Höhe (px, 0 = Original):</label>
+        <input class="input" id="img-h" type="number" value="0" style="width:100%;margin-top:4px;">
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <label><input type="checkbox" id="img-gray"> In Graustufen umwandeln</label>
+      </div>
+    </div>
+    <div id="img-conv-res" style="margin-top:10px;font-weight:600;color:var(--ok);">Ausgewählte Dateien: ${paths.length}</div>
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="runImageBatchConvert()">🖼 Jetzt konvertieren</button>`, 'tool:ImageConverter');
+}
+
+async function runImageBatchConvert() {
+  const res = await rpc('image_converter', {
+    paths: getActionPaths(),
+    target_format: document.getElementById('img-fmt').value,
+    quality: parseInt(document.getElementById('img-qual').value, 10) || 85,
+    max_width: parseInt(document.getElementById('img-w').value, 10) || null,
+    max_height: parseInt(document.getElementById('img-h').value, 10) || null,
+    rotate_deg: parseInt(document.getElementById('img-rot').value, 10) || 0,
+    grayscale: document.getElementById('img-gray').checked
+  });
+  const count = (res.outputs || []).length;
+  document.getElementById('img-conv-res').textContent = `✓ ${count} Bild(er) erfolgreich konvertiert!`;
+  loadPane(STATE.activeSide);
+  toast(`${count} Bild(er) konvertiert.`);
+}
+
+/* Feature 9: PDF Toolkit (Ctrl+Alt+P) */
+async function openPdfToolkitModal() {
+  const paths = getActionPaths();
+  const dir = getTab(STATE.activeSide).path.replace(/[\\/]+$/, '');
+  let infoHtml = '';
+  if (paths.length === 1 && paths[0].toLowerCase().endsWith('.pdf')) {
+    const info = await rpc('pdf_toolkit', { sub: 'inspect', path: paths[0] });
+    if (info && !info.error) {
+      infoHtml = `<div style="margin-bottom:10px;color:var(--accent)">📄 <strong>${esc(paths[0])}</strong> • Seitenanzahl: <strong>${info.page_count}</strong> • PDF-Version: ${esc(info.version)}</div>`;
+    }
+  }
+  showToolModal('📄 Integriertes PDF-Toolkit: Merge, Split & Info (Strg+Alt+P)', `
+    ${infoHtml}
+    <div class="prefs-card">
+      <strong>1. Ausgewählte PDF-Dateien (${paths.length}) zu einer PDF zusammenfügen (Merge):</strong>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <input class="input" id="pdf-merge-out" value="${esc(dir + '\\merged.pdf')}" style="flex:1">
+        <button class="btn primary" onclick="runPdfMerge()">🔗 PDFs zusammenfügen</button>
+      </div>
+    </div>
+    <div class="prefs-card">
+      <strong>2. Aktuelle PDF-Datei in Einzelseiten splitten:</strong>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <input class="input" id="pdf-split-dir" value="${esc(dir)}" style="flex:1">
+        <button class="btn primary" onclick="runPdfSplit()">✂ In Einzelseiten splitten</button>
+      </div>
+    </div>
+    <div id="pdf-msg" style="margin-top:8px;font-weight:600;color:var(--ok);"></div>
+  `, null, 'tool:PdfToolkit');
+}
+
+async function runPdfMerge() {
+  const out = document.getElementById('pdf-merge-out').value;
+  const res = await rpc('pdf_toolkit', { sub: 'merge', paths: getActionPaths(), output_path: out });
+  document.getElementById('pdf-msg').textContent = res.ok ? `✓ Zusammengefügt: ${res.output}` : (res.error || 'Fehler');
+  loadPane(STATE.activeSide);
+}
+
+async function runPdfSplit() {
+  const item = getSelectedSingleItem();
+  if (!item) return;
+  const outDir = document.getElementById('pdf-split-dir').value;
+  const res = await rpc('pdf_toolkit', { sub: 'split', path: item.full_path, output_dir: outDir });
+  document.getElementById('pdf-msg').textContent = res.ok ? `✓ ${(res.files||[]).length} Einzelseiten erstellt.` : (res.error || 'Fehler');
+  loadPane(STATE.activeSide);
+}
+
+/* Feature 10: AES-256-GCM File Vault (Ctrl+Shift+V) */
+function openFileVaultModal() {
+  const item = getSelectedSingleItem();
+  const p = item ? item.full_path : '';
+  showToolModal('🔒 Kryptografischer Datei-Tresor — AES-256-GCM & PBKDF2 (Strg+Shift+V)', `
+    <div class="prefs-card" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <label>Zieldatei (Datei zum Verschlüsseln oder <code>.vault</code>-Datei zum Entschlüsseln):</label>
+        <input class="input" id="vault-path" value="${esc(p)}" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Master-Passwort (PBKDF2-HMAC-SHA256, 100.000 Iterationen + AES-256-GCM):</label>
+        <input class="input" id="vault-pw" type="password" placeholder="Starkes Passwort eingeben…" style="width:100%;margin-top:4px;">
+      </div>
+      <label><input type="checkbox" id="vault-del"> Originaldatei nach dem Ver-/Entschlüsseln automatisch entfernen</label>
+      <div style="display:flex;gap:10px;">
+        <button class="btn primary" onclick="runVaultAction('encrypt')">🔒 Jetzt in .vault verschlüsseln</button>
+        <button class="btn primary" onclick="runVaultAction('decrypt')">🔓 .vault entschlüsseln</button>
+      </div>
+    </div>
+    <div id="vault-msg" style="margin-top:10px;font-weight:600;"></div>
+  `, null, 'tool:FileVault');
+}
+
+async function runVaultAction(sub) {
+  const path = document.getElementById('vault-path').value;
+  const password = document.getElementById('vault-pw').value;
+  if (!password) { toast('Bitte ein Passwort eingeben.'); return; }
+  const res = await rpc('file_vault', {
+    sub,
+    path,
+    password,
+    delete_source: document.getElementById('vault-del').checked
+  });
+  const msgEl = document.getElementById('vault-msg');
+  if (res && res.ok) {
+    msgEl.style.color = 'var(--ok)';
+    msgEl.textContent = `✓ Erfolgreich: ${res.output_path}`;
+    loadPane(STATE.activeSide);
+  } else {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = `⚠ Fehler: ${res?.error || 'Unbekannt'}`;
+  }
+}
+
+/* Feature 11: NTFS ADS Streams, ACL Permissions & File Locksmith (Ctrl+Alt+L) */
+async function openNtfsLocksmithModal() {
+  const item = getSelectedSingleItem();
+  if (!item) { toast('Bitte eine Datei oder einen Ordner auswählen.'); return; }
+  const res = await rpc('ntfs_locksmith', { sub: 'inspect', path: item.full_path });
+  const ads = res.ads_streams || [];
+  const locks = res.locking_processes || [];
+  showToolModal(`🔓 NTFS-Streams, Berechtigungen & File-Locksmith — ${esc(item.name)}`, `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:220px;">
+      <div class="prefs-card" style="display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <strong>NTFS Alternate Data Streams (${ads.length}):</strong>
+          <button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="unblockZoneIdentifier('${esc(item.full_path).replace(/\\/g,'\\\\')}')">🛡 Zone.Identifier entfernen (Unblock)</button>
+        </div>
+        <div style="flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+          <table class="data-tbl"><thead><tr><th>Stream-Name</th><th>Größe</th></tr></thead><tbody>
+            ${ads.map(s => `<tr><td>${esc(s.stream_name)}</td><td>${s.size_bytes} B</td></tr>`).join('') || '<tr><td colspan="2">Keine zusätzlichen ADS-Streams gefunden.</td></tr>'}
+          </tbody></table>
+        </div>
+        <strong style="margin-top:10px;">Gesperrt durch Prozesse (File Locksmith):</strong>
+        <div style="flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+          <table class="data-tbl"><thead><tr><th>PID</th><th>Prozess</th></tr></thead><tbody>
+            ${locks.map(l => `<tr><td>${l.pid}</td><td>${esc(l.process_name)}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--ok)">✓ Keine sperrenden Prozesse erkannt.</td></tr>'}
+          </tbody></table>
+        </div>
+      </div>
+      <div class="prefs-card" style="display:flex;flex-direction:column;">
+        <strong>NTFS-ACL Berechtigungen (icacls):</strong>
+        <pre style="flex:1;margin-top:6px;padding:8px;background:var(--bg-sunken);border-radius:6px;overflow:auto;font-family:var(--font-mono);font-size:11.5px;">${esc(res.acl_summary || '')}</pre>
+      </div>
+    </div>
+  `, null, 'tool:NtfsLocksmith');
+}
+
+async function unblockZoneIdentifier(path) {
+  await rpc('ntfs_locksmith', { sub: 'unblock', path });
+  toast('Zone.Identifier ADS entfernt (Datei entsperrt).');
+  openNtfsLocksmithModal();
+}
+
+/* Feature 13 & 14: Data Converter (JSON/YAML/TOML/CSV) & Multi-Step Clipboard History (Ctrl+Alt+D) */
+async function openDataConverterModal() {
+  const item = getSelectedSingleItem();
+  let initialText = '';
+  if (item && !item.is_directory) {
+    const prev = await rpc('quick_preview', { path: item.full_path });
+    initialText = prev?.text || '';
+  }
+  const clipRes = await rpc('data_converter', { sub: 'clipboard_list' });
+  const clips = clipRes.entries || [];
+  showToolModal('🔄 Strukturierter Daten-Konverter (JSON/YAML/TOML/CSV) & Zwischenablage-Verlauf (Strg+Alt+D)', `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-shrink:0;">
+      <span>Von:</span>
+      <select class="select" id="dc-from"><option value="json">JSON</option><option value="yaml">YAML</option><option value="toml">TOML</option><option value="csv">CSV</option></select>
+      <span>➔ Nach:</span>
+      <select class="select" id="dc-to"><option value="yaml">YAML</option><option value="json">JSON (Pretty)</option><option value="toml">TOML</option><option value="csv">CSV</option></select>
+      <button class="btn primary" onclick="runStructuredDataConvert()">🔄 Konvertieren</button>
+      <button class="btn" onclick="copyConverterOutput()">📋 Ergebnis kopieren &amp; im Verlauf merken</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:180px;">
+      <textarea class="textarea" id="dc-in" placeholder="Eingabedaten (JSON, YAML, TOML oder CSV)…" style="width:100%;height:100%;resize:none;font-family:var(--font-mono);font-size:12px;">${esc(initialText)}</textarea>
+      <textarea class="textarea" id="dc-out" placeholder="Konvertierte Ausgabe…" style="width:100%;height:100%;resize:none;font-family:var(--font-mono);font-size:12px;"></textarea>
+    </div>
+    <div style="margin-top:10px;flex-shrink:0;">
+      <strong>📋 Multi-Step Zwischenablage-Verlauf (${clips.length} Einträge):</strong>
+      <div id="dc-clip-list" style="max-height:110px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;padding:4px;">
+        ${clips.map(c => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-bottom:1px solid var(--border);font-size:11.5px;">
+          <span style="font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%;">${esc(c.content)}</span>
+          <button class="btn" style="padding:1px 6px;font-size:10.5px;" onclick="copyText(${JSON.stringify(c.content)})">Kopieren</button>
+        </div>`).join('') || '<div style="color:var(--fg-muted);padding:4px;">Noch keine Einträge im Verlauf.</div>'}
+      </div>
+    </div>
+  `, null, 'tool:DataConverter');
+}
+
+async function runStructuredDataConvert() {
+  const res = await rpc('data_converter', {
+    sub: 'convert',
+    input: document.getElementById('dc-in').value,
+    from_format: document.getElementById('dc-from').value,
+    to_format: document.getElementById('dc-to').value
+  });
+  if (res.output !== undefined) {
+    document.getElementById('dc-out').value = res.output;
+  } else {
+    toast(res.error || 'Konvertierungsfehler');
+  }
+}
+
+async function copyConverterOutput() {
+  const txt = document.getElementById('dc-out').value || document.getElementById('dc-in').value;
+  await rpc('data_converter', { sub: 'clipboard_push', kind: 'text', content: txt });
+  copyText(txt);
+}
+
+/* Feature 15: User-Defined Tools & Script Buttons (Ctrl+Alt+U) */
+function renderUserCommandBar() {
+  const host = document.getElementById('userCmdBar');
+  if (!host) return;
+  host.innerHTML = (STATE.userCommands || []).map(c => `
+    <button class="ibtn" style="height:22px;font-size:11px;" title="${esc(c.command_template)} (${esc(c.shortcut || '')})" onclick="executeUserCommandById('${esc(c.id)}')">${esc(c.icon || '⚡')} ${esc(c.name)}</button>
+  `).join('');
+}
+
+async function executeUserCommandById(id) {
+  const item = getSelectedSingleItem();
+  const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
+  const res = await rpc('user_commands', {
+    sub: 'execute',
+    id,
+    file: item ? item.full_path : '',
+    dir: getTab(STATE.activeSide).path,
+    other_dir: getTab(otherSide).path,
+    selected: getActionPaths()
+  });
+  if (res && res.ok) {
+    toast(`Befehl ausgeführt (${res.expanded}): ${(res.output || 'OK').slice(0, 80)}`);
+    loadPane(STATE.activeSide);
+  } else {
+    toast(res?.error || 'Fehler beim Ausführen');
+  }
+}
+
+function openUserCommandsModal() {
+  showToolModal('⚡ Benutzerdefinierte Werkzeuge & Skript-Buttons (Strg+Alt+U)', `
+    <div class="prefs-card" style="display:grid;grid-template-columns:70px 1fr 2fr 110px auto;gap:6px;align-items:center;flex-shrink:0;">
+      <input class="input" id="uc-icon" value="⚡" placeholder="Icon">
+      <input class="input" id="uc-name" placeholder="Button-Name (z.B. VS Code)">
+      <input class="input" id="uc-cmd" placeholder="Befehl mit {file}, {dir}, {other_dir}, {selected}">
+      <input class="input" id="uc-kbd" placeholder="Shortcut">
+      <button class="btn primary" onclick="saveNewUserCommand()">+ Speichern</button>
+    </div>
+    <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="data-tbl"><thead><tr><th>Icon</th><th>Name</th><th>Befehls-Template</th><th>Aktion</th></tr></thead><tbody id="uc-tbody"></tbody></table>
+    </div>
+  `, null, 'tool:UserCommands');
+  renderUserCommandsTable();
+}
+
+function renderUserCommandsTable() {
+  const tbody = document.getElementById('uc-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = (STATE.userCommands || []).map(c => `
+    <tr>
+      <td>${esc(c.icon)}</td>
+      <td><strong>${esc(c.name)}</strong></td>
+      <td style="font-family:var(--font-mono);font-size:11.5px;">${esc(c.command_template)}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="executeUserCommandById('${esc(c.id)}')">▶ Starten</button>
+        <button class="btn danger" style="padding:2px 8px;font-size:11px;" onclick="deleteUserCommandById('${esc(c.id)}')">Löschen</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveNewUserCommand() {
+  const name = document.getElementById('uc-name').value.trim() || 'Tool';
+  const command = {
+    id: 'cmd_' + Date.now(),
+    name,
+    icon: document.getElementById('uc-icon').value.trim() || '⚡',
+    command_template: document.getElementById('uc-cmd').value.trim() || 'code {dir}',
+    shortcut: document.getElementById('uc-kbd').value.trim(),
+    run_in_terminal: false
+  };
+  const res = await rpc('user_commands', { sub: 'save', command });
+  STATE.userCommands = res.commands || [];
+  renderUserCommandBar();
+  renderUserCommandsTable();
+  toast('Benutzerdefiniertes Werkzeug gespeichert.');
+}
+
+async function deleteUserCommandById(id) {
+  const res = await rpc('user_commands', { sub: 'delete', id });
+  STATE.userCommands = res.commands || [];
+  renderUserCommandBar();
+  renderUserCommandsTable();
+}
+
+/* Feature 16: Ad-hoc Local HTTP File Share Server with QR-Code (Ctrl+Alt+S) */
+async function openShareServerModal() {
+  const st = await rpc('share_server', { sub: 'status' });
+  const dir = getTab(STATE.activeSide).path;
+  showToolModal('📡 Ad-hoc Lokaler HTTP-Teilen-Server mit QR-Code (Strg+Alt+S)', `
+    <div class="prefs-card" style="display:flex;gap:8px;align-items:center;">
+      <input class="input" id="sh-dir" value="${esc(st.is_running ? st.shared_dir : dir)}" style="flex:1">
+      <input class="input" id="sh-port" type="number" value="${st.port || 8787}" style="width:90px">
+      <button class="btn primary" onclick="startLocalShareServer()">▶ Server starten</button>
+      <button class="btn danger" onclick="stopLocalShareServer()">⏹ Stoppen</button>
+    </div>
+    <div id="sh-status-box" style="display:flex;gap:20px;align-items:center;margin-top:12px;"></div>
+  `, null, 'tool:ShareServer');
+  renderShareServerStatus(st);
+}
+
+function renderShareServerStatus(st) {
+  const box = document.getElementById('sh-status-box');
+  if (!box) return;
+  if (!st || !st.is_running) {
+    box.innerHTML = `<div style="color:var(--fg-muted)">HTTP-Share-Server ist derzeit gestoppt.</div>`;
+    return;
+  }
+  box.innerHTML = `
+    <div style="background:#fff;padding:8px;border-radius:8px;width:160px;height:160px;flex-shrink:0;">${st.qr_svg || ''}</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:var(--ok);margin-bottom:6px;">✓ Server aktiv im lokalen Netzwerk (LAN)</div>
+      <div style="margin-bottom:6px;">URL: <a href="#" onclick="rpc('open_url',{url:'${esc(st.url)}'});return false;" style="color:var(--accent);font-family:var(--font-mono);font-weight:700;">${esc(st.url)}</a></div>
+      <div style="font-size:12px;color:var(--fg-dim);">Freigegebener Ordner: <code>${esc(st.shared_dir)}</code></div>
+      <div style="font-size:11.5px;color:var(--fg-muted);margin-top:6px;">QR-Code mit dem Smartphone scannen, um Dateien direkt über WLAN im Browser herunterzuladen.</div>
+    </div>
+  `;
+}
+
+async function startLocalShareServer() {
+  const dir = document.getElementById('sh-dir').value;
+  const port = parseInt(document.getElementById('sh-port').value, 10) || 8787;
+  const st = await rpc('share_server', { sub: 'start', dir, port });
+  renderShareServerStatus(st);
+  toast('Lokaler HTTP-Teilen-Server gestartet: ' + (st.url || ''));
+}
+
+async function stopLocalShareServer() {
+  const st = await rpc('share_server', { sub: 'stop' });
+  renderShareServerStatus(st);
+  toast('HTTP-Teilen-Server gestoppt.');
+}
+
+/* Feature 17: Live Filesystem Watcher Polling */
+function startLiveFsWatcherLoop() {
+  setInterval(async () => {
+    if (document.querySelector('.modal-bg.open')) return;
+    const activeTag = document.activeElement?.tagName;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+    const res = await rpc('fs_watcher_poll');
+    const changed = res?.changed_dirs || [];
+    if (!changed.length) return;
+    ['left', 'right'].forEach(side => {
+      const p = getTab(side)?.path || '';
+      if (changed.some(c => p.toLowerCase().startsWith(c.toLowerCase()) || c.toLowerCase().startsWith(p.toLowerCase()))) {
+        loadPane(side, false);
+      }
+    });
+  }, 2500);
+}
+
+/* Feature 18: Symlink, Hardlink & Junction Manager (Ctrl+Alt+K) */
+function openLinkManagerModal() {
+  const item = getSelectedSingleItem();
+  const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
+  const target = item ? item.full_path : getTab(STATE.activeSide).path;
+  const defaultLink = getTab(otherSide).path.replace(/[\\/]+$/, '') + '\\' + (item ? item.name : 'link');
+  showToolModal('⛓ Symlink-, Hardlink- & Junction-Manager (Strg+Alt+K)', `
+    <div class="prefs-card" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <label>Verknüpfungstyp:</label>
+        <select class="select" id="lnk-kind" style="width:100%;margin-top:4px;">
+          <option value="Junction">Directory Junction / Reparse Point (Ordner, keine Admin-Rechte nötig)</option>
+          <option value="Hardlink">Dateisystem-Hardlink (Datei auf gleichem Laufwerk)</option>
+          <option value="Symlink">Symbolischer Link (Symlink für Datei oder Ordner)</option>
+        </select>
+      </div>
+      <div>
+        <label>Zielpfad (Original-Datei oder Original-Ordner):</label>
+        <input class="input" id="lnk-target" value="${esc(target)}" style="width:100%;margin-top:4px;">
+      </div>
+      <div>
+        <label>Neuer Link-Pfad (wird erstellt):</label>
+        <input class="input" id="lnk-path" value="${esc(defaultLink)}" style="width:100%;margin-top:4px;">
+      </div>
+    </div>
+    <div id="lnk-msg" style="margin-top:8px;font-weight:600;"></div>
+  `, `<button class="btn" onclick="closeModal('modalTool')">Abbrechen</button><button class="btn primary" onclick="createFilesystemLinkNow()">⛓ Verknüpfung jetzt erstellen</button>`, 'tool:LinkManager');
+}
+
+async function createFilesystemLinkNow() {
+  const res = await rpc('link_manager', {
+    sub: 'create',
+    link_path: document.getElementById('lnk-path').value,
+    target_path: document.getElementById('lnk-target').value,
+    kind: document.getElementById('lnk-kind').value
+  });
+  if (res && res.ok) {
+    closeModal('modalTool');
+    loadPane('left');
+    loadPane('right');
+    toast('Verknüpfung erfolgreich erstellt!');
+  } else {
+    document.getElementById('lnk-msg').textContent = res?.error || 'Fehler beim Erstellen der Verknüpfung';
+  }
 }
 
 /* ==================== RESIZABLE, DRAGGABLE & PERSISTENT CHILD WINDOWS ==================== */
@@ -6620,8 +7645,15 @@ window.addEventListener('keydown', (e) => {
   if (e.altKey && !e.ctrlKey) {
     if (e.key === 'F7') { e.preventDefault(); openDeepSearchModal(); return; }
     if (e.key === 'F5') { e.preventDefault(); openArchiveModal(); return; }
+    if (e.key === 'F10') { e.preventDefault(); toggleDirTreeSidebar(); return; }
+    if (e.key === 'ArrowDown' && !inInput) { e.preventDefault(); openSmartJumpModal(); return; }
     if (e.key === 'ArrowLeft' && !inInput) { e.preventDefault(); navHistory(STATE.activeSide, -1); return; }
     if (e.key === 'ArrowRight' && !inInput) { e.preventDefault(); navHistory(STATE.activeSide, 1); return; }
+  }
+  if (!e.altKey && !e.ctrlKey && !inInput) {
+    if (e.code === 'NumpadAdd' || e.key === '+') { e.preventDefault(); openSelectionEngineModal('select'); return; }
+    if (e.code === 'NumpadSubtract' || e.key === '-') { e.preventDefault(); openSelectionEngineModal('deselect'); return; }
+    if (e.code === 'NumpadMultiply' || e.key === '*') { e.preventDefault(); invertSelectionInActivePane(); return; }
   }
   if (!e.altKey && !e.ctrlKey) {
     if (e.key === 'F1') { e.preventDefault(); openSettingsModal('Shortcuts'); return; }
@@ -6638,10 +7670,21 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openCommandPalette(); return; }
 
-  if (e.ctrlKey && !e.shiftKey) {
+  if (e.ctrlKey && e.altKey && !e.shiftKey) {
+    const k = e.key.toLowerCase();
+    if (k === 'p') { e.preventDefault(); openPdfToolkitModal(); return; }
+    if (k === 'l') { e.preventDefault(); openNtfsLocksmithModal(); return; }
+    if (k === 'd') { e.preventDefault(); openDataConverterModal(); return; }
+    if (k === 'u') { e.preventDefault(); openUserCommandsModal(); return; }
+    if (k === 's') { e.preventDefault(); openShareServerModal(); return; }
+    if (k === 'k') { e.preventDefault(); openLinkManagerModal(); return; }
+  }
+
+  if (e.ctrlKey && !e.shiftKey && !e.altKey) {
     const k = e.key.toLowerCase();
     if (k === ',') { e.preventDefault(); openSettingsModal('Appearance'); return; }
     if (k === 'm') { e.preventDefault(); openBatchRenameModal(); return; }
+    if (k === 'g') { e.preventDefault(); openSmartJumpModal(); return; }
     if (k === 'q') { e.preventDefault(); toggleDock(); return; }
     if (k === 'b') { e.preventDefault(); toggleBranchView(STATE.activeSide); return; }
     if (k === 'h') { e.preventDefault(); toggleBoolSetting('show_hidden_files'); return; }
@@ -6653,7 +7696,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'f') { e.preventDefault(); document.getElementById('filter-' + STATE.activeSide).focus(); return; }
   }
 
-  if (e.ctrlKey && e.shiftKey) {
+  if (e.ctrlKey && e.shiftKey && !e.altKey) {
     const k = e.key.toLowerCase();
     if (k === 'u') { e.preventDefault(); openDiffModal(); return; }
     if (k === 'k') { e.preventDefault(); openChecksumsModal(); return; }
@@ -6669,6 +7712,10 @@ window.addEventListener('keydown', (e) => {
     if (k === 'w') { e.preventDefault(); openTreemapModal(); return; }
     if (k === 'd') { e.preventDefault(); openDuplicatesModal(); return; }
     if (k === 'c') { e.preventDefault(); openRemoteModal(); return; }
+    if (k === 'q') { e.preventDefault(); openTransferQueueModal(); return; }
+    if (k === 'i') { e.preventDefault(); openImageConverterModal(); return; }
+    if (k === 'v') { e.preventDefault(); openFileVaultModal(); return; }
+    if (k === 'y') { e.preventDefault(); toggleSyncLock(); return; }
   }
 
   const hasOpenModal = !!document.querySelector('.modal-bg.open');

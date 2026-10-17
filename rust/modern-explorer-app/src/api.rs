@@ -18,6 +18,12 @@ use modern_explorer_core::{
         DirectorySyncService, FileOperationExecutor, SyncComparisonMode, SyncDirectionMode,
         UndoAction, UndoHistoryService,
     },
+    power_tools_v2::{
+        ClipboardHistoryService, DataConverterService, FrecencyStore, ImageConvertOptions,
+        ImageConverterService, LinkManagerService, LiveDirectoryWatcher, LocalShareServerState,
+        NtfsAndLockInspectorService, PdfToolkitService, SelectionPresetsStore, SelectionRule,
+        TransferQueueManager, UserCommandItem, UserCommandStore,
+    },
     remote::{RemoteConnectionProfile, RemoteFileSystemService, RemoteProtocol},
     session::{CommandRegistry, FavoritesStore, SessionState, SessionStore},
     settings::{AppSettings, ColorSettingTarget, SettingsStore},
@@ -59,6 +65,7 @@ pub struct FileItemDto {
     pub tag_color_hex: Option<String>,
     pub tag_label: Option<String>,
     pub tag_note: Option<String>,
+    pub link_target: Option<String>,
 }
 
 #[derive(Clone)]
@@ -81,6 +88,13 @@ pub struct BackendState {
     pub quick_runner: QuickCommandRunnerService,
     pub cached_treemap: Option<TreemapNode>,
     pub duplicates_job: Arc<Mutex<Option<DuplicatesJobState>>>,
+    pub selection_store: SelectionPresetsStore,
+    pub transfer_queue: TransferQueueManager,
+    pub frecency_store: FrecencyStore,
+    pub clipboard_history: ClipboardHistoryService,
+    pub user_commands: UserCommandStore,
+    pub share_server: LocalShareServerState,
+    pub fs_watcher: LiveDirectoryWatcher,
 }
 
 impl BackendState {
@@ -96,6 +110,13 @@ impl BackendState {
             quick_runner: QuickCommandRunnerService::new(),
             cached_treemap: None,
             duplicates_job: Arc::new(Mutex::new(None)),
+            selection_store: SelectionPresetsStore::load(),
+            transfer_queue: TransferQueueManager::new(),
+            frecency_store: FrecencyStore::load(),
+            clipboard_history: ClipboardHistoryService::load(),
+            user_commands: UserCommandStore::load(),
+            share_server: LocalShareServerState::new(),
+            fs_watcher: LiveDirectoryWatcher::new(),
         }
     }
 
@@ -144,6 +165,20 @@ impl BackendState {
             "treemap" => self.rpc_treemap(params),
             "archive" => self.rpc_archive(params),
             "remote" => self.rpc_remote(params),
+            "selection_engine" => self.rpc_selection_engine(params),
+            "transfer_queue" => self.rpc_transfer_queue(params),
+            "dir_tree" => self.rpc_dir_tree(params),
+            "smart_jump" => self.rpc_smart_jump(params),
+            "image_converter" => self.rpc_image_converter(params),
+            "pdf_toolkit" => self.rpc_pdf_toolkit(params),
+            "file_vault" => self.rpc_file_vault(params),
+            "ntfs_locksmith" => self.rpc_ntfs_locksmith(params),
+            "hex_editor" => self.rpc_hex_editor(params),
+            "data_converter" => self.rpc_data_converter(params),
+            "user_commands" => self.rpc_user_commands(params),
+            "share_server" => self.rpc_share_server(params),
+            "fs_watcher_poll" => self.rpc_fs_watcher_poll(),
+            "link_manager" => self.rpc_link_manager(params),
             "check_updates" => self.rpc_check_updates(params),
             "install_update" => self.rpc_install_update(params),
             "open_url" => {
@@ -215,18 +250,10 @@ impl BackendState {
 
         let default_release_md = format!(
             "## What's New in Modern Explorer v{}\n\
-            - **Studio Design Edition (`Nuharji/markdown-studio` Style) + 100% .NET Feature-Parität**: Modernste Studio-Oberfläche mit Menüleiste, Optionsleiste, vertikaler Werkzeug-Rail, Dual-Pane-Workspace, rechtem Inspector-Dock und 4 Studio-Themes (`Dark`, `Light`, `GitHub Light`, `GitHub Dark`).\n\
-            - **Kein Aufblitzen von Terminalfenstern (`CREATE_NO_WINDOW`)**: Reine Rust-Git-Erkennung (`.git/HEAD` in `< 0.01 ms`) beim Navigieren sowie `CREATE_NO_WINDOW` für alle Hintergrundprozesse.\n\
-            - **Vollständige Einstellungen wie in der .NET-Version**: Alle 6 Kategorien (Darstellung & Design, Farben & Hervorhebung inkl. aller 7 Treemap-Farben, Dateiliste & Verhalten, Bildvorschau beim Hover, Schriftgrößen für 8 Hauptbereiche + 10 Einzeldialoge, Sitzung/Updates/Fenster + Tastenkürzel).\n\
-            - **Mehrzeiliger, scrollbarer Release-Notes-Bereich & Browser-Link (`v{}`)**: Vollständige mehrzeilige Release Notes direkt im Update- und Info-Fenster lesbar und scrollbar, ergänzt durch den direkten Link **🌐 Auf GitHub ansehen ↗**.\n\
-            - **Alle 20 integrierten Power-Tools**:\n\
-              - Mehrfach-Umbenennungstool (`Strg+M`) inkl. Bild-/EXIF-Platzhaltern (`[Width]`, `[Height]`, `[Resolution]`)\n\
-              - Visueller Side-by-Side Datei-Diff-Viewer (`Strg+Shift+U`) mit LCS & Hunk-Merge\n\
-              - Prüfsummen-Generator & Manifest-Verifizierer (`Strg+Shift+K`) für SHA-256, SHA-512, MD5, CRC32\n\
-              - Datei-Splitter/Joiner (`.001`) & Sicherer Datei-Shredder (`1-Pass`, `3-Pass DoD`, `7-Pass`)\n\
-              - Farbige Datei-Tags & Notizen (`Strg+Shift+L`), Arbeitsbereiche (`Strg+Shift+O`), Smart-Export (`Strg+Shift+E`), Virtueller Sammelkorb (`Strg+Shift+B`), Attribute/EXIF-Editor (`Strg+Shift+A`), Eingebettete Konsole (`>_`), Erweitertes Git-Panel (`Strg+Shift+G`), Ordner-Synchronisierung (`Strg+Shift+S`) & Squarified Treemap (`Strg+Shift+W`).",
+            - **Studio Design Edition (`Nuharji/markdown-studio` Style) + 37 integrierte Power-Tools**: Modernste Studio-Oberfläche mit Menüleiste, Optionsleiste, vertikaler Werkzeug-Rail, einklappbarem Ordner-Baum (`Alt+F10`), Dual-Pane-Workspace, rechtem Inspector-Dock und 4 Studio-Themes (`Dark`, `Light`, `GitHub Light`, `GitHub Dark`).\n\
+            - **Synchrones Navigieren & Scrollen (`Sync-Lock`), Smart Jump (`Alt+Down`), Erweiterte Auswahl-Engine (`Num + / - / *`), Hintergrund-Transfer-Queue mit Speed-Limit & Live-Filesystem-Watcher (`notify`)**.\n\
+            - **Batch-Bildkonverter, PDF-Werkzeugkasten (`lopdf`), AES-256-GCM Datei-Tresor (`.menc`), NTFS-ADS & File-Locksmith-Inspector, Interaktiver Hex-Editor, Strukturierter Daten-Konverter (`JSON/YAML/TOML/CSV`), Benutzerdefinierte Toolbar-Tools (`%P`, `%T`, `%N`), Lokaler HTTP/QR-Code-Dateiserver, Symlink/Hardlink/Junction-Manager, `.7z`/`.tar.zst`/`.tar.xz`/`.rar`-Archive & WebDAV/S3-Cloud-Speicher**.",
             GitHubUpdateService::CURRENT_VERSION,
-            GitHubUpdateService::CURRENT_VERSION
         );
 
         let saved_session = SessionStore::load();
@@ -241,6 +268,8 @@ impl BackendState {
             "favorites": self.favorites.items,
             "workspaces": self.workspace_service.profiles,
             "remote_profiles": self.remote_service.profiles,
+            "selection_presets": self.selection_store.presets,
+            "user_commands": self.user_commands.commands,
             "drives": drives,
             "templates": templates,
             "commands": commands,
@@ -252,7 +281,7 @@ impl BackendState {
         })
     }
 
-    fn rpc_list_dir(&self, params: &Value) -> Value {
+    fn rpc_list_dir(&mut self, params: &Value) -> Value {
         let raw_path = params
             .get("path")
             .and_then(|v| v.as_str())
@@ -278,6 +307,11 @@ impl BackendState {
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
 
+        let side = params
+            .get("side")
+            .and_then(|v| v.as_str())
+            .unwrap_or("left");
+
         let is_virtual = ArchiveService::is_virtual_archive_path(raw_path)
             || (Path::new(raw_path).is_file() && ArchiveService::is_supported_archive(Path::new(raw_path)));
 
@@ -298,6 +332,8 @@ impl BackendState {
                 std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
             };
             let clean_path = canonical.to_string_lossy().to_string();
+            self.frecency_store.record_visit(&clean_path);
+            self.fs_watcher.update_watch(side, &clean_path);
             let entries = DirectoryEnumerator::list_directory(
                 &canonical,
                 self.settings.show_hidden_files,
@@ -413,6 +449,12 @@ impl BackendState {
                     base_display
                 };
 
+                let link_target = if !is_virtual {
+                    LinkManagerService::read_link_target(Path::new(&e.full_path))
+                } else {
+                    None
+                };
+
                 FileItemDto {
                     full_path: e.full_path.clone(),
                     display_name,
@@ -430,6 +472,7 @@ impl BackendState {
                     tag_color_hex: tag_hex,
                     tag_label: tag_lbl,
                     tag_note,
+                    link_target,
                 }
             })
             .collect();
@@ -2038,11 +2081,8 @@ impl BackendState {
             })
             .unwrap_or_default();
         let dest = Path::new(params.get("dest_archive").and_then(|v| v.as_str()).unwrap_or("archive.zip"));
-        let fmt = if dest.to_string_lossy().ends_with(".tar.gz") || dest.to_string_lossy().ends_with(".tgz") {
-            ArchiveFormat::TarGz
-        } else {
-            ArchiveFormat::Zip
-        };
+        let fmt_param = params.get("format").and_then(|v| v.as_str()).unwrap_or("");
+        let fmt = ArchiveFormat::from_str_or_path(fmt_param, dest);
         match ArchiveService::pack_archive(&paths, dest, fmt) {
             Ok(n) => json!({ "ok": true, "count": n }),
             Err(e) => json!({ "error": e }),
@@ -2055,27 +2095,582 @@ impl BackendState {
             let proto = match params.get("protocol").and_then(|v| v.as_str()).unwrap_or("Sftp") {
                 "Ftps" => RemoteProtocol::Ftps,
                 "Ftp" => RemoteProtocol::Ftp,
+                "WebDav" => RemoteProtocol::WebDav,
+                "S3" => RemoteProtocol::S3,
                 _ => RemoteProtocol::Sftp,
             };
             let prof = RemoteConnectionProfile {
                 name: params.get("name").and_then(|v| v.as_str()).unwrap_or("Server").to_string(),
                 protocol: proto,
                 host: params.get("host").and_then(|v| v.as_str()).unwrap_or("example.com").to_string(),
-                port: params.get("port").and_then(|v| v.as_u64()).unwrap_or(22) as u16,
+                port: params.get("port").and_then(|v| v.as_u64()).unwrap_or(proto.default_port() as u64) as u16,
                 username: params.get("username").and_then(|v| v.as_str()).unwrap_or("root").to_string(),
                 remote_path: params.get("remote_path").and_then(|v| v.as_str()).unwrap_or("/").to_string(),
                 ssh_private_key_path: String::new(),
+                password_or_secret: params.get("password").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                bucket: params.get("s3_bucket").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                region: params.get("s3_region").and_then(|v| v.as_str()).unwrap_or("us-east-1").to_string(),
+                endpoint_url: params.get("endpoint_url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                use_tls: params.get("use_tls").and_then(|v| v.as_bool()).unwrap_or(true),
             };
             self.remote_service.upsert(prof);
         } else if sub == "delete" {
             if let Some(name) = params.get("name").and_then(|v| v.as_str()) {
                 self.remote_service.remove(name);
             }
+        } else if sub == "browse" {
+            let prof_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let password = params.get("password").and_then(|v| v.as_str()).unwrap_or("");
+            let path_override = params.get("remote_path").and_then(|v| v.as_str()).unwrap_or("");
+            if let Some(mut prof) = self
+                .remote_service
+                .profiles
+                .iter()
+                .find(|p| p.name.eq_ignore_ascii_case(prof_name))
+                .cloned()
+            {
+                if !password.is_empty() {
+                    prof.password_or_secret = password.to_string();
+                }
+                let subpath = if path_override.is_empty() {
+                    prof.remote_path.clone()
+                } else {
+                    path_override.to_string()
+                };
+                return match RemoteFileSystemService::list_remote_entries(&prof, &subpath) {
+                    Ok(entries) => {
+                        let items: Vec<Value> = entries
+                            .into_iter()
+                            .map(|e| {
+                                json!({
+                                    "name": e.name,
+                                    "full_path": e.full_path,
+                                    "size_bytes": e.size_bytes,
+                                    "size_text": format_bytes(e.size_bytes),
+                                    "is_directory": e.is_directory,
+                                    "modified_text": e.modified_text,
+                                })
+                            })
+                            .collect();
+                        json!({ "ok": true, "entries": items })
+                    }
+                    Err(e) => json!({ "error": e }),
+                };
+            } else {
+                return json!({ "error": "Profil nicht gefunden." });
+            }
         }
         json!({
             "ok": true,
             "profiles": self.remote_service.profiles,
         })
+    }
+
+    fn rpc_selection_engine(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("evaluate");
+        if sub == "save_preset" {
+            if let Ok(rule) = serde_json::from_value::<SelectionRule>(params.get("rule").cloned().unwrap_or_default()) {
+                self.selection_store.presets.retain(|r| !r.name.eq_ignore_ascii_case(&rule.name));
+                self.selection_store.presets.push(rule);
+                self.selection_store.save();
+            }
+            return json!({ "ok": true, "presets": self.selection_store.presets });
+        }
+        if sub == "delete_preset" {
+            if let Some(name) = params.get("name").and_then(|v| v.as_str()) {
+                self.selection_store.presets.retain(|r| !r.name.eq_ignore_ascii_case(name));
+                self.selection_store.save();
+            }
+            return json!({ "ok": true, "presets": self.selection_store.presets });
+        }
+        if sub == "compare_panes" {
+            let left_dir = params.get("left_dir").and_then(|v| v.as_str()).unwrap_or(".");
+            let right_dir = params.get("right_dir").and_then(|v| v.as_str()).unwrap_or(".");
+            let mode = params.get("mode").and_then(|v| v.as_str()).unwrap_or("missing_or_newer");
+            let left_entries = DirectoryEnumerator::list_directory(Path::new(left_dir), self.settings.show_hidden_files, false);
+            let right_entries = DirectoryEnumerator::list_directory(Path::new(right_dir), self.settings.show_hidden_files, false);
+
+            let mut left_marked = Vec::new();
+            let mut right_marked = Vec::new();
+
+            for l in &left_entries {
+                if l.is_directory {
+                    continue;
+                }
+                let r_match = right_entries.iter().find(|r| r.name.eq_ignore_ascii_case(&l.name));
+                match mode {
+                    "missing" => {
+                        if r_match.is_none() {
+                            left_marked.push(l.full_path.clone());
+                        }
+                    }
+                    "newer" => {
+                        if let Some(r) = r_match {
+                            if l.modified > r.modified {
+                                left_marked.push(l.full_path.clone());
+                            }
+                        }
+                    }
+                    "different_size" => {
+                        if let Some(r) = r_match {
+                            if l.size_bytes != r.size_bytes {
+                                left_marked.push(l.full_path.clone());
+                            }
+                        }
+                    }
+                    _ => {
+                        if r_match.map(|r| l.modified > r.modified || l.size_bytes != r.size_bytes).unwrap_or(true) {
+                            left_marked.push(l.full_path.clone());
+                        }
+                    }
+                }
+            }
+
+            for r in &right_entries {
+                if r.is_directory {
+                    continue;
+                }
+                let l_match = left_entries.iter().find(|l| l.name.eq_ignore_ascii_case(&r.name));
+                match mode {
+                    "missing" => {
+                        if l_match.is_none() {
+                            right_marked.push(r.full_path.clone());
+                        }
+                    }
+                    "newer" => {
+                        if let Some(l) = l_match {
+                            if r.modified > l.modified {
+                                right_marked.push(r.full_path.clone());
+                            }
+                        }
+                    }
+                    "different_size" => {
+                        if let Some(l) = l_match {
+                            if r.size_bytes != l.size_bytes {
+                                right_marked.push(r.full_path.clone());
+                            }
+                        }
+                    }
+                    _ => {
+                        if l_match.map(|l| r.modified > l.modified || r.size_bytes != l.size_bytes).unwrap_or(true) {
+                            right_marked.push(r.full_path.clone());
+                        }
+                    }
+                }
+            }
+
+            return json!({
+                "ok": true,
+                "left_marked": left_marked,
+                "right_marked": right_marked,
+                "presets": self.selection_store.presets,
+            });
+        }
+
+        // Default: evaluate rule against directory
+        let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
+        let rule: SelectionRule = serde_json::from_value(params.get("rule").cloned().unwrap_or_default()).unwrap_or_default();
+        let entries = DirectoryEnumerator::list_directory(Path::new(dir), self.settings.show_hidden_files, false);
+        let matched = SelectionPresetsStore::evaluate_entries(&entries, &rule);
+        json!({
+            "ok": true,
+            "matched_paths": matched,
+            "presets": self.selection_store.presets,
+        })
+    }
+
+    fn rpc_transfer_queue(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("list");
+        match sub {
+            "enqueue" => {
+                let is_move = params.get("is_move").and_then(|v| v.as_bool()).unwrap_or(false);
+                let dest_dir = params.get("dest_dir").and_then(|v| v.as_str()).unwrap_or(".").to_string();
+                let paths: Vec<String> = params
+                    .get("paths")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                    .unwrap_or_default();
+                let id = self.transfer_queue.enqueue(paths, dest_dir, is_move);
+                return json!({ "ok": true, "enqueued_id": id });
+            }
+            "pause" => {
+                let paused = params.get("paused").and_then(|v| v.as_bool()).unwrap_or(true);
+                self.transfer_queue.paused.store(paused, Ordering::Relaxed);
+            }
+            "cancel" => {
+                let id = params.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
+                if let Ok(mut g) = self.transfer_queue.items.lock() {
+                    if let Some(it) = g.iter_mut().find(|i| i.id == id) {
+                        it.status = "Cancelled".to_string();
+                    }
+                }
+            }
+            "speed_limit" => {
+                let kbps = params.get("kbps").and_then(|v| v.as_u64()).unwrap_or(0);
+                self.transfer_queue.speed_limit_kbps.store(kbps, Ordering::Relaxed);
+            }
+            "clear_finished" => {
+                if let Ok(mut g) = self.transfer_queue.items.lock() {
+                    g.retain(|i| i.status == "Queued" || i.status == "Running" || i.status == "Paused");
+                }
+            }
+            _ => {}
+        }
+        let items = self.transfer_queue.items.lock().map(|g| g.clone()).unwrap_or_default();
+        let paused = self.transfer_queue.paused.load(Ordering::Relaxed);
+        let speed_limit_kbps = self.transfer_queue.speed_limit_kbps.load(Ordering::Relaxed);
+        json!({
+            "ok": true,
+            "paused": paused,
+            "speed_limit_kbps": speed_limit_kbps,
+            "items": items,
+        })
+    }
+
+    fn rpc_dir_tree(&self, params: &Value) -> Value {
+        let path_str = params.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path_str.is_empty() {
+            let drives: Vec<Value> = DriveItem::enumerate_drives()
+                .into_iter()
+                .map(|d| {
+                    let short = d.root_path.trim_end_matches('\\').to_string();
+                    json!({
+                        "name": if d.name.is_empty() { short } else { format!("{} ({})", short, d.name) },
+                        "full_path": d.root_path,
+                        "has_children": true,
+                    })
+                })
+                .collect();
+            return json!({ "ok": true, "nodes": drives });
+        }
+        let nodes = FrecencyStore::list_subdirectories(
+            Path::new(path_str),
+            self.settings.show_hidden_files,
+        );
+        json!({ "ok": true, "nodes": nodes })
+    }
+
+    fn rpc_smart_jump(&self, params: &Value) -> Value {
+        let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("");
+        let results = self.frecency_store.query_smart_jump(query, 30);
+        json!({ "ok": true, "items": results })
+    }
+
+    fn rpc_image_converter(&self, params: &Value) -> Value {
+        let paths: Vec<String> = params
+            .get("paths")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+        let opts = ImageConvertOptions {
+            target_format: params.get("target_format").and_then(|v| v.as_str()).unwrap_or("webp").to_string(),
+            scale_percent: params.get("scale_percent").and_then(|v| v.as_u64()).map(|n| n as u32),
+            max_width: params.get("resize_width").and_then(|v| v.as_u64()).map(|n| n as u32),
+            max_height: params.get("resize_height").and_then(|v| v.as_u64()).map(|n| n as u32),
+            rotate_degrees: params.get("rotate_degrees").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            flip_horizontal: params.get("flip_horizontal").and_then(|v| v.as_bool()).unwrap_or(false),
+            flip_vertical: params.get("flip_vertical").and_then(|v| v.as_bool()).unwrap_or(false),
+            grayscale: params.get("grayscale").and_then(|v| v.as_bool()).unwrap_or(false),
+            watermark_banner: params.get("watermark_banner").and_then(|v| v.as_bool()).unwrap_or(false),
+            output_dir: params.get("output_dir").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            filename_suffix: params.get("filename_suffix").and_then(|v| v.as_str()).unwrap_or("_conv").to_string(),
+        };
+        let results = ImageConverterService::convert_batch(&paths, &opts);
+        json!({ "ok": true, "results": results })
+    }
+
+    fn rpc_pdf_toolkit(&self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("inspect");
+        match sub {
+            "inspect" => {
+                let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or(""));
+                match PdfToolkitService::inspect_pdf(path) {
+                    Ok(info) => json!({ "ok": true, "info": info }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            "merge" => {
+                let paths: Vec<String> = params
+                    .get("paths")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                    .unwrap_or_default();
+                let out_path = Path::new(params.get("output_path").and_then(|v| v.as_str()).unwrap_or("merged.pdf"));
+                match PdfToolkitService::merge_pdfs(&paths, out_path) {
+                    Ok(pages) => json!({ "ok": true, "total_pages": pages, "output_path": out_path.to_string_lossy() }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            "extract" => {
+                let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or(""));
+                let range_str = params.get("range").and_then(|v| v.as_str()).unwrap_or("1");
+                let out_path = Path::new(params.get("output_path").and_then(|v| v.as_str()).unwrap_or("extracted.pdf"));
+                let mut pages = Vec::new();
+                for part in range_str.split(|c| c == ',' || c == ';') {
+                    let t = part.trim();
+                    if let Some((a, b)) = t.split_once('-') {
+                        if let (Ok(start), Ok(end)) = (a.trim().parse::<u32>(), b.trim().parse::<u32>()) {
+                            for p in start.min(end)..=start.max(end) {
+                                pages.push(p);
+                            }
+                        }
+                    } else if let Ok(p) = t.parse::<u32>() {
+                        pages.push(p);
+                    }
+                }
+                match PdfToolkitService::extract_page_range(path, out_path, &pages) {
+                    Ok(n) => json!({ "ok": true, "extracted_pages": n, "output_path": out_path.to_string_lossy() }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            "rotate" => {
+                let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or(""));
+                let deg = params.get("degrees").and_then(|v| v.as_i64()).unwrap_or(90);
+                let out_path = Path::new(params.get("output_path").and_then(|v| v.as_str()).unwrap_or("rotated.pdf"));
+                match PdfToolkitService::rotate_pdf_pages(path, out_path, deg) {
+                    Ok(pages) => json!({ "ok": true, "rotated_pages": pages, "output_path": out_path.to_string_lossy() }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            _ => json!({ "error": "Unknown PDF sub-action" }),
+        }
+    }
+
+    fn rpc_file_vault(&self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("encrypt");
+        let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or(""));
+        let password = params.get("password").and_then(|v| v.as_str()).unwrap_or("");
+        let keyfile = params
+            .get("keyfile")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+            .map(Path::new);
+        let delete_source = params.get("delete_source").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        if sub == "decrypt" {
+            let out_path = params
+                .get("output_path")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    let s = path.to_string_lossy();
+                    if let Some(stripped) = s.strip_suffix(".menc") {
+                        PathBuf::from(stripped)
+                    } else {
+                        path.with_extension("decrypted")
+                    }
+                });
+            match modern_explorer_core::power_tools_v2::FileVaultService::decrypt_file(path, &out_path, password, keyfile) {
+                Ok(bytes) => {
+                    if delete_source {
+                        let _ = fs::remove_file(path);
+                    }
+                    json!({ "ok": true, "output_path": out_path.to_string_lossy(), "bytes": bytes, "size_text": format_bytes(bytes) })
+                }
+                Err(e) => json!({ "error": e }),
+            }
+        } else {
+            let out_str = params
+                .get("output_path")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(format!("{}.menc", path.to_string_lossy())));
+            match modern_explorer_core::power_tools_v2::FileVaultService::encrypt_file(path, &out_str, password, keyfile) {
+                Ok(bytes) => {
+                    if delete_source {
+                        let _ = FileOperationExecutor::delete_entry(path);
+                    }
+                    json!({ "ok": true, "output_path": out_str.to_string_lossy(), "bytes": bytes, "size_text": format_bytes(bytes) })
+                }
+                Err(e) => json!({ "error": e }),
+            }
+        }
+    }
+
+    fn rpc_ntfs_locksmith(&self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("inspect");
+        let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or("."));
+        if sub == "kill_process" {
+            let pid = params.get("pid").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            if let Err(e) = NtfsAndLockInspectorService::kill_process_by_pid(pid) {
+                return json!({ "error": e });
+            }
+        } else if sub == "remove_stream" {
+            if let Err(e) = NtfsAndLockInspectorService::unblock_zone_identifier(path) {
+                return json!({ "error": e });
+            }
+        }
+        let info = NtfsAndLockInspectorService::inspect_path(path);
+        json!({ "ok": true, "info": info })
+    }
+
+    fn rpc_hex_editor(&self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("read");
+        let path = Path::new(params.get("path").and_then(|v| v.as_str()).unwrap_or(""));
+        match sub {
+            "read" => {
+                let offset = params.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                let length = params.get("length").and_then(|v| v.as_u64()).unwrap_or(512) as usize;
+                match FileContentService::read_hex_editor_page(path, offset, length) {
+                    Ok(page) => json!({ "ok": true, "page": page }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            "patch" => {
+                let patches: Vec<(u64, u8)> = params
+                    .get("patches")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|item| {
+                                let off = item.get("offset")?.as_u64()?;
+                                let b = item.get("byte")?.as_u64()? as u8;
+                                Some((off, b))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                match FileContentService::apply_hex_patches(path, &patches) {
+                    Ok(count) => json!({ "ok": true, "patched_count": count }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            "search" => {
+                let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("");
+                let is_hex = params.get("is_hex").and_then(|v| v.as_bool()).unwrap_or(false);
+                match FileContentService::search_binary(path, query, is_hex, 100) {
+                    Ok(offsets) => json!({ "ok": true, "offsets": offsets }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
+            _ => json!({ "error": "Unknown hex_editor sub-action" }),
+        }
+    }
+
+    fn rpc_data_converter(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("convert");
+        match sub {
+            "push_clipboard" => {
+                if let Some(txt) = params.get("text").and_then(|v| v.as_str()) {
+                    self.clipboard_history.push_entry(txt.to_string(), "Editor/UI");
+                }
+                json!({ "ok": true, "history": self.clipboard_history.items })
+            }
+            "clear_clipboard" => {
+                self.clipboard_history.items.clear();
+                self.clipboard_history.save();
+                json!({ "ok": true, "history": self.clipboard_history.items })
+            }
+            "list_clipboard" => {
+                json!({ "ok": true, "history": self.clipboard_history.items })
+            }
+            _ => {
+                let input = params.get("input").and_then(|v| v.as_str()).unwrap_or("");
+                let from_fmt = params.get("from_format").and_then(|v| v.as_str()).unwrap_or("auto");
+                let to_fmt = params.get("to_format").and_then(|v| v.as_str()).unwrap_or("json");
+                match DataConverterService::convert_structured_data(input, from_fmt, to_fmt) {
+                    Ok(output) => {
+                        self.clipboard_history.push_entry(output.clone(), &format!("{} → {}", from_fmt.to_uppercase(), to_fmt.to_uppercase()));
+                        json!({ "ok": true, "output": output, "history": self.clipboard_history.items })
+                    }
+                    Err(e) => json!({ "error": e, "history": self.clipboard_history.items }),
+                }
+            }
+        }
+    }
+
+    fn rpc_user_commands(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("list");
+        match sub {
+            "save" => {
+                if let Ok(item) = serde_json::from_value::<UserCommandItem>(params.get("item").cloned().unwrap_or_default()) {
+                    self.user_commands.commands.retain(|c| c.id != item.id);
+                    self.user_commands.commands.push(item);
+                    self.user_commands.save();
+                }
+            }
+            "delete" => {
+                if let Some(id) = params.get("id").and_then(|v| v.as_str()) {
+                    self.user_commands.commands.retain(|c| c.id != id);
+                    self.user_commands.save();
+                }
+            }
+            "execute" => {
+                let id = params.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                let active_dir = params.get("active_dir").and_then(|v| v.as_str()).unwrap_or(".");
+                let target_dir = params.get("target_dir").and_then(|v| v.as_str()).unwrap_or(".");
+                let left_dir = params.get("left_dir").and_then(|v| v.as_str()).unwrap_or(".");
+                let right_dir = params.get("right_dir").and_then(|v| v.as_str()).unwrap_or(".");
+                let selected_file = params.get("selected_file").and_then(|v| v.as_str()).unwrap_or("");
+                let selected_list: Vec<String> = params
+                    .get("selected_list")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                    .unwrap_or_default();
+                if let Some(cmd) = self.user_commands.commands.iter().find(|i| i.id == id).cloned() {
+                    return match UserCommandStore::execute_command(
+                        &cmd,
+                        active_dir,
+                        target_dir,
+                        selected_file,
+                        &selected_list,
+                        left_dir,
+                        right_dir,
+                    ) {
+                        Ok(msg) => json!({ "ok": true, "message": msg, "items": self.user_commands.commands }),
+                        Err(e) => json!({ "error": e, "items": self.user_commands.commands }),
+                    };
+                } else {
+                    return json!({ "error": "Tool nicht gefunden." });
+                }
+            }
+            _ => {}
+        }
+        json!({ "ok": true, "items": self.user_commands.commands })
+    }
+
+    fn rpc_share_server(&mut self, params: &Value) -> Value {
+        let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("status");
+        if sub == "start" {
+            let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
+            let port = params.get("port").and_then(|v| v.as_u64()).unwrap_or(8080) as u16;
+            if let Err(e) = self.share_server.start(Path::new(dir), port) {
+                return json!({ "error": e });
+            }
+        } else if sub == "stop" {
+            self.share_server.stop();
+        }
+        let running = self.share_server.running.load(Ordering::Relaxed);
+        let logs = self.share_server.access_log.lock().map(|g| g.clone()).unwrap_or_default();
+        json!({
+            "ok": true,
+            "running": running,
+            "url": self.share_server.url,
+            "qr_svg": self.share_server.qr_svg,
+            "shared_root": self.share_server.shared_root.to_string_lossy(),
+            "access_log": logs,
+        })
+    }
+
+    fn rpc_fs_watcher_poll(&self) -> Value {
+        let (dirty_left, dirty_right) = self.fs_watcher.poll_dirty();
+        json!({
+            "ok": true,
+            "dirty_left": dirty_left,
+            "dirty_right": dirty_right,
+        })
+    }
+
+    fn rpc_link_manager(&self, params: &Value) -> Value {
+        let link_type = params.get("link_type").and_then(|v| v.as_str()).unwrap_or("symlink");
+        let target_path = Path::new(params.get("target_path").and_then(|v| v.as_str()).unwrap_or(""));
+        let link_path = Path::new(params.get("link_path").and_then(|v| v.as_str()).unwrap_or(""));
+        match LinkManagerService::create_link(link_type, target_path, link_path) {
+            Ok(msg) => json!({ "ok": true, "message": msg }),
+            Err(e) => json!({ "error": e }),
+        }
     }
 
     fn rpc_check_updates(&self, _params: &Value) -> Value {
