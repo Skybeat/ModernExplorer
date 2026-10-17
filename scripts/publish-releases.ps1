@@ -1,8 +1,7 @@
 param(
     [string]$Version = "auto",
     [ValidateSet("Auto", "Patch", "Minor", "Major")]
-    [string]$BumpType = "Auto",
-    [string]$ReleaseNotes = ""
+    [string]$BumpType = "Auto"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,12 +14,12 @@ $token = $tokenLine.Substring(9).Trim()
 $headers = @{
     "Authorization"        = "Bearer $token"
     "Accept"               = "application/vnd.github+json"
-    "User-Agent"           = "ModernExplorer-ReleasePublisher"
+    "User-Agent"           = "ModernExplorer-Rust-ReleasePublisher"
     "X-GitHub-Api-Version" = "2022-11-28"
 }
 
 if ([string]::IsNullOrWhiteSpace($Version) -or $Version -eq "auto") {
-    $latestVer = [version]"1.0.0"
+    $latestVer = [version]"1.9.6"
     $latestTag = $null
     try {
         $latestRel = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/latest" -Method Get -Headers $headers
@@ -78,182 +77,63 @@ if ([string]::IsNullOrWhiteSpace($Version) -or $Version -eq "auto") {
 }
 
 $TagName = "v$Version"
-$verParts = $Version.Split('.')
-$verMajor = if ($verParts.Length -gt 0) { $verParts[0] } else { "1" }
-$verMinor = if ($verParts.Length -gt 1) { $verParts[1] } else { "0" }
-$verPatch = if ($verParts.Length -gt 2) { $verParts[2] } else { "0" }
 
-if ([string]::IsNullOrWhiteSpace($ReleaseNotes)) {
-    $changelogSection = ""
-    if (Test-Path "CHANGELOG.md") {
-        $rawChangelog = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
-        $match = [regex]::Match($rawChangelog, '(?ms)^## \[[^\r\n]+\r?\n(.+?)(?=\r?\n---\r?\n|\z)')
-        if ($match.Success) {
-            $changelogSection = $match.Groups[1].Value.Trim()
-            $changelogSection = [regex]::Replace($changelogSection, '\[([^\]]+)\]\(file:///[^)]+\)', '$1')
-        }
-    }
+Write-Output "=== 1. Synchronizing Rust Version to $Version ==="
 
-    if (-not [string]::IsNullOrWhiteSpace($changelogSection)) {
-        $ReleaseNotes = "## What's New in Modern Explorer $TagName`n`n$changelogSection`n`n---`nMulti-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
-    } else {
-        $ReleaseNotes = "## What's New in Modern Explorer $TagName`n`nMulti-OS release of Modern Explorer $TagName for Windows (win-x64, win-arm64, win-x86), Linux (linux-x64, linux-arm64), and macOS (osx-x64, osx-arm64)."
-    }
-}
-
-# Sync project & installer version numbers according to SemVer
-$csprojFiles = @(
-    "src/ModernExplorer.App/ModernExplorer.App.csproj",
-    "src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj",
-    "src/ModernExplorer.Core/ModernExplorer.Core.csproj"
+$cargoFiles = @(
+    "rust/Cargo.toml",
+    "rust/modern-explorer-core/Cargo.toml",
+    "rust/modern-explorer-app/Cargo.toml"
 )
-foreach ($proj in $csprojFiles) {
-    if (Test-Path $proj) {
-        $content = Get-Content $proj -Raw
-        $updated = [regex]::Replace($content, '<Version>[^<]+</Version>', "<Version>$Version</Version>")
+foreach ($cf in $cargoFiles) {
+    if (Test-Path $cf) {
+        $content = Get-Content $cf -Raw
+        $updated = [regex]::Replace($content, '(?m)^version\s*=\s*"[^"]+"', "version = `"$Version`"")
         if ($updated -ne $content) {
-            Set-Content -Path $proj -Value $updated -Encoding UTF8 -NoNewline
+            Set-Content -Path $cf -Value $updated -Encoding UTF8 -NoNewline
         }
     }
 }
 
-$issFile = "installers/windows/ModernExplorer.iss"
-if (Test-Path $issFile) {
-    $issContent = Get-Content $issFile -Raw
-    $issUpdated = [regex]::Replace($issContent, '#define AppVersion "[^"]+"', "#define AppVersion `"$Version`"")
-    if ($issUpdated -ne $issContent) {
-        Set-Content -Path $issFile -Value $issUpdated -Encoding UTF8 -NoNewline
+$tauriConf = "rust/modern-explorer-app/tauri.conf.json"
+if (Test-Path $tauriConf) {
+    $content = Get-Content $tauriConf -Raw
+    $updated = [regex]::Replace($content, '"version":\s*"[^"]+"', "`"version`": `"$Version`"")
+    if ($updated -ne $content) {
+        Set-Content -Path $tauriConf -Value $updated -Encoding UTF8 -NoNewline
     }
 }
 
-$updateServiceFile = "src/ModernExplorer.Core/Update/GitHubUpdateService.cs"
-if (Test-Path $updateServiceFile) {
-    $usContent = Get-Content $updateServiceFile -Raw
-    $usUpdated = [regex]::Replace($usContent, 'return new Version\(\d+,\s*\d+,\s*\d+\);', "return new Version($verMajor, $verMinor, $verPatch);")
-    if ($usUpdated -ne $usContent) {
-        Set-Content -Path $updateServiceFile -Value $usUpdated -Encoding UTF8 -NoNewline
+$updateRs = "rust/modern-explorer-core/src/update.rs"
+if (Test-Path $updateRs) {
+    $content = Get-Content $updateRs -Raw
+    $updated = [regex]::Replace($content, 'pub const CURRENT_VERSION: &''static str = "[^"]+";', "pub const CURRENT_VERSION: &'static str = `"$Version`";")
+    if ($updated -ne $content) {
+        Set-Content -Path $updateRs -Value $updated -Encoding UTF8 -NoNewline
     }
 }
 
-$DistDir = Join-Path $env:TEMP "ModernExplorer_Release_$TagName"
-if (Test-Path $DistDir) { Remove-Item $DistDir -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
-
-# Locate local Inno Setup 6 compiler if available
-$isccCandidates = @(
-    "C:\Users\nicog\AppData\Local\Programs\Inno Setup 6\ISCC.exe",
-    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-)
-$iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-Write-Output "=== 1. Building Self-Contained Windows Native WinUI 3 Releases (win-x64, win-arm64) ==="
-if (Test-Path "src\ModernExplorer.App\bin\x64\Release") { Remove-Item "src\ModernExplorer.App\bin\x64\Release" -Recurse -Force }
-if (Test-Path "src\ModernExplorer.App\bin\ARM64\Release") { Remove-Item "src\ModernExplorer.App\bin\ARM64\Release" -Recurse -Force }
-
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=x64 -r win-x64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
-if ($LASTEXITCODE -ne 0) { throw "win-x64 build failed with exit code $LASTEXITCODE" }
-$x64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\x64\Release\net9.0-windows10.0.19041.0\win-x64").Path
-Remove-Item "$x64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
-$vcDlls64 = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
-foreach ($dll in $vcDlls64) {
-    $srcDll = Join-Path $env:SystemRoot "System32\$dll"
-    if (Test-Path $srcDll) { Copy-Item $srcDll -Destination $x64OutDir -Force }
-}
-Compress-Archive -Path "$x64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-x64.zip" -Force
-if ($iscc) {
-    & $iscc "/DAppVersion=$Version" "/DTargetRid=win-x64" "/DSourceDir=$x64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
-}
-
-dotnet build src/ModernExplorer.App/ModernExplorer.App.csproj -c Release -p:Platform=ARM64 -r win-arm64 -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:WindowsAppSDKBootstrapAutoInitializeOptions_None=true -p:Version=$Version
-if ($LASTEXITCODE -ne 0) { throw "win-arm64 build failed with exit code $LASTEXITCODE" }
-$arm64OutDir = (Resolve-Path "src\ModernExplorer.App\bin\ARM64\Release\net9.0-windows10.0.19041.0\win-arm64").Path
-Remove-Item "$arm64OutDir\Microsoft.WindowsAppRuntime.Bootstrap*.dll" -Force -ErrorAction SilentlyContinue
-Compress-Archive -Path "$arm64OutDir\*" -DestinationPath "$DistDir\ModernExplorer-windows-arm64.zip" -Force
-if ($iscc) {
-    & $iscc "/DAppVersion=$Version" "/DTargetRid=win-arm64" "/DSourceDir=$arm64OutDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
-}
-
-Write-Output "=== 2. Building Self-Contained Cross-Platform Desktop Releases (win-x86, linux-x64, linux-arm64, osx-x64, osx-arm64) ==="
-$CrossPlatformRids = @("win-x86", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")
-foreach ($rid in $CrossPlatformRids) {
-    Write-Output "Publishing $rid..."
-    $pubDir = Join-Path $DistDir "pub-$rid"
-    dotnet publish src/ModernExplorer.CrossPlatform/ModernExplorer.CrossPlatform.csproj `
-        -c Release `
-        -r $rid `
-        --self-contained true `
-        -p:SelfContained=true `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:IncludeAllContentForSelfExtract=true `
-        -p:Version=$Version `
-        -o $pubDir
-    if ($rid -eq "win-x86") {
-        $vcDlls86 = @("vcruntime140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll", "vccorlib140.dll")
-        foreach ($dll in $vcDlls86) {
-            $srcDll86 = Join-Path $env:SystemRoot "SysWOW64\$dll"
-            if (Test-Path $srcDll86) { Copy-Item $srcDll86 -Destination $pubDir -Force }
-        }
+$issRust = "installers/rust/ModernExplorer-Rust.iss"
+if (Test-Path $issRust) {
+    $content = Get-Content $issRust -Raw
+    $updated = [regex]::Replace($content, '#define AppVersion "[^"]+"', "#define AppVersion `"$Version`"")
+    if ($updated -ne $content) {
+        Set-Content -Path $issRust -Value $updated -Encoding UTF8 -NoNewline
     }
-    $zipName = if ($rid -like "win-*") { "ModernExplorer-windows-$($rid.Substring(4)).zip" } else { "ModernExplorer-$rid.zip" }
-    Compress-Archive -Path "$pubDir\*" -DestinationPath "$DistDir\$zipName" -Force
-    if ($rid -eq "win-x86" -and $iscc) {
-        & $iscc "/DAppVersion=$Version" "/DTargetRid=win-x86" "/DSourceDir=$pubDir" "/DOutputDir=$DistDir" "installers/windows/ModernExplorer.iss"
-    }
-    Remove-Item $pubDir -Recurse -Force
 }
 
-Write-Output "=== 3. Pushing Git Tag & Uploading All Assets to GitHub Release $TagName ==="
+Write-Output "=== 2. Running Rust Unit Tests ==="
+cargo test --manifest-path rust/Cargo.toml
+if ($LASTEXITCODE -ne 0) { throw "Rust unit tests failed with exit code $LASTEXITCODE" }
+
+Write-Output "=== 3. Committing Version Bump & Pushing Tag $TagName to Trigger Multi-OS Rust Release ==="
+git add rust/ installers/rust/
+$status = git status --porcelain
+if ($status) {
+    git commit -m "chore(release): bump Rust version to $TagName"
+}
 git tag -f $TagName
 git push origin main
 git push origin $TagName --force
 
-$release = $null
-try {
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/tags/$TagName" -Method Get -Headers $headers
-} catch {
-    $release = $null
-}
-
-if (-not $release) {
-    $relBody = @{
-        tag_name   = $TagName
-        name       = "Modern Explorer $TagName"
-        body       = $ReleaseNotes
-        draft      = $false
-        prerelease = $false
-    } | ConvertTo-Json -Compress
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases" -Method Post -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($relBody)) -ContentType "application/json; charset=utf-8"
-} else {
-    $patchBody = @{
-        name = "Modern Explorer $TagName"
-        body = $ReleaseNotes
-    } | ConvertTo-Json -Compress
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)" -Method Patch -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($patchBody)) -ContentType "application/json; charset=utf-8"
-}
-
-$releaseAssets = Get-ChildItem -Path $DistDir -File | Where-Object { $_.Extension -in @(".zip", ".exe") }
-foreach ($assetFile in $releaseAssets) {
-    $assetName = $assetFile.Name
-    $contentType = if ($assetFile.Extension -eq ".exe") { "application/vnd.microsoft.portable-executable" } else { "application/zip" }
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
-        try {
-            $currentRel = Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)" -Method Get -Headers $headers
-            $existing = $currentRel.assets | Where-Object { $_.name -eq $assetName }
-            if ($existing) {
-                Invoke-RestMethod -Uri "https://api.github.com/repos/Skybeat/ModernExplorer/releases/assets/$($existing.id)" -Method Delete -Headers $headers | Out-Null
-            }
-            $uploadUrl = "https://uploads.github.com/repos/Skybeat/ModernExplorer/releases/$($release.id)/assets?name=$assetName"
-            $uploaded = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $headers -InFile $assetFile.FullName -ContentType $contentType
-            Write-Output "Uploaded: $($uploaded.name) -> $($uploaded.browser_download_url)"
-            break
-        } catch {
-            if ($attempt -eq 3) { throw }
-            Start-Sleep -Seconds 2
-        }
-    }
-}
-
-Remove-Item $DistDir -Recurse -Force -ErrorAction SilentlyContinue
-Write-Output "=== Multi-OS Release $TagName Complete! ==="
+Write-Output "=== Rust Multi-OS Release $TagName Triggered on GitHub Actions! ==="

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.2)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.6)'
         required: true
-        default: 'v1.9.2'
+        default: 'v1.9.6'
 
 permissions:
   contents: write
@@ -117,7 +117,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.2"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.6"; fi
 
           cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
 
@@ -167,7 +167,7 @@ jobs:
         run: |
           RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           VERSION="${RAW_TAG#v}"
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.2"; fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="1.9.6"; fi
 
           cargo build --manifest-path rust/Cargo.toml --release --target ${{ matrix.target }}
 
@@ -213,10 +213,10 @@ jobs:
             '- **Smart Dual-Pane Folder Sync Jump (v1.9.6):** Added configurable pane sync jump (`sync_jump_to_other_pane_folder`). Clicking a folder in one explorer pane automatically switches to the other pane if that folder is already active in one of its tabs, preventing redundant tab duplication and speeding up dual-pane workflows.',
             '- **Self-Updater Execution & Restart Fix (v1.9.5):** Fixed Windows PowerShell encoding and quote parsing issues in the updater script by enforcing UTF-8 BOM encoding and pure ASCII delimiters. Added robust retry loops, detailed updater logging (`update.log`), proper Inno Setup installer execution (`/SILENT`), and automatic application restart.',
             '- **Automatic Startup Update Check & One-Click Self-Updater:** Fixed HTTPS TLS configuration (`ureq` with `tls`) for GitHub Release checks, added automatic update detection on application startup (`check_updates_on_startup`) with top-bar badge notification, and implemented one-click in-place self-updating (`install_update`) with progress feedback.',
-            '- **Full Keyboard Navigation in Explorer Panes:** Navigate seamlessly through files and folders using Arrow keys (`Up`, `Down`, `Left`, `Right`), `Home`, `End`, `PageUp`, `PageDown`, `Shift+Arrow` range selection, `Insert` (mark & move down), `Space` (mark), `Ctrl+A` (mark all), and instant type-ahead character jump across all 8 view modes.',
+            '- **Full Keyboard Navigation & Type-Ahead Quick Search in Explorer Panes:** Navigate seamlessly through files and folders using Arrow keys (`Up`, `Down`, `Left`, `Right`), `Home`, `End`, `PageUp`, `PageDown`, `Shift+Arrow` range selection, `Insert` (mark & move down), `Space` (mark), `Ctrl+A` (mark all), and Windows Explorer / Total Commander style type-ahead quick search (`⚡ Suche` pill, single-character cycling, prefix & substring matching, and `Backspace` editing) across all 8 view modes.',
             '- **Resizable, Draggable & Maximizable Child Windows with Session Persistence:** All child windows and tool dialogs feature 8-way resize handles, draggable headers, and maximize/restore controls, saving their exact bounds per dialog across sessions (`dialog_sizes` in `settings.json`).',
             '- **Full 14-Language Live Localization (`I18N`):** Instant live switching across all 14 supported languages without restart across menus, toolbars, column headers, inspector dock, settings, context menus, and all 20 power tools.',
-            '- **Full .NET-Parity Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout, upper split view (`Folder Hierarchy` / `Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).',
+            '- **Interactive Squarified Storage Treemap (`Ctrl+Shift+W`):** Interactive drive/folder selector with expandable folder tree flyout, upper split view (`Folder Hierarchy` / `Top 100 Largest Files` + `Extension Statistics`), and lower interactive Squarified Treemap canvas (`Category` & `File Age Heatmap` modes, double-click zoom/drilldown, context menu, delete, and Markdown/CSV report export).',
             '- **Minimizable & Resizable Right Inspector Dock (`Ctrl+Q`) & Multi-Line Drive Bar:** The right Inspector Dock can be minimized to a slim 28px vertical bar or resized (`210px-640px`), and the Drive Bar supports automatic multi-line wrapping (`multiline_drive_bar`).',
             '- **Exact Main Window Restore from Maximize, Native App Icon & `Alt+F7` Deep Search Fix:**',
             '  - Restoring from Maximize after manually stretching the main window to the full monitor work area restores the exact manual top position (`y = 0`) and height without losing a titlebar height at the top.',

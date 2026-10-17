@@ -498,4 +498,12 @@ rust/*.exe
 dist-rust/
 rust/**/gen/
 
+# Local .NET code & installers (retained locally, excluded from Git repository)
+ModernExplorer.sln
+src/
+tests/
+installers/windows/
+installers/linux/
+installers/macos/
+
 
