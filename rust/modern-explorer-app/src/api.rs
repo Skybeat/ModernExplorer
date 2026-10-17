@@ -2121,17 +2121,20 @@ impl BackendState {
             Err(e) => return json!({ "ok": false, "error": e }),
         };
         match GitHubUpdateService::download_and_install_update(&rel) {
-            Ok(path) => {
+            Ok((path, directly_replaced)) => {
                 SettingsStore::save(&self.settings);
-                std::thread::spawn(|| {
+                std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(700));
-                    let _ = GitHubUpdateService::restart_application();
+                    if directly_replaced {
+                        let _ = GitHubUpdateService::restart_application();
+                    }
                     std::process::exit(0);
                 });
                 json!({
                     "ok": true,
                     "tag_name": rel.tag_name,
                     "downloaded_path": path,
+                    "directly_replaced": directly_replaced,
                 })
             }
             Err(e) => json!({

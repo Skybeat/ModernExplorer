@@ -306,34 +306,50 @@ impl GitHubUpdateService {
         }
     }
 
-    pub fn restart_application() -> Result<(), String> {
-        let current_exe = std::env::current_exe()
+    pub fn get_clean_current_exe() -> Result<PathBuf, String> {
+        let exe = std::env::current_exe()
             .map_err(|e| format!("Aktueller Anwendungs-Pfad nicht ermittelbar: {e}"))?;
-        let current_dir = current_exe
+
+        // Strip Windows verbatim prefix '\\?\' if present
+        let clean_path = if let Some(s) = exe.to_str() {
+            if let Some(stripped) = s.strip_prefix(r"\\?\") {
+                PathBuf::from(stripped)
+            } else {
+                exe
+            }
+        } else {
+            exe
+        };
+
+        // If currently running from a renamed temp copy, resolve back to canonical base name
+        if let Some(file_name) = clean_path.file_name().and_then(|n| n.to_str()) {
+            let lower = file_name.to_ascii_lowercase();
+            if lower.contains(".old") || lower.contains(".relocated") || lower.contains(".temp") {
+                let base_name = if cfg!(target_os = "windows") {
+                    "ModernExplorer-Rust.exe"
+                } else {
+                    "ModernExplorer-Rust"
+                };
+                if let Some(parent) = clean_path.parent() {
+                    return Ok(parent.join(base_name));
+                }
+            }
+        }
+
+        Ok(clean_path)
+    }
+
+    pub fn restart_application() -> Result<(), String> {
+        let clean_exe = Self::get_clean_current_exe()?;
+        let current_dir = clean_exe
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
 
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            const DETACHED_PROCESS: u32 = 0x00000008;
-            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-
-            Command::new(&current_exe)
-                .current_dir(&current_dir)
-                .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
-                .spawn()
-                .map_err(|e| format!("Fehler beim Neustart der Anwendung: {e}"))?;
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        {
-            Command::new(&current_exe)
-                .current_dir(&current_dir)
-                .spawn()
-                .map_err(|e| format!("Fehler beim Neustart der Anwendung: {e}"))?;
-        }
+        Command::new(&clean_exe)
+            .current_dir(&current_dir)
+            .spawn()
+            .map_err(|e| format!("Fehler beim Neustart der Anwendung: {e}"))?;
 
         Ok(())
     }
@@ -361,17 +377,19 @@ impl GitHubUpdateService {
     }
 
     pub fn cleanup_old_versions() {
-        if let Ok(current_exe) = std::env::current_exe() {
-            if let Some(parent) = current_exe.parent() {
+        if let Ok(clean_exe) = Self::get_clean_current_exe() {
+            if let Some(parent) = clean_exe.parent() {
                 if let Ok(entries) = fs::read_dir(parent) {
                     for entry in entries.flatten() {
                         let path = entry.path();
                         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                             let lower = file_name.to_ascii_lowercase();
                             if lower.ends_with(".old")
+                                || lower.ends_with(".old.exe")
                                 || lower.ends_with(".relocated")
                                 || lower.ends_with(".selfdelete")
                                 || lower.ends_with(".testrename")
+                                || lower.ends_with(".tmp")
                                 || (file_name.starts_with('.') && lower.ends_with(".temp"))
                             {
                                 let _ = fs::remove_file(&path);
@@ -386,7 +404,110 @@ impl GitHubUpdateService {
         let _ = fs::remove_dir_all(&temp_base);
     }
 
-    pub fn download_and_install_update(release: &GitHubReleaseInfo) -> Result<String, String> {
+    pub fn replace_binary_in_place(
+        new_binary: &Path,
+        target_exe: &Path,
+        update_dir: &Path,
+    ) -> Result<bool, String> {
+        let target_dir = target_exe
+            .parent()
+            .ok_or_else(|| "Ziel-Ordner konnte nicht ermittelt werden.".to_string())?;
+
+        let is_writable = {
+            let probe = target_dir.join(format!(".write_test_{}.tmp", std::process::id()));
+            match fs::File::create(&probe) {
+                Ok(_) => {
+                    let _ = fs::remove_file(&probe);
+                    true
+                }
+                Err(_) => false,
+            }
+        };
+
+        if is_writable {
+            // DIRECT IN-PLACE REPLACEMENT (Portable or writable dir)
+            let old_backup = target_exe.with_extension("old.exe");
+            if old_backup.exists() {
+                let _ = fs::remove_file(&old_backup);
+            }
+
+            // On Windows, moving a running binary within the same volume is allowed by the kernel
+            if target_exe.exists() {
+                fs::rename(target_exe, &old_backup)
+                    .map_err(|e| format!("Fehler beim Verschieben der aktuellen Binärdatei nach .old: {e}"))?;
+            }
+
+            // Copy new binary into place
+            fs::copy(new_binary, target_exe)
+                .map_err(|e| {
+                    let _ = fs::rename(&old_backup, target_exe);
+                    format!("Fehler beim Kopieren der neuen Binärdatei: {e}")
+                })?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(target_exe, fs::Permissions::from_mode(0o755));
+            }
+
+            Ok(true) // Replaced directly, caller can restart application
+        } else {
+            // PROTECTED DIRECTORY (e.g. C:\Program Files) -> Request elevation to replace
+            #[cfg(target_os = "windows")]
+            {
+                let script_path = update_dir.join("apply-elevated-update.cmd");
+                let log_file = update_dir.join("update.log");
+                let target_str = target_exe.to_string_lossy();
+                let new_str = new_binary.to_string_lossy();
+                let log_str = log_file.to_string_lossy();
+
+                let script_content = format!(
+                    "@echo off\r\n\
+setlocal\r\n\
+echo [%date% %time%] Starting elevated replacement >> \"{log_str}\"\r\n\
+timeout /t 1 /nobreak >nul\r\n\
+:wait_loop\r\n\
+tasklist /fi \"imagename eq ModernExplorer-Rust.exe\" 2>nul | find /i \"ModernExplorer-Rust.exe\" >nul\r\n\
+if not errorlevel 1 (\r\n\
+    timeout /t 1 /nobreak >nul\r\n\
+    goto wait_loop\r\n\
+)\r\n\
+if exist \"{target_str}.old\" del /f /q \"{target_str}.old\" >> \"{log_str}\" 2>&1\r\n\
+move /y \"{target_str}\" \"{target_str}.old\" >> \"{log_str}\" 2>&1\r\n\
+copy /y \"{new_str}\" \"{target_str}\" >> \"{log_str}\" 2>&1\r\n\
+echo [%date% %time%] Spawning new application >> \"{log_str}\"\r\n\
+start \"\" \"{target_str}\"\r\n\
+exit\r\n"
+                );
+
+                fs::write(&script_path, script_content)
+                    .map_err(|e| format!("Elevated update script konnte nicht geschrieben werden: {e}"))?;
+
+                let script_arg = script_path.to_string_lossy().to_string();
+                let ps_cmd = format!(
+                    "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c \"{}\"' -Verb RunAs -WindowStyle Hidden",
+                    script_arg
+                );
+
+                Command::new("powershell.exe")
+                    .args(["-NoProfile", "-Command", &ps_cmd])
+                    .spawn()
+                    .map_err(|e| format!("Fehler beim Anfordern von Administrator-Rechten: {e}"))?;
+
+                Ok(false) // Elevated script will handle replacement and restart after exit
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err(format!(
+                    "Verzeichnis {} ist schreibgeschützt. Bitte mit entsprechenden Rechten ausführen.",
+                    target_dir.display()
+                ))
+            }
+        }
+    }
+
+    pub fn download_and_install_update(release: &GitHubReleaseInfo) -> Result<(String, bool), String> {
         let asset = Self::select_best_rust_asset(release).ok_or_else(|| {
             "Kein passendes Update-Paket für dieses Betriebssystem im Release gefunden.".to_string()
         })?;
@@ -409,22 +530,24 @@ impl GitHubUpdateService {
         io::copy(&mut reader, &mut out_file)
             .map_err(|e| format!("Fehler beim Speichern des Updates: {e}"))?;
         drop(out_file);
+
         // 1. Ggf. Binärdatei aus Archiv (.zip, .tar.gz) entpacken
         let new_binary = Self::unpack_binary_if_archive(&download_path, &update_dir)?;
 
-        // 2. In-Place-Austausch der laufenden Binärdatei via self_replace
-        self_replace::self_replace(&new_binary).map_err(|e| {
-            format!("Fehler beim In-Place-Austausch der Anwendungsdatei via self-replace: {e}")
-        })?;
+        // 2. Ermitteln der sauberen Ziel-Binärdatei
+        let target_exe = Self::get_clean_current_exe()?;
 
-        // 3. Auf Windows: Registry DisplayVersion aktualisieren (best-effort)
+        // 3. In-Place-Austausch durchführen (direkt oder via UAC-Elevated-Skript)
+        let directly_replaced = Self::replace_binary_in_place(&new_binary, &target_exe, &update_dir)?;
+
+        // 4. Auf Windows: Registry DisplayVersion aktualisieren (best-effort)
         #[cfg(target_os = "windows")]
         {
             let ver_clean = release.tag_name.trim_start_matches(['v', 'V']).to_string();
             Self::update_windows_registry(&ver_clean);
         }
 
-        Ok(download_path.to_string_lossy().to_string())
+        Ok((download_path.to_string_lossy().to_string(), directly_replaced))
     }
 
     /// Formats raw GitHub Markdown release notes into a clean, multi-line readable text

@@ -212,6 +212,30 @@ mod tests {
     }
 
     #[test]
+    fn replace_binary_in_place_works_in_writable_directory() {
+        let dir = TempDir::new().unwrap();
+        let target_exe = dir.path().join("ModernExplorer-Rust.exe");
+        let new_binary = dir.path().join("new_binary.exe");
+        let update_dir = dir.path().join("update_staging");
+        fs::create_dir_all(&update_dir).unwrap();
+
+        fs::write(&target_exe, b"OLD_BINARY_V1").unwrap();
+        fs::write(&new_binary, b"NEW_BINARY_V2").unwrap();
+
+        let directly_replaced = GitHubUpdateService::replace_binary_in_place(
+            &new_binary,
+            &target_exe,
+            &update_dir,
+        ).unwrap();
+
+        assert!(directly_replaced);
+        assert_eq!(fs::read(&target_exe).unwrap(), b"NEW_BINARY_V2");
+        let old_backup = target_exe.with_extension("old.exe");
+        assert!(old_backup.exists());
+        assert_eq!(fs::read(&old_backup).unwrap(), b"OLD_BINARY_V1");
+    }
+
+    #[test]
     fn color_settings_support_all_10_targets_and_reset() {
         let mut settings = AppSettings::default();
         settings.set_color_hex(ColorSettingTarget::TreemapVideoMedia, "#123456".to_string());
