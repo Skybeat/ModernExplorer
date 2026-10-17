@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.2" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.6" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -207,6 +207,10 @@ jobs:
             "## What's New in Modern Explorer Studio $tag (Rust Edition)",
             '',
             "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            '- **Native Self-Replace In-Place Updater (v1.9.6):** Direct binary replacement using a lightweight detached background updater script (`update-self-replace.bat` on Windows, POSIX shell script on Linux/macOS) with robust retry loop and automatic application restart without requiring external Inno Setup or elevated UAC installer steps.',
+            '- **Tauri v2 Migration (v1.9.6):** Migrated `modern-explorer-app` to standard Tauri v2 architecture, providing modernized cross-platform WebView runtime, unified IPC invoke routing, and clean custom asset/preview protocols while preserving all 20+ power tools, settings persistence, and native capabilities.',
+            '- **Archive Double-Click Action & Virtual Folder Navigation (v1.9.6):** Added configurable double-click action (`archive_open_action`: `archive_browser` vs. `open_in_explorer`) allowing users to browse archives directly inside explorer panes as virtual folders (`archive://...`), complete with breadcrumbs, subfolder navigation, quick preview extraction, and context menus.',
+            '- **Smart Dual-Pane Folder Sync Jump (v1.9.6):** Added configurable pane sync jump (`sync_jump_to_other_pane_folder`). Clicking a folder in one explorer pane automatically switches to the other pane if that folder is already active in one of its tabs, preventing redundant tab duplication and speeding up dual-pane workflows.',
             '- **Self-Updater Execution & Restart Fix (v1.9.5):** Fixed Windows PowerShell encoding and quote parsing issues in the updater script by enforcing UTF-8 BOM encoding and pure ASCII delimiters. Added robust retry loops, detailed updater logging (`update.log`), proper Inno Setup installer execution (`/SILENT`), and automatic application restart.',
             '- **Automatic Startup Update Check & One-Click Self-Updater:** Fixed HTTPS TLS configuration (`ureq` with `tls`) for GitHub Release checks, added automatic update detection on application startup (`check_updates_on_startup`) with top-bar badge notification, and implemented one-click in-place self-updating (`install_update`) with progress feedback.',
             '- **Full Keyboard Navigation in Explorer Panes:** Navigate seamlessly through files and folders using Arrow keys (`Up`, `Down`, `Left`, `Right`), `Home`, `End`, `PageUp`, `PageDown`, `Shift+Arrow` range selection, `Insert` (mark & move down), `Space` (mark), `Ctrl+A` (mark all), and instant type-ahead character jump across all 8 view modes.',
