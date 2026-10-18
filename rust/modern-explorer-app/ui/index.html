@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.13 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.14 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1258,7 +1258,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.13 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.14 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1753,24 +1753,24 @@
       <div class="prefs-pane" id="pcat-WindowSizes">
         <div class="prefs-section-title">📐 Gespeicherte Fenstergrößen</div>
         <div class="prefs-card">
-          <div style="margin-bottom:12px;font-size:12.5px;color:var(--fg-dim);">
+          <div class="pr-sub" style="margin-bottom:12px;font-size:12.5px;color:var(--fg-dim);">
             ModernExplorer merkt sich automatisch die zuletzt verwendete Größe, Position und den Maximiert-Status des Hauptfensters sowie aller Child-Fenster:
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:10px;margin-bottom:14px;">
             <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
-              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🖥️ Hauptfenster</div>
+              <div class="pr-label" style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🖥️ Hauptfenster</div>
               <div id="lblMainWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">1520 × 920 px (Normal)</div>
             </div>
             <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
-              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">⚙️ Einstellungsfenster</div>
+              <div class="pr-label" style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">⚙️ Einstellungsfenster</div>
               <div id="lblSettingsWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">980 × 680 px</div>
             </div>
             <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
-              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">👁️ Vorschau (F3) / Editor (F4)</div>
+              <div class="pr-label" style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">👁️ Vorschau (F3) / Editor (F4)</div>
               <div id="lblViewerWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">960 × 680 px</div>
             </div>
             <div style="padding:10px 14px;background:var(--bg-app);border:1px solid var(--border);border-radius:6px;">
-              <div style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🛠️ Child-Fenster &amp; Power-Tools</div>
+              <div class="pr-label" style="font-weight:700;font-size:12.5px;color:var(--fg);margin-bottom:4px;">🛠️ Child-Fenster &amp; Power-Tools</div>
               <div id="lblChildWinBoundsDetail" style="font-size:12px;color:var(--fg-dim);font-family:var(--font-mono);">Standard: 960 × 680 px</div>
             </div>
           </div>
@@ -1801,7 +1801,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.13</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.14</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1952,7 +1952,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.13</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.13</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.14</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.14</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1961,7 +1961,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.13.
+        ✓ Sie verwenden die aktuelle Version v1.9.14.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2145,7 +2145,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.13',
+  version: '1.9.14',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2853,7 +2853,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.13": "Installed version: v1.9.13",
+  "Installierte Version: v1.9.14": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -3143,7 +3143,146 @@ const I18N_EN = {
   "🧹 Fertige leeren": "🧹 Clear finished",
   "🧹 Leeren": "🧹 Clear",
   "🧹 Scan starten": "🧹 Start scan",
-  "🧺 Korb öffnen": "🧺 Open basket"
+  "🧺 Korb öffnen": "🧺 Open basket",
+  "Rahmenfarbe des aktiven Panels": "Active panel border color",
+  "Rahmenstärke des aktiven Panels (px)": "Active panel border thickness (px)",
+  "Umrandungsfarbe des Fokus-Cursors (Auswahlbalken)": "Focus cursor outline color (Selection bar)",
+  "Hintergrundfarbe des Fokus-Cursors (Balkenfarbe)": "Focus cursor background color (Bar color)",
+  "Textfarbe auf dem Fokus-Cursor (bei invertiertem Cursor)": "Focus cursor text color (for inverted cursor)",
+  "Textfarbe für markierte Elemente (✓ Leertaste / Einfg)": "Text color for marked items (✓ Space / Ins)",
+  "Hintergrundfarbe für markierte Elemente (✓)": "Background color for marked items (✓)",
+  "Hintergrundfarbe 1 (Dateiliste Primär)": "Background color 1 (File list primary)",
+  "Hintergrundfarbe 2 (Zebra-Streifen / Jede 2. Zeile)": "Background color 2 (Zebra stripes / Alternate)",
+  "Standard-Textfarbe (Normale Dateien)": "Default text color (Normal files)",
+  "Textfarbe für Ordner / Verzeichnisse": "Text color for folders / directories",
+  "Textfarbe für Ordner / Verzeichnisse)": "Text color for folders / directories",
+  "Textfarbe für versteckte & System-Dateien": "Text color for hidden & system files",
+  "Textfarbe für schreibgeschützte Dateien (Read-Only)": "Text color for read-only files",
+  "Farbe der Gitternetzlinien (Tabellenraster)": "Grid line color (Table grid)",
+  "🎬 Video & Audio (.mp4, .mkv, .mp3, .wav)": "🎬 Video & Audio (.mp4, .mkv, .mp3, .wav)",
+  "📦 Archive & Disk-Images (.zip, .7z, .rar, .iso)": "📦 Archives & Disk Images (.zip, .7z, .rar, .iso)",
+  "💿 Virtuelle Laufwerke & System (.vhdx, .vmdk, .sys)": "💿 Virtual Disks & System (.vhdx, .vmdk, .sys)",
+  "📄 Quellcode & Dokumente (.rs, .cs, .pdf, .docx, .md)": "📄 Source Code & Documents (.rs, .cs, .pdf, .docx, .md)",
+  "🖼️ Bilder & Grafiken (.png, .jpg, .webp, .svg, .psd)": "🖼️ Images & Graphics (.png, .jpg, .webp, .svg, .psd)",
+  "⚙️ Programme & Binärdateien (.exe, .dll, .msi, .pdb)": "⚙️ Programs & Binaries (.exe, .dll, .msi, .pdb)",
+  "📁 Sonstige & Temporäre Dateien (.tmp, .bak, .dat)": "📁 Other & Temporary Files (.tmp, .bak, .dat)",
+  "Aktuell:": "Current:",
+  "Auf Standardfarbe zurücksetzen": "Reset to default color",
+  "Vollflächigen invertierten Auswahlbalken (Cursor) verwenden": "Use solid inverted selection bar (Cursor)",
+  "Wie im Total Commander („Invertierter Cursor“): Füllt die ausgewählte Zeile mit der Cursor-Balkenfarbe und der Cursor-Textfarbe": "Like in Total Commander (\"Inverted cursor\"): Fills selected row with cursor bar color and cursor text color",
+  "👁 Live-Vorschau der Dateiliste (Total Commander Farb-Simulation)": "👁 Live Preview of File List (Total Commander Color Simulation)",
+  "Aktives Panel": "Active panel",
+  "Ordner": "Folder",
+  "EXE-Datei": "EXE file",
+  "ZIP-Archiv": "ZIP archive",
+  "RS-Datei": "Rust source file",
+  "PS1-Datei": "PowerShell script",
+  "Versteckt": "Hidden",
+  "◀ Fokus-Cursor": "◀ Focus cursor",
+  "✓ Markiert (Leertaste)": "✓ Marked (Space)",
+  "🎨 Regel:": "🎨 Rule:",
+  "Std.": "hrs",
+  "Tage": "days",
+  "Alle": "All",
+  "Nach oben": "Move up",
+  "Nach unten": "Move down",
+  "Bearbeiten": "Edit",
+  "Löschen": "Delete",
+  "Keine Dateityp-Farbregeln definiert.": "No file type color rules defined.",
+  "Eigene Regel": "Custom rule",
+  "Kürzlich geändert (≤ 24h)": "Recently modified (≤ 24h)",
+  "Ausführbare Dateien (*.exe)": "Executable files (*.exe)",
+  "ModernExplorer merkt sich automatisch die zuletzt verwendete Größe, Position und den Maximiert-Status des Hauptfensters sowie aller Child-Fenster:": "ModernExplorer automatically remembers the last used size, position, and maximized state of the main window and all child windows:",
+  "🖥️ Hauptfenster": "🖥️ Main Window",
+  "⚙️ Einstellungsfenster": "⚙️ Settings Window",
+  "👁️ Vorschau (F3) / Editor (F4)": "👁️ Preview (F3) / Editor (F4)",
+  "🛠️ Child-Fenster & Power-Tools": "🛠️ Child Windows & Power Tools",
+  "↺ Fenstergrößen auf Standardwerte zurücksetzen": "↺ Reset window sizes to defaults",
+  "🗂️ Individuell gespeicherte Dialog- & Child-Fenstergrößen": "🗂️ Individually Saved Dialog & Child Window Sizes",
+  "Dialog / Werkzeug": "Dialog / Tool",
+  "Breite": "Width",
+  "Höhe": "Height",
+  "Status": "Status",
+  "Standard": "Default",
+  "Angepasst": "Customized",
+  "Max": "Max",
+  "(Max)": "(Max)",
+  "Maximiert": "Maximized",
+  "Normal": "Normal",
+  "(Maximiert)": "(Maximized)",
+  "(Normal)": "(Normal)",
+  "Pos:": "Pos:",
+  "↺ Standard": "↺ Default",
+  "Hauptfenster": "Main Window",
+  "Einstellungen": "Settings",
+  "Dialoge": "Dialogs",
+  "individuell angepasst": "individually customized",
+  "individuell gespeichert": "individually saved",
+  "Kategorie": "Category",
+  "Befehl / Funktion": "Command / Function",
+  "Tastenkürzel": "Shortcut",
+  "Aktion": "Action",
+  "Ausführen": "Execute",
+  "Tastenkürzel oder Befehl filtern…": "Filter shortcut or command…",
+  "⚡ Automatisch erkennen (Beste gefundene Cloud)": "⚡ Auto-detect (Best detected cloud)",
+  "📁 Benutzerdefinierter Ordner...": "📁 Custom folder...",
+  "Erkannt ✓": "Detected ✓",
+  "(Erkannt ✓)": "(Detected ✓)",
+  "Nicht gefunden": "Not found",
+  "(Nicht gefunden)": "(Not found)",
+  "✓ Auto-Sync Aktiv": "✓ Auto-Sync Active",
+  "Bereit (Manuell)": "Ready (Manual)",
+  "Kein Cloud-Ordner erkannt": "No cloud folder detected",
+  "Zielverzeichnis:": "Target directory:",
+  "Cloud-Speicher": "Cloud Storage",
+  "Kein Cloud-Verzeichnis konfiguriert oder gefunden. Klicken Sie auf „Cloud einrichten“, um OneDrive, Google Drive oder einen eigenen Ordner anzupassen.": "No cloud directory configured or found. Click on \"Set up Cloud\" to configure OneDrive, Google Drive, or a custom folder.",
+  "Status des Cloud-Speichers:": "Cloud storage status:",
+  "Prüfe...": "Checking...",
+  "Unterstützte Bildformate:": "Supported image formats:",
+  "Installierte Version:": "Installed version:",
+  "Verfügbar:": "Available:",
+  "🔄 Jetzt prüfen": "🔄 Check now",
+  "ℹ Über ModernExplorer Studio & Updates": "ℹ About ModernExplorer Studio & Updates",
+  "📋 Release Notes & Neuerungen (mehrzeilig & scrollbar):": "📋 Release notes & changelog:",
+  "🌐 Auf GitHub im Browser ansehen ↗": "🌐 View on GitHub in browser ↗",
+  "🌐 GitHub Releases öffnen ↗": "🌐 Open GitHub Releases ↗",
+  "🚀 Update automatisch herunterladen & installieren": "🚀 Download & install update automatically",
+  "☁️ Cloud-Speicher einrichten & verbinden": "☁️ Set up & connect Cloud storage",
+  "🔄 Erkennung aktualisieren": "🔄 Refresh detection",
+  "📥 Backups wiederherstellen...": "📥 Restore backups...",
+  "Prüfe Status...": "Checking status...",
+  "Lade Cloud-Anbieter…": "Loading cloud providers…",
+  "Im aktiven Panel öffnen": "Open in active panel",
+  "In neuem Tab öffnen": "Open in new tab",
+  "✕ Aus Favoriten entfernen": "✕ Remove from favorites",
+  "➕ Neuer Tab": "➕ New tab",
+  "📑 Tab duplizieren": "📑 Duplicate tab",
+  "⇄ In anderem Panel öffnen": "⇄ Open in other panel",
+  "📌 Anheftung lösen": "📌 Unpin tab",
+  "📌 Tab anheften (Pin)": "📌 Pin tab",
+  "🔓 Tab entsperren": "🔓 Unlock tab",
+  "🔒 Tab auf diesen Pfad sperren": "🔒 Lock tab to this path",
+  "✕ Tab schließen": "✕ Close tab",
+  "🎨 Farb-Tag & Notiz zuweisen…": "🎨 Assign color tag & note…",
+  "🧺 Zum virtuellen Sammelkorb hinzufügen": "🧺 Add to virtual basket",
+  "🛠 Attribute, Zeitstempel & EXIF…": "🛠 Attributes, timestamps & EXIF…",
+  "🔐 Prüfsummen berechnen (SHA-256 / MD5 / CRC32)…": "🔐 Calculate checksums (SHA-256 / MD5 / CRC32)…",
+  "✂ Datei teilen (.001) / zusammenfügen / schreddern…": "✂ Split file (.001) / join / shred…",
+  "🔒 AES-256-GCM Datei-Tresor (Ver-/Entschlüsseln)…": "🔒 AES-256-GCM file vault (Encrypt/Decrypt)…",
+  "🔓 NTFS-Streams, Berechtigungen & File-Locksmith…": "🔓 NTFS streams, permissions & file locksmith…",
+  "⛓ Symlink, Hardlink oder Junction erstellen…": "⛓ Create symlink, hardlink or junction…",
+  "🖼 Batch Bild-Konverter & Skalierer…": "🖼 Batch image converter & resizer…",
+  "📄 PDF-Toolkit (Merge / Split / Seiten)…": "📄 PDF toolkit (Merge / Split / Pages)…",
+  "🔄 Daten-Konverter (JSON/YAML/TOML/CSV)…": "🔄 Data converter (JSON/YAML/TOML/CSV)…",
+  "📦 In Archiv packen (.zip / .7z / .tar.gz / .tar.zst / .tar.xz)…": "📦 Pack into archive (.zip / .7z / .tar.gz / .tar.zst / .tar.xz)…",
+  "📡 Ordner per HTTP / QR-Code im LAN teilen…": "📡 Share folder via HTTP / QR Code in LAN…",
+  "📋 Pfad kopieren": "📋 Copy path",
+  "📋 Smart Export (Markdown / CSV / JSON)…": "📋 Smart Export (Markdown / CSV / JSON)…",
+  "🖥 PowerShell-Terminal hier öffnen": "🖥 Open PowerShell terminal here",
+  "🔍 In diesen Ordner hineinzoomen": "🔍 Zoom into this folder",
+  "🎯 Im aktiven Explorer-Tab zeigen": "🎯 Reveal in active Explorer tab",
+  "📂 Ordner als neuen Tab öffnen": "📂 Open folder as new tab",
+  "📋 Pfad in Zwischenablage kopieren": "📋 Copy path to clipboard"
 };
 
 const I18N = {
@@ -3442,7 +3581,7 @@ function translateElementTree(root) {
   }
 
   // 1. Specific classes
-  root.querySelectorAll('.pr-label, .pr-sub, .prefs-section-title, .tc-name, .modal-head > span').forEach(localizeEl);
+  root.querySelectorAll('.pr-label, .pr-sub, .prefs-section-title, .tc-name, .modal-head > span, .badge, .f-tag-badge').forEach(localizeEl);
 
   // 2. data-i18n attributes
   root.querySelectorAll('[data-i18n]').forEach(el => {
@@ -3459,7 +3598,7 @@ function translateElementTree(root) {
   });
 
   // 4. Buttons (.btn, .ibtn)
-  root.querySelectorAll('button.btn').forEach(el => {
+  root.querySelectorAll('button.btn, button.ibtn').forEach(el => {
     if (!el.querySelector('input, select')) localizeEl(el);
   });
 
@@ -3777,9 +3916,9 @@ function applyLocalizationToDom() {
   // Translate entire DOM tree
   translateElementTree(document.body);
 
-  // If settings window is open, re-render dynamic font rows with localized labels
-  if (document.getElementById('fontMainAreasList') && document.getElementById('fontMainAreasList').innerHTML) {
-    renderFontsSettings();
+  // If settings window is open, re-render dynamic settings with localized labels
+  if (document.getElementById('modalSettings')?.classList.contains('open') || (document.getElementById('fontMainAreasList') && document.getElementById('fontMainAreasList').innerHTML)) {
+    populateSettingsUi();
   }
 }
 
@@ -3932,7 +4071,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.13';
+  STATE.version = data.version || '1.9.14';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -5177,6 +5316,7 @@ function onAddressKey(side, e) {
 function showContextMenuAt(e, items) {
   const menu = document.getElementById('ctxMenu');
   menu.innerHTML = '';
+  const lang = getEffectiveLang();
   items.forEach(it => {
     if (it === 'sep') {
       const s = document.createElement('div');
@@ -5185,7 +5325,11 @@ function showContextMenuAt(e, items) {
     } else {
       const row = document.createElement('div');
       row.className = 'dd-item';
-      row.innerHTML = `<span class="dd-left"><span>${esc(it.label)}</span></span>${it.kbd ? `<kbd>${esc(it.kbd)}</kbd>` : ''}`;
+      let kbd = it.kbd;
+      if (kbd && lang !== 'de') {
+        kbd = kbd.replace(/\bStrg\b/g, 'Ctrl').replace(/\bUmschalt\b/g, 'Shift');
+      }
+      row.innerHTML = `<span class="dd-left"><span>${esc(t(it.label))}</span></span>${kbd ? `<kbd>${esc(kbd)}</kbd>` : ''}`;
       row.onclick = (ev) => {
         ev.stopPropagation();
         menu.classList.remove('open');
@@ -5717,6 +5861,7 @@ function switchSettingsCat(cat) {
   document.querySelectorAll('.prefs-pane').forEach(el => {
     el.classList.toggle('active', el.id === 'pcat-' + cat);
   });
+  translateElementTree(document.getElementById('pcat-' + cat));
 }
 
 function populateSettingsUi() {
@@ -5821,13 +5966,14 @@ function populateSettingsUi() {
     const cw = Math.round(s.child_window_width ?? 960);
     const ch = Math.round(s.child_window_height ?? 680);
     const customCnt = Object.keys(s.dialog_sizes || {}).length;
-    wbEl.textContent = `Hauptfenster: ${mw} × ${mh} px | Einstellungen: ${sw} × ${sh} px | Dialoge: ${cw} × ${ch} px (${customCnt} individuell gespeichert)`;
+    wbEl.textContent = `${t('Hauptfenster')}: ${mw} × ${mh} px | ${t('Einstellungen')}: ${sw} × ${sh} px | ${t('Dialoge')}: ${cw} × ${ch} px (${customCnt} ${t('individuell gespeichert')})`;
   }
 
   renderColorsSettings();
   renderFontsSettings();
   renderWindowSizesSettings();
   renderShortcutsTable('');
+  translateElementTree(document.getElementById('modalSettings'));
 }
 
 function buildColorRowHtml(cfg) {
@@ -5837,14 +5983,14 @@ function buildColorRowHtml(cfg) {
   return `
     <div class="prefs-row">
       <div>
-        <div class="pr-label">${esc(cfg.title)}</div>
-        <div class="pr-sub">Aktuell: <code style="font-family:var(--font-mono)">${esc(val)}</code></div>
+        <div class="pr-label">${esc(t(cfg.title))}</div>
+        <div class="pr-sub">${esc(t('Aktuell:'))} <code style="font-family:var(--font-mono)">${esc(val)}</code></div>
       </div>
       <div class="pr-ctl">
         <div style="display:flex;gap:4px;">${swatches}</div>
         <input type="color" value="${esc(hex7)}" style="width:28px;height:26px;border:none;background:transparent;cursor:pointer;" onchange="updateSetting('${cfg.key}',this.value.toUpperCase())">
         <input class="input" style="width:86px;font-family:var(--font-mono);font-size:11.5px;" value="${esc(val)}" onchange="updateSetting('${cfg.key}',this.value.trim())">
-        <button class="btn" style="padding:4px 8px;font-size:11px;" title="Auf Standardfarbe zurücksetzen" onclick="resetSingleColor('${cfg.target}')">↺</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px;" title="${esc(t('Auf Standardfarbe zurücksetzen'))}" onclick="resetSingleColor('${cfg.target}')">↺</button>
       </div>
     </div>
   `;
@@ -5855,7 +6001,7 @@ function renderColorsSettings() {
   if (apEl) {
     apEl.innerHTML = buildColorRowHtml(COLOR_TARGETS[0]) + `
       <div class="prefs-row">
-        <div><div class="pr-label">Rahmenstärke des aktiven Panels (px)</div></div>
+        <div><div class="pr-label">${esc(t('Rahmenstärke des aktiven Panels (px)'))}</div></div>
         <div class="pr-ctl">
           <input type="range" min="1" max="5" step="0.5" value="${STATE.settings.active_panel_border_thickness ?? 2}" oninput="updateSetting('active_panel_border_thickness', parseFloat(this.value))">
           <span style="min-width:36px;text-align:right;font-family:var(--font-mono)">${STATE.settings.active_panel_border_thickness ?? 2} px</span>
@@ -5870,8 +6016,8 @@ function renderColorsSettings() {
     selEl.innerHTML = `
       <div class="prefs-row">
         <div>
-          <div class="pr-label">Vollflächigen invertierten Auswahlbalken (Cursor) verwenden</div>
-          <div class="pr-sub">Wie im Total Commander („Invertierter Cursor“): Füllt die ausgewählte Zeile mit der Cursor-Balkenfarbe und der Cursor-Textfarbe</div>
+          <div class="pr-label">${esc(t('Vollflächigen invertierten Auswahlbalken (Cursor) verwenden'))}</div>
+          <div class="pr-sub">${esc(t('Wie im Total Commander („Invertierter Cursor“): Füllt die ausgewählte Zeile mit der Cursor-Balkenfarbe und der Cursor-Textfarbe'))}</div>
         </div>
         <div class="pr-ctl"><div class="switch ${invOn}" id="sw-invert_cursor" onclick="toggleBoolSetting('invert_cursor')"></div></div>
       </div>
@@ -5920,20 +6066,20 @@ function renderTcColorLivePreview() {
   const sampleNewRule = matchFileTypeColorRule({ name: 'heute_geaendert.rs', extension: '.rs', is_directory: false, age_hours: 2 });
 
   const rows = [
-    { icon: '📁', name: '[..]', size: '<DIR>', date: '18.10.2026 09:30', typ: 'Ordner', bg: bg1, fg: fgDir, bold: true },
-    { icon: '📁', name: 'src', size: '<DIR>', date: '18.10.2026 09:15', typ: 'Ordner', bg: bg2, fg: fgDir, bold: true },
-    { icon: '⚙️', name: 'ModernExplorer.exe', size: '5.42 MB', date: '17.10.2026 14:20', typ: 'EXE-Datei', bg: selBg, fg: selFg, border: `1px solid ${selBorder}`, badge: '◀ Fokus-Cursor' },
-    { icon: '✓ 📦', name: 'release_v1.9.6.zip', size: '12.80 MB', date: '16.10.2026 18:05', typ: 'ZIP-Archiv', bg: mkBg, fg: mkFg, bold: true, badge: '✓ Markiert (Leertaste)' },
-    { icon: '📄', name: 'heute_geaendert.rs', size: '28.4 KB', date: '18.10.2026 09:42', typ: 'RS-Datei', bg: bg1, fg: sampleNewRule?.color || fgNorm, bold: !!sampleNewRule?.bold, badge: sampleNewRule ? `🎨 Regel: ${sampleNewRule.name}` : '' },
-    { icon: '⚙️', name: 'build_release.ps1', size: '4.1 KB', date: '10.10.2026 11:00', typ: 'PS1-Datei', bg: bg2, fg: sampleExeRule?.color || fgNorm, bold: !!sampleExeRule?.bold, badge: sampleExeRule ? `🎨 Regel: ${sampleExeRule.name}` : '' },
-    { icon: '🔒', name: '.gitignore', size: '1.2 KB', date: '01.10.2026 08:00', typ: 'Versteckt', bg: bg1, fg: fgHid, italic: true }
+    { icon: '📁', name: '[..]', size: '<DIR>', date: '18.10.2026 09:30', typ: t('Ordner'), bg: bg1, fg: fgDir, bold: true },
+    { icon: '📁', name: 'src', size: '<DIR>', date: '18.10.2026 09:15', typ: t('Ordner'), bg: bg2, fg: fgDir, bold: true },
+    { icon: '⚙️', name: 'ModernExplorer.exe', size: '5.42 MB', date: '17.10.2026 14:20', typ: t('EXE-Datei'), bg: selBg, fg: selFg, border: `1px solid ${selBorder}`, badge: t('◀ Fokus-Cursor') },
+    { icon: '✓ 📦', name: 'release_v1.9.6.zip', size: '12.80 MB', date: '16.10.2026 18:05', typ: t('ZIP-Archiv'), bg: mkBg, fg: mkFg, bold: true, badge: t('✓ Markiert (Leertaste)') },
+    { icon: '📄', name: 'heute_geaendert.rs', size: '28.4 KB', date: '18.10.2026 09:42', typ: t('RS-Datei'), bg: bg1, fg: sampleNewRule?.color || fgNorm, bold: !!sampleNewRule?.bold, badge: sampleNewRule ? `${t('🎨 Regel:')} ${t(sampleNewRule.name)}` : '' },
+    { icon: '⚙️', name: 'build_release.ps1', size: '4.1 KB', date: '10.10.2026 11:00', typ: t('PS1-Datei'), bg: bg2, fg: sampleExeRule?.color || fgNorm, bold: !!sampleExeRule?.bold, badge: sampleExeRule ? `${t('🎨 Regel:')} ${t(sampleExeRule.name)}` : '' },
+    { icon: '🔒', name: '.gitignore', size: '1.2 KB', date: '01.10.2026 08:00', typ: t('Versteckt'), bg: bg1, fg: fgHid, italic: true }
   ];
 
   host.innerHTML = `
     <div style="border:2px solid ${s.active_panel_border_color_hex || '#0078D4'};border-radius:6px;overflow:hidden;font-size:12px;">
       <div style="padding:4px 10px;background:var(--bg-sunken);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-weight:600;font-size:11px;color:var(--fg-dim);">
-        <span>👁 Live-Vorschau der Dateiliste (Total Commander Farb-Simulation)</span>
-        <span>Aktives Panel (${s.active_panel_border_color_hex || '#0078D4'})</span>
+        <span>${esc(t('👁 Live-Vorschau der Dateiliste (Total Commander Farb-Simulation)'))}</span>
+        <span>${esc(t('Aktives Panel'))} (${s.active_panel_border_color_hex || '#0078D4'})</span>
       </div>
       <div>
         ${rows.map(r => `
@@ -6081,15 +6227,15 @@ function renderFileTypeColorRulesTable() {
   const rules = STATE.settings.filetype_color_rules || [];
   tbody.innerHTML = rules.map((r, idx) => {
     const ageLabel = r.max_age_hours && r.max_age_hours > 0
-      ? (r.max_age_hours <= 48 ? `≤ ${r.max_age_hours} Std.` : `≤ ${Math.round(r.max_age_hours / 24)} Tage`)
-      : 'Alle';
+      ? (r.max_age_hours <= 48 ? `≤ ${r.max_age_hours} ${t('Std.')}` : `≤ ${Math.round(r.max_age_hours / 24)} ${t('Tage')}`)
+      : t('Alle');
     return `
       <tr>
         <td style="text-align:center;">
           <input type="checkbox" ${r.enabled !== false ? 'checked' : ''} onchange="toggleFileTypeRule(${idx}, this.checked)">
         </td>
         <td>
-          <span style="color:${esc(r.color_hex)};font-weight:${r.bold ? '700' : '500'};">${esc(r.name)}</span>
+          <span style="color:${esc(r.color_hex)};font-weight:${r.bold ? '700' : '500'};">${esc(t(r.name))}</span>
         </td>
         <td><code style="font-family:var(--font-mono);font-size:11px;">${esc(r.pattern)}</code></td>
         <td><span class="badge">${esc(ageLabel)}</span></td>
@@ -6100,14 +6246,14 @@ function renderFileTypeColorRulesTable() {
           </span>
         </td>
         <td style="display:flex;gap:4px;">
-          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Nach oben" onclick="moveFileTypeRule(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
-          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Nach unten" onclick="moveFileTypeRule(${idx}, 1)" ${idx === rules.length - 1 ? 'disabled' : ''}>▼</button>
-          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Bearbeiten" onclick="editFileTypeRule(${idx})">✏</button>
-          <button class="btn danger" style="padding:2px 6px;font-size:11px;" title="Löschen" onclick="deleteFileTypeRule(${idx})">✕</button>
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="${esc(t('Nach oben'))}" onclick="moveFileTypeRule(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="${esc(t('Nach unten'))}" onclick="moveFileTypeRule(${idx}, 1)" ${idx === rules.length - 1 ? 'disabled' : ''}>▼</button>
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="${esc(t('Bearbeiten'))}" onclick="editFileTypeRule(${idx})">✏</button>
+          <button class="btn danger" style="padding:2px 6px;font-size:11px;" title="${esc(t('Löschen'))}" onclick="deleteFileTypeRule(${idx})">✕</button>
         </td>
       </tr>
     `;
-  }).join('') || '<tr><td colspan="6" style="color:var(--fg-muted);text-align:center;">Keine Dateityp-Farbregeln definiert.</td></tr>';
+  }).join('') || `<tr><td colspan="6" style="color:var(--fg-muted);text-align:center;">${esc(t('Keine Dateityp-Farbregeln definiert.'))}</td></tr>`;
 }
 
 async function saveFileTypeColorRuleFromForm() {
@@ -6380,19 +6526,19 @@ async function updateCloudBackupStatusUi() {
   if (sel && Array.isArray(res.providers)) {
     const curVal = STATE.settings.cloud_backup_provider || 'auto';
     const optLabels = {
-      'auto': '⚡ Automatisch erkennen (Beste gefundene Cloud)',
+      'auto': t('⚡ Automatisch erkennen (Beste gefundene Cloud)'),
       'onedrive': 'Microsoft OneDrive',
       'googledrive': 'Google Drive',
       'icloud': 'Apple iCloud Drive',
       'dropbox': 'Dropbox',
       'nextcloud': 'Nextcloud / ownCloud',
-      'custom': '📁 Benutzerdefinierter Ordner...'
+      'custom': t('📁 Benutzerdefinierter Ordner...')
     };
     sel.innerHTML = `
       <option value="auto">${optLabels.auto}</option>
       ${res.providers.map(p => `
         <option value="${p.id}" ${p.id === curVal ? 'selected' : ''}>
-          ${esc(p.name)} ${(p.is_available || p.detected) ? '(Erkannt ✓)' : '(Nicht gefunden)'}
+          ${esc(p.name)} ${(p.is_available || p.detected) ? `(${esc(t('Erkannt ✓'))})` : `(${esc(t('Nicht gefunden'))})`}
         </option>
       `).join('')}
       <option value="custom" ${curVal === 'custom' ? 'selected' : ''}>${optLabels.custom}</option>
@@ -6409,21 +6555,21 @@ async function updateCloudBackupStatusUi() {
       badgeEl.className = 'badge';
       badgeEl.style.background = autoEnabled ? '#059669' : '#0284c7';
       badgeEl.style.color = '#fff';
-      badgeEl.textContent = autoEnabled ? '✓ Auto-Sync Aktiv' : 'Bereit (Manuell)';
+      badgeEl.textContent = autoEnabled ? t('✓ Auto-Sync Aktiv') : t('Bereit (Manuell)');
     }
     if (detailsEl) {
-      const provName = res.active_provider ? res.active_provider.name : 'Cloud-Speicher';
-      detailsEl.textContent = `Zielverzeichnis: ${res.active_dir} (${provName})`;
+      const provName = res.active_provider ? res.active_provider.name : t('Cloud-Speicher');
+      detailsEl.textContent = `${t('Zielverzeichnis:')} ${res.active_dir} (${provName})`;
     }
   } else {
     if (badgeEl) {
       badgeEl.className = 'badge';
       badgeEl.style.background = '#d97706';
       badgeEl.style.color = '#fff';
-      badgeEl.textContent = 'Kein Cloud-Ordner erkannt';
+      badgeEl.textContent = t('Kein Cloud-Ordner erkannt');
     }
     if (detailsEl) {
-      detailsEl.textContent = 'Kein Cloud-Verzeichnis konfiguriert oder gefunden. Klicken Sie auf „Cloud einrichten“, um OneDrive, Google Drive oder einen eigenen Ordner anzupassen.';
+      detailsEl.textContent = t('Kein Cloud-Verzeichnis konfiguriert oder gefunden. Klicken Sie auf „Cloud einrichten“, um OneDrive, Google Drive oder einen eigenen Ordner anzupassen.');
     }
   }
 }
@@ -6793,8 +6939,14 @@ function renderFontsSettings() {
 async function updateSetting(key, val) {
   STATE.settings[key] = val;
   applySettingsToDom();
+  if (key === 'language') {
+    applyLocalizationToDom();
+  }
   const res = await rpc('save_settings', { settings: STATE.settings });
   if (res && res.settings) STATE.settings = res.settings;
+  if (key === 'language') {
+    applyLocalizationToDom();
+  }
   populateSettingsUi();
 
   const reloadBackendKeys = [
@@ -6890,8 +7042,8 @@ function renderWindowSizesSettings() {
   if (elMain) {
     const mw = Math.round(s.main_window_width || 1520);
     const mh = Math.round(s.main_window_height || 920);
-    const maxStatus = s.main_window_maximized ? ' (Maximiert)' : ' (Normal)';
-    const pos = (s.main_window_x != null && s.main_window_y != null) ? ` • Pos: ${s.main_window_x}, ${s.main_window_y}` : '';
+    const maxStatus = s.main_window_maximized ? ` (${t('Maximiert')})` : ` (${t('Normal')})`;
+    const pos = (s.main_window_x != null && s.main_window_y != null) ? ` • ${t('Pos:')} ${s.main_window_x}, ${s.main_window_y}` : '';
     elMain.textContent = `${mw} × ${mh} px${maxStatus}${pos}`;
   }
 
@@ -6899,7 +7051,7 @@ function renderWindowSizesSettings() {
   if (elSet) {
     const sw = Math.round(s.settings_window_width || 980);
     const sh = Math.round(s.settings_window_height || 680);
-    const sMax = s.settings_window_maximized ? ' (Maximiert)' : ' (Normal)';
+    const sMax = s.settings_window_maximized ? ` (${t('Maximiert')})` : ` (${t('Normal')})`;
     elSet.textContent = `${sw} × ${sh} px${sMax}`;
   }
 
@@ -6907,9 +7059,9 @@ function renderWindowSizesSettings() {
   if (elView) {
     const savedV = sizes['modalViewer'];
     if (savedV && savedV.width && savedV.height) {
-      elView.textContent = `${Math.round(savedV.width)} × ${Math.round(savedV.height)} px${savedV.maximized ? ' (Maximiert)' : ' (Normal)'}`;
+      elView.textContent = `${Math.round(savedV.width)} × ${Math.round(savedV.height)} px${savedV.maximized ? ` (${t('Maximiert')})` : ` (${t('Normal')})`}`;
     } else {
-      elView.textContent = `960 × 680 px (Standard)`;
+      elView.textContent = `960 × 680 px (${t('Standard')})`;
     }
   }
 
@@ -6918,7 +7070,7 @@ function renderWindowSizesSettings() {
     const cw = Math.round(s.child_window_width || 960);
     const ch = Math.round(s.child_window_height || 680);
     const customCount = Object.keys(sizes).length;
-    elChild.textContent = `Standard: ${cw} × ${ch} px (${customCount} individuell angepasst)`;
+    elChild.textContent = `${t('Standard')}: ${cw} × ${ch} px (${customCount} ${t('individuell angepasst')})`;
   }
 
   // 2. Dialog Table
@@ -6936,16 +7088,16 @@ function renderWindowSizesSettings() {
     const curMax = saved?.maximized;
 
     const statusBadge = isCustom
-      ? `<span class="f-tag-badge" style="background:var(--accent);color:#fff">Angepasst${curMax ? ' (Max)' : ''}</span>`
-      : `<span style="color:var(--fg-muted);font-size:11.5px;">Standard</span>`;
+      ? `<span class="f-tag-badge" style="background:var(--accent);color:#fff">${esc(t('Angepasst'))}${curMax ? ` (${esc(t('Max'))})` : ''}</span>`
+      : `<span style="color:var(--fg-muted);font-size:11.5px;">${esc(t('Standard'))}</span>`;
 
     const actionBtn = isCustom
-      ? `<button class="btn" style="padding:2px 8px;font-size:11px;" onclick="resetSingleDialogSize('${d.key}')">↺ Standard</button>`
+      ? `<button class="btn" style="padding:2px 8px;font-size:11px;" onclick="resetSingleDialogSize('${d.key}')">${esc(t('↺ Standard'))}</button>`
       : `<span style="color:var(--fg-muted);font-size:11px;">—</span>`;
 
     return `
       <tr>
-        <td><strong>${esc(d.title)}</strong></td>
+        <td><strong>${esc(t(d.title))}</strong></td>
         <td><code style="font-family:var(--font-mono);font-size:12px;">${curW} px</code></td>
         <td><code style="font-family:var(--font-mono);font-size:12px;">${curH} px</code></td>
         <td>${statusBadge}</td>
@@ -7032,17 +7184,24 @@ async function saveCurrentSessionNow(showToastMsg) {
 }
 
 function renderShortcutsTable(filter) {
+  const lang = getEffectiveLang();
   const q = (filter || '').toLowerCase();
   const rows = STATE.commands.filter(c => !q || c.title.toLowerCase().includes(q) || c.shortcut.toLowerCase().includes(q) || c.category.toLowerCase().includes(q));
   document.getElementById('shortcutsTbl').innerHTML = `
-    <thead><tr><th>Kategorie</th><th>Befehl / Funktion</th><th>Tastenkürzel</th><th>Aktion</th></tr></thead>
+    <thead><tr><th>${esc(t('Kategorie'))}</th><th>${esc(t('Befehl / Funktion'))}</th><th>${esc(t('Tastenkürzel'))}</th><th>${esc(t('Aktion'))}</th></tr></thead>
     <tbody>
-      ${rows.map(c => `<tr>
-        <td><span class="f-tag-badge">${esc(c.category)}</span></td>
-        <td><strong>${esc(c.title)}</strong></td>
-        <td><kbd style="font-family:var(--font-mono);background:var(--bg-sunken);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">${esc(c.shortcut || '—')}</kbd></td>
-        <td><button class="btn" style="padding:2px 8px;font-size:11px;" onclick="closeModal('modalSettings');runCommandById('${c.id}')">Ausführen</button></td>
-      </tr>`).join('')}
+      ${rows.map(c => {
+        let sc = c.shortcut || '—';
+        if (lang !== 'de' && sc !== '—') {
+          sc = sc.replace(/\bStrg\b/g, 'Ctrl').replace(/\bUmschalt\b/g, 'Shift');
+        }
+        return `<tr>
+        <td><span class="f-tag-badge">${esc(t(c.category))}</span></td>
+        <td><strong>${esc(t(c.title))}</strong></td>
+        <td><kbd style="font-family:var(--font-mono);background:var(--bg-sunken);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">${esc(sc)}</kbd></td>
+        <td><button class="btn" style="padding:2px 8px;font-size:11px;" onclick="closeModal('modalSettings');runCommandById('${c.id}')">${esc(t('Ausführen'))}</button></td>
+      </tr>`;
+      }).join('')}
     </tbody>
   `;
 }

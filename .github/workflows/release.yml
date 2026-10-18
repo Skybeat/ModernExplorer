@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.13)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.14)'
         required: true
-        default: 'v1.9.13'
+        default: 'v1.9.14'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.13" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.14" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -207,6 +207,7 @@ jobs:
             "## What's New in Modern Explorer Studio $tag (Rust Edition)",
             '',
             "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            '- **Complete End-to-End Localization & Multi-Language Coverage (v1.9.14):** Fixed remaining untranslated German strings across all 9 Settings tabs, color rows, file list color targets, live preview simulation, window bounds & dialog sizes table, shortcuts table, cloud backup status & dropdowns, and all context menus (`showContextMenuAt`). Dynamically translated keyboard shortcuts (`Strg` -> `Ctrl`, `Umschalt` -> `Shift`) based on selected language and ensured instant live DOM updates without restarting.',
             '- **Enhanced Side-by-Side PDF & Binary Diff Engine (v1.9.13):** Fixed Side-by-Side File Diff tool (`Ctrl+Shift+U`) swallowing differences between PDF files. Implemented full page-by-page text extraction (`doc.extract_text`) with page separators, automatic PDF structural & metadata fallback (PDF version, page count, media boxes, rotations, object streams, stream filters & lengths, SHA-256) when font text layers are absent or scanned, and automatic binary properties comparison when extracted texts are identical but binaries differ. Added support for general non-UTF-8 encodings (UTF-16 LE/BE, Latin-1, hex dump) and enhanced the Diff modal with swap sides (`⇄`), whitespace toggle, loading states, and multi-file selection support within active panes.',
             '- **Comprehensive Multi-Language Localization System (v1.9.12):** Full end-to-end UI localization covering all 9 Settings tabs, section titles, option cards, form controls, dropdown choices, table headers, buttons, context menus, command palette, shortcuts table, and all 20+ power-tool modals (`showToolModal`). Built a safe, reversible DOM tree localization engine (`translateElementTree`) that preserves original German markup, integrated an expanded 890+ entry dictionary with automatic English fallbacks (`I18N[lang] -> I18N.en -> I18N.de -> raw`), and dynamically localizes on language selection without restart.',
             '- **Cloud Provider Setup & Auto-Detection Fix (v1.9.11):** Fixed Microsoft OneDrive detection status badge bug. Enhanced cloud directory resolver with Windows Registry scanning (`HKCU\Software\Microsoft\OneDrive\Accounts\Personal\UserFolder`, etc.) and multi-drive path resolution for OneDrive, Google Drive, Apple iCloud Drive, Dropbox, and Nextcloud/ownCloud. Added dedicated Cloud Configuration Wizard modal (`Cloud-Speicher einrichten & verbinden`) allowing users to configure custom root paths for all cloud providers, run interactive connection & write tests, select folders via folder browser, and choose the active backup target. Custom provider paths are now persisted in settings (`cloud_provider_paths`).',
