@@ -352,6 +352,8 @@ pub struct AppSettings {
     pub auto_cloud_backup_enabled: bool,
     #[serde(default)]
     pub custom_cloud_backup_dir: Option<String>,
+    #[serde(default)]
+    pub cloud_provider_paths: HashMap<String, String>,
     #[serde(default = "default_true")]
     pub first_run_completed: bool,
 
@@ -490,6 +492,7 @@ impl Default for AppSettings {
             cloud_backup_provider: default_cloud_provider(),
             auto_cloud_backup_enabled: false,
             custom_cloud_backup_dir: None,
+            cloud_provider_paths: HashMap::new(),
             first_run_completed: true,
 
             dialog_sizes: HashMap::new(),

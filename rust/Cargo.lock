@@ -2270,7 +2270,7 @@ dependencies = [
 
 [[package]]
 name = "modern-explorer-app"
-version = "1.9.10"
+version = "1.9.11"
 dependencies = [
  "chrono",
  "http",
@@ -2284,7 +2284,7 @@ dependencies = [
 
 [[package]]
 name = "modern-explorer-core"
-version = "1.9.10"
+version = "1.9.11"
 dependencies = [
  "aes-gcm",
  "chrono",

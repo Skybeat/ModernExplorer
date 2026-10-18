@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudProviderInfo {
     pub id: String,
@@ -14,8 +16,14 @@ pub struct CloudProviderInfo {
     pub detected_root: Option<String>,
     pub backup_dir: Option<String>,
     pub is_available: bool,
+    #[serde(default)]
+    pub detected: bool,
+    #[serde(default)]
+    pub is_custom_configured: bool,
     pub backup_count: usize,
     pub latest_backup_date: Option<String>,
+    #[serde(default)]
+    pub status_message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,43 +107,103 @@ impl CloudBackupService {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
     /// Detect all available Cloud Storage providers on the current OS
-    pub fn detect_providers(custom_path: Option<&str>) -> Vec<CloudProviderInfo> {
+    #[cfg(windows)]
+    fn query_registry_sz(key: &str, value_name: &str) -> Option<String> {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let output = std::process::Command::new("reg")
+            .args(["query", key, "/v", value_name])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()?;
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            for line in text.lines() {
+                if let Some(pos) = line.find("REG_SZ") {
+                    let val = line[pos + 6..].trim();
+                    if !val.is_empty() {
+                        return Some(val.to_string());
+                    }
+                } else if let Some(pos) = line.find("REG_EXPAND_SZ") {
+                    let val = line[pos + 13..].trim();
+                    if !val.is_empty() {
+                        return Some(val.to_string());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    #[cfg(not(windows))]
+    fn query_registry_sz(_key: &str, _value_name: &str) -> Option<String> {
+        None
+    }
+
+    /// Detect all available Cloud Storage providers on the current OS
+    pub fn detect_providers(
+        custom_path: Option<&str>,
+        configured_paths: Option<&HashMap<String, String>>,
+    ) -> Vec<CloudProviderInfo> {
         let mut list = Vec::new();
 
+        let get_cfg = |id: &str| -> Option<&str> {
+            configured_paths.and_then(|cp| cp.get(id)).map(|s| s.as_str())
+        };
+
         // 1. Microsoft OneDrive
+        let onedrive_cfg = get_cfg("onedrive");
         list.push(Self::probe_provider(
             "onedrive",
             "Microsoft OneDrive",
             "☁️",
-            Self::find_onedrive_root(),
+            Self::find_onedrive_root(onedrive_cfg),
+            onedrive_cfg.is_some(),
         ));
 
         // 2. Google Drive
+        let googledrive_cfg = get_cfg("googledrive");
         list.push(Self::probe_provider(
             "googledrive",
             "Google Drive",
             "🔷",
-            Self::find_google_drive_root(),
+            Self::find_google_drive_root(googledrive_cfg),
+            googledrive_cfg.is_some(),
         ));
 
         // 3. Apple iCloud Drive
+        let icloud_cfg = get_cfg("iclouddrive");
         list.push(Self::probe_provider(
             "iclouddrive",
             "Apple iCloud Drive",
             "🍏",
-            Self::find_icloud_drive_root(),
+            Self::find_icloud_drive_root(icloud_cfg),
+            icloud_cfg.is_some(),
         ));
 
         // 4. Dropbox
+        let dropbox_cfg = get_cfg("dropbox");
         list.push(Self::probe_provider(
             "dropbox",
             "Dropbox",
             "📦",
-            Self::find_dropbox_root(),
+            Self::find_dropbox_root(dropbox_cfg),
+            dropbox_cfg.is_some(),
         ));
 
-        // 5. Custom Cloud / Network directory
-        let custom_root = custom_path.and_then(|p| {
+        // 5. Nextcloud / ownCloud
+        let nextcloud_cfg = get_cfg("nextcloud");
+        list.push(Self::probe_provider(
+            "nextcloud",
+            "Nextcloud / ownCloud",
+            "🖧",
+            Self::find_nextcloud_root(nextcloud_cfg),
+            nextcloud_cfg.is_some(),
+        ));
+
+        // 6. Custom Cloud / Network directory
+        let effective_custom = custom_path.or_else(|| get_cfg("custom"));
+        let custom_root = effective_custom.and_then(|p| {
             let pb = PathBuf::from(p);
             if pb.is_dir() {
                 Some(pb)
@@ -145,9 +213,10 @@ impl CloudBackupService {
         });
         list.push(Self::probe_provider(
             "custom",
-            "Benutzerdefinierter Cloud-Pfad",
+            "Benutzerdefinierter Cloud- / Netzwerk-Ordner",
             "📁",
             custom_root,
+            effective_custom.is_some(),
         ));
 
         list
@@ -158,8 +227,9 @@ impl CloudBackupService {
         name: &str,
         icon: &str,
         root_opt: Option<PathBuf>,
+        is_custom_configured: bool,
     ) -> CloudProviderInfo {
-        let (is_available, detected_root, backup_dir, backup_count, latest_backup_date) =
+        let (is_available, detected_root, backup_dir, backup_count, latest_backup_date, status_message) =
             if let Some(root) = root_opt {
                 let b_dir = root.join("ModernExplorer").join("Backups");
                 let mut count = 0;
@@ -186,15 +256,29 @@ impl CloudBackupService {
                     }
                 }
 
+                let status = if is_custom_configured {
+                    format!("Manuell eingerichtet: {} ({} Backups)", root.display(), count)
+                } else {
+                    format!("Automatisch erkannt: {} ({} Backups)", root.display(), count)
+                };
+
                 (
                     true,
                     Some(root.to_string_lossy().to_string()),
                     Some(b_dir.to_string_lossy().to_string()),
                     count,
                     latest_date,
+                    status,
                 )
             } else {
-                (false, None, None, 0, None)
+                (
+                    false,
+                    None,
+                    None,
+                    0,
+                    None,
+                    "Nicht auf diesem PC gefunden (Pfad manuell zuweisen)".to_string(),
+                )
             };
 
         CloudProviderInfo {
@@ -204,13 +288,24 @@ impl CloudBackupService {
             detected_root,
             backup_dir,
             is_available,
+            detected: is_available,
+            is_custom_configured,
             backup_count,
             latest_backup_date,
+            status_message,
         }
     }
 
-    pub fn find_onedrive_root() -> Option<PathBuf> {
-        // Environment variables standard on Windows
+    pub fn find_onedrive_root(custom_override: Option<&str>) -> Option<PathBuf> {
+        // 1. Check custom override if provided
+        if let Some(c) = custom_override {
+            let p = PathBuf::from(c);
+            if p.is_dir() {
+                return Some(p);
+            }
+        }
+
+        // 2. Environment variables standard on Windows
         for env_var in &["OneDrive", "OneDriveConsumer", "OneDriveCommercial"] {
             if let Ok(val) = std::env::var(env_var) {
                 let p = PathBuf::from(val);
@@ -219,78 +314,305 @@ impl CloudBackupService {
                 }
             }
         }
+
+        // 3. Windows Registry lookup
+        #[cfg(windows)]
+        {
+            let reg_keys = [
+                r"HKCU\Software\Microsoft\OneDrive\Accounts\Personal",
+                r"HKCU\Software\Microsoft\OneDrive\Accounts\Business1",
+                r"HKCU\Software\Microsoft\OneDrive\Accounts\Business2",
+                r"HKCU\Software\Microsoft\OneDrive",
+            ];
+            for rk in &reg_keys {
+                if let Some(val) = Self::query_registry_sz(rk, "UserFolder") {
+                    let p = PathBuf::from(&val);
+                    if p.is_dir() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+
+        // 4. User profile home directory
         if let Some(home) = dirs::home_dir() {
-            let p = home.join("OneDrive");
+            let candidates = [
+                home.join("OneDrive"),
+                home.join("OneDrive - Personal"),
+                home.join("OneDrive - Consumer"),
+            ];
+            for c in &candidates {
+                if c.is_dir() {
+                    return Some(c.clone());
+                }
+            }
+            // Scan home for any directory starting with "OneDrive"
+            if let Ok(entries) = fs::read_dir(&home) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                            if name.to_lowercase().starts_with("onedrive") {
+                                return Some(p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Root drives (e.g. C:\OneDrive, D:\OneDrive)
+        for drive in &["C:\\OneDrive", "D:\\OneDrive", "E:\\OneDrive"] {
+            let p = PathBuf::from(drive);
             if p.is_dir() {
                 return Some(p);
             }
         }
+
         None
     }
 
-    pub fn find_google_drive_root() -> Option<PathBuf> {
-        // Common paths on Windows / macOS
+    pub fn find_google_drive_root(custom_override: Option<&str>) -> Option<PathBuf> {
+        if let Some(c) = custom_override {
+            let p = PathBuf::from(c);
+            if p.is_dir() {
+                return Some(p);
+            }
+        }
+
+        // 1. Home directory
         if let Some(home) = dirs::home_dir() {
             let candidates = [
                 home.join("Google Drive").join("My Drive"),
                 home.join("Google Drive").join("Meine Ablage"),
                 home.join("Google Drive"),
+                home.join("GoogleDrive"),
             ];
-            for c in candidates {
+            for c in &candidates {
                 if c.is_dir() {
-                    return Some(c);
+                    return Some(c.clone());
                 }
             }
         }
-        // Google Drive mounted virtual drives on Windows (G:\, H:\)
-        for drive_letter in &["G:\\My Drive", "G:\\Meine Ablage", "G:\\"] {
-            let p = PathBuf::from(drive_letter);
+
+        // 2. Google Drive mounted virtual drives on Windows (G:\, H:\, F:\)
+        for letter in &["G", "H", "F", "D", "E"] {
+            let my_drive = format!("{}:\\My Drive", letter);
+            let meine_ablage = format!("{}:\\Meine Ablage", letter);
+            for p_str in &[&my_drive, &meine_ablage] {
+                let p = PathBuf::from(p_str);
+                if p.is_dir() {
+                    return Some(p);
+                }
+            }
+            let root_p = PathBuf::from(format!("{}:\\", letter));
+            if root_p.is_dir()
+                && (root_p.join(".tmp.drivedownload").exists()
+                    || root_p.join("My Drive").exists()
+                    || root_p.join("Meine Ablage").exists())
+            {
+                return Some(root_p);
+            }
+        }
+
+        None
+    }
+
+    pub fn find_icloud_drive_root(custom_override: Option<&str>) -> Option<PathBuf> {
+        if let Some(c) = custom_override {
+            let p = PathBuf::from(c);
             if p.is_dir() {
                 return Some(p);
             }
         }
-        None
-    }
 
-    pub fn find_icloud_drive_root() -> Option<PathBuf> {
         if let Some(home) = dirs::home_dir() {
             let candidates = [
                 home.join("iCloudDrive"),
                 home.join("iCloud Drive"),
                 home.join("Library/Mobile Documents/com~apple~CloudDocs"),
+                home.join("Pictures").join("iCloud Photos"),
             ];
-            for c in candidates {
+            for c in &candidates {
                 if c.is_dir() {
-                    return Some(c);
+                    return Some(c.clone());
+                }
+            }
+
+            // Windows Store iCloud App in LocalAppData
+            if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+                let pkg_dir = PathBuf::from(local_app_data).join("Packages");
+                if pkg_dir.is_dir() {
+                    if let Ok(entries) = fs::read_dir(&pkg_dir) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.is_dir() {
+                                if let Some(n) = p.file_name().and_then(|s| s.to_str()) {
+                                    if n.starts_with("AppleInc.iCloud") {
+                                        let icloud_dir = p
+                                            .join("LocalCache")
+                                            .join("Local")
+                                            .join("Apple Inc")
+                                            .join("iCloudDrive");
+                                        if icloud_dir.is_dir() {
+                                            return Some(icloud_dir);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         None
     }
 
-    pub fn find_dropbox_root() -> Option<PathBuf> {
-        if let Some(home) = dirs::home_dir() {
-            let p = home.join("Dropbox");
+    pub fn find_dropbox_root(custom_override: Option<&str>) -> Option<PathBuf> {
+        if let Some(c) = custom_override {
+            let p = PathBuf::from(c);
             if p.is_dir() {
                 return Some(p);
+            }
+        }
+
+        // Check Dropbox info.json
+        let json_paths = [
+            std::env::var("LOCALAPPDATA").ok().map(|d| PathBuf::from(d).join("Dropbox").join("info.json")),
+            std::env::var("APPDATA").ok().map(|d| PathBuf::from(d).join("Dropbox").join("info.json")),
+            dirs::home_dir().map(|h| h.join(".dropbox").join("info.json")),
+        ];
+        for jp_opt in &json_paths {
+            if let Some(jp) = jp_opt {
+                if jp.is_file() {
+                    if let Ok(content) = fs::read_to_string(jp) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(path_str) = val.get("personal").and_then(|p| p.get("path")).and_then(|p| p.as_str()) {
+                                let pb = PathBuf::from(path_str);
+                                if pb.is_dir() {
+                                    return Some(pb);
+                                }
+                            }
+                            if let Some(path_str) = val.get("business").and_then(|p| p.get("path")).and_then(|p| p.as_str()) {
+                                let pb = PathBuf::from(path_str);
+                                if pb.is_dir() {
+                                    return Some(pb);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(home) = dirs::home_dir() {
+            let candidates = [
+                home.join("Dropbox"),
+                home.join("Dropbox (Personal)"),
+            ];
+            for c in &candidates {
+                if c.is_dir() {
+                    return Some(c.clone());
+                }
             }
         }
         None
     }
 
+    pub fn find_nextcloud_root(custom_override: Option<&str>) -> Option<PathBuf> {
+        if let Some(c) = custom_override {
+            let p = PathBuf::from(c);
+            if p.is_dir() {
+                return Some(p);
+            }
+        }
+        if let Some(home) = dirs::home_dir() {
+            let candidates = [
+                home.join("Nextcloud"),
+                home.join("ownCloud"),
+            ];
+            for c in &candidates {
+                if c.is_dir() {
+                    return Some(c.clone());
+                }
+            }
+        }
+        None
+    }
+
+    /// Test read and write access to a provider directory
+    pub fn test_provider(
+        provider_id: &str,
+        path_override: Option<&str>,
+        configured_paths: Option<&HashMap<String, String>>,
+    ) -> (bool, String) {
+        let root_opt = if let Some(po) = path_override {
+            let pb = PathBuf::from(po);
+            if pb.is_dir() {
+                Some(pb)
+            } else {
+                return (false, format!("Der angegebene Pfad existiert nicht: {}", po));
+            }
+        } else {
+            let get_cfg = || configured_paths.and_then(|cp| cp.get(provider_id)).map(|s| s.as_str());
+            match provider_id {
+                "onedrive" => Self::find_onedrive_root(get_cfg()),
+                "googledrive" => Self::find_google_drive_root(get_cfg()),
+                "iclouddrive" => Self::find_icloud_drive_root(get_cfg()),
+                "dropbox" => Self::find_dropbox_root(get_cfg()),
+                "nextcloud" => Self::find_nextcloud_root(get_cfg()),
+                "custom" => get_cfg().map(PathBuf::from).filter(|p| p.is_dir()),
+                _ => None,
+            }
+        };
+
+        let root = match root_opt {
+            Some(r) => r,
+            None => return (false, format!("Kein gültiger Ordner für '{}' gefunden.", provider_id)),
+        };
+
+        let backup_dir = root.join("ModernExplorer").join("Backups");
+        if let Err(e) = fs::create_dir_all(&backup_dir) {
+            return (false, format!("Konnte Backup-Verzeichnis '{}' nicht erstellen: {}", backup_dir.display(), e));
+        }
+
+        // Test writing a temporary file
+        let test_file = backup_dir.join(".modernexplorer_sync_test");
+        let test_payload = format!("test_{}", Local::now().timestamp_millis());
+        if let Err(e) = fs::write(&test_file, &test_payload) {
+            return (false, format!("Schreibzugriff verweigert in '{}': {}", backup_dir.display(), e));
+        }
+        let read_back = fs::read_to_string(&test_file).unwrap_or_default();
+        let _ = fs::remove_file(&test_file);
+
+        if read_back != test_payload {
+            return (false, "Schreib-/Lesetest nicht übereinstimmend.".to_string());
+        }
+
+        (true, format!("Verbindung erfolgreich! Ordner ist beschreibbar: {}", backup_dir.display()))
+    }
+
     /// Resolve target directory for backup creation
-    pub fn get_backup_dir(provider_id: &str, custom_path: Option<&str>) -> Result<PathBuf, String> {
+    pub fn get_backup_dir(
+        provider_id: &str,
+        custom_path: Option<&str>,
+        configured_paths: Option<&HashMap<String, String>>,
+    ) -> Result<PathBuf, String> {
+        let get_cfg = || configured_paths.and_then(|cp| cp.get(provider_id)).map(|s| s.as_str());
         let root = match provider_id {
-            "onedrive" => Self::find_onedrive_root()
-                .ok_or_else(|| "Microsoft OneDrive wurde auf diesem System nicht gefunden.".to_string())?,
-            "googledrive" => Self::find_google_drive_root()
-                .ok_or_else(|| "Google Drive wurde auf diesem System nicht gefunden.".to_string())?,
-            "iclouddrive" => Self::find_icloud_drive_root()
-                .ok_or_else(|| "Apple iCloud Drive wurde auf diesem System nicht gefunden.".to_string())?,
-            "dropbox" => Self::find_dropbox_root()
-                .ok_or_else(|| "Dropbox wurde auf diesem System nicht gefunden.".to_string())?,
+            "onedrive" => Self::find_onedrive_root(get_cfg())
+                .ok_or_else(|| "Microsoft OneDrive wurde auf diesem System nicht gefunden. Bitte konfigurieren Sie den Pfad im Setup.".to_string())?,
+            "googledrive" => Self::find_google_drive_root(get_cfg())
+                .ok_or_else(|| "Google Drive wurde auf diesem System nicht gefunden. Bitte konfigurieren Sie den Pfad im Setup.".to_string())?,
+            "iclouddrive" => Self::find_icloud_drive_root(get_cfg())
+                .ok_or_else(|| "Apple iCloud Drive wurde auf diesem System nicht gefunden. Bitte konfigurieren Sie den Pfad im Setup.".to_string())?,
+            "dropbox" => Self::find_dropbox_root(get_cfg())
+                .ok_or_else(|| "Dropbox wurde auf diesem System nicht gefunden. Bitte konfigurieren Sie den Pfad im Setup.".to_string())?,
+            "nextcloud" => Self::find_nextcloud_root(get_cfg())
+                .ok_or_else(|| "Nextcloud / ownCloud wurde auf diesem System nicht gefunden. Bitte konfigurieren Sie den Pfad im Setup.".to_string())?,
             "custom" => {
-                if let Some(cp) = custom_path {
+                let eff = custom_path.or_else(get_cfg);
+                if let Some(cp) = eff {
                     let pb = PathBuf::from(cp);
                     if pb.is_dir() {
                         pb
@@ -314,13 +636,14 @@ impl CloudBackupService {
     pub fn create_cloud_backup(
         provider_id: &str,
         custom_path: Option<&str>,
+        configured_paths: Option<&HashMap<String, String>>,
         settings: &AppSettings,
         favorites: Option<Vec<FavoriteEntry>>,
         user_commands: Option<Vec<UserCommandItem>>,
         description: Option<String>,
         app_version: &str,
     ) -> Result<BackupFileInfo, String> {
-        let target_dir = Self::get_backup_dir(provider_id, custom_path)?;
+        let target_dir = Self::get_backup_dir(provider_id, custom_path, configured_paths)?;
         let device_name = whoami_device_name();
         let now = Local::now();
         let timestamp_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
@@ -359,6 +682,7 @@ impl CloudBackupService {
             "googledrive" => "Google Drive",
             "iclouddrive" => "Apple iCloud Drive",
             "dropbox" => "Dropbox",
+            "nextcloud" => "Nextcloud / ownCloud",
             _ => "Cloud-Speicher",
         };
 
@@ -378,8 +702,12 @@ impl CloudBackupService {
     }
 
     /// List all backups in a provider directory or all available providers
-    pub fn list_backups(provider_id_filter: Option<&str>, custom_path: Option<&str>) -> Vec<BackupFileInfo> {
-        let providers = Self::detect_providers(custom_path);
+    pub fn list_backups(
+        provider_id_filter: Option<&str>,
+        custom_path: Option<&str>,
+        configured_paths: Option<&HashMap<String, String>>,
+    ) -> Vec<BackupFileInfo> {
+        let providers = Self::detect_providers(custom_path, configured_paths);
         let mut results = Vec::new();
 
         for prov in providers {
@@ -397,7 +725,6 @@ impl CloudBackupService {
                     for entry in entries.flatten() {
                         let path = entry.path();
                         if path.is_file() && path.extension().map_or(false, |e| e == "json") {
-                            // Skip the duplicate pointer in listing if historical exists
                             let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
                             if let Ok(content) = fs::read_to_string(&path) {
                                 if let Ok(pkg) = serde_json::from_str::<SettingsBackupPackage>(&content) {
@@ -479,9 +806,10 @@ impl CloudBackupService {
     }
 
     /// Quick scan on fresh startup to discover if cloud backups exist
-    pub fn scan_for_fresh_install_backups() -> Option<BackupFileInfo> {
-        let backups = Self::list_backups(None, None);
-        // Find latest non-empty backup
+    pub fn scan_for_fresh_install_backups(
+        configured_paths: Option<&HashMap<String, String>>,
+    ) -> Option<BackupFileInfo> {
+        let backups = Self::list_backups(None, None, configured_paths);
         backups.into_iter().next()
     }
 
@@ -631,6 +959,7 @@ mod tests {
         let backup_info = CloudBackupService::create_cloud_backup(
             "custom",
             Some(&custom_cloud_path),
+            None,
             &settings,
             None,
             None,
@@ -641,7 +970,7 @@ mod tests {
         assert!(Path::new(&backup_info.file_path).exists());
         assert!(backup_info.file_name.starts_with("ModernExplorer-Backup-"));
 
-        let list = CloudBackupService::list_backups(Some("custom"), Some(&custom_cloud_path));
+        let list = CloudBackupService::list_backups(Some("custom"), Some(&custom_cloud_path), None);
         assert!(!list.is_empty());
         assert_eq!(list[0].description.as_deref(), Some("Integration Test Backup"));
 
@@ -651,6 +980,25 @@ mod tests {
         assert_eq!(loaded_pkg.settings.default_view_mode, "Tiles");
         assert!(loaded_pkg.settings.invert_cursor);
         assert!(loaded_pkg.settings.natural_number_sorting);
+    }
+
+    #[test]
+    fn test_cloud_backup_provider_detection_and_test() {
+        let temp_dir = TempDir::new().unwrap();
+        let custom_path = temp_dir.path().to_string_lossy().to_string();
+
+        let mut configured_paths = HashMap::new();
+        configured_paths.insert("onedrive".to_string(), custom_path.clone());
+
+        let providers = CloudBackupService::detect_providers(None, Some(&configured_paths));
+        let onedrive = providers.iter().find(|p| p.id == "onedrive").expect("onedrive provider");
+        assert!(onedrive.is_available);
+        assert!(onedrive.detected);
+        assert!(onedrive.is_custom_configured);
+        assert_eq!(onedrive.detected_root.as_deref(), Some(custom_path.as_str()));
+
+        let (test_ok, msg) = CloudBackupService::test_provider("onedrive", None, Some(&configured_paths));
+        assert!(test_ok, "write test should succeed: {}", msg);
     }
 }
 

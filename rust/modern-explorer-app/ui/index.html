@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.10 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.11 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1258,7 +1258,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.10 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.11 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1801,7 +1801,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.10</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.11</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1837,14 +1837,16 @@
               <div class="pr-sub" id="cloudBackupTargetInfo">Erkannte Cloud-Dienste auf diesem PC</div>
             </div>
             <div class="pr-ctl" style="display:flex;gap:6px;align-items:center;">
-              <select class="select" id="sel-cloud_backup_provider" onchange="onCloudProviderChanged(this.value)">
+              <select class="select" id="sel-cloud_backup_provider" onchange="onCloudProviderChanged(this.value)" style="min-width:240px;">
                 <option value="auto">⚡ Automatisch erkennen (Beste gefundene Cloud)</option>
                 <option value="onedrive">Microsoft OneDrive</option>
                 <option value="googledrive">Google Drive</option>
                 <option value="icloud">Apple iCloud Drive</option>
                 <option value="dropbox">Dropbox</option>
+                <option value="nextcloud">Nextcloud / ownCloud</option>
                 <option value="custom">📁 Benutzerdefinierter Ordner...</option>
               </select>
+              <button class="btn" onclick="openCloudSetupModal()" title="Cloud-Speicher einrichten, Pfade manuell anpassen und Verbindung testen" style="white-space:nowrap;">⚙️ Cloud einrichten...</button>
             </div>
           </div>
           <div class="prefs-row" id="rowCustomCloudDir" style="display:none;">
@@ -1868,6 +1870,7 @@
             <button class="btn primary" onclick="runCloudBackupNow()">☁️ Jetzt Cloud-Backup erstellen</button>
             <button class="btn" onclick="openCloudRestoreModal()">📥 Aus Cloud wiederherstellen...</button>
             <button class="btn" onclick="openCloudBackupFolder()">📂 Backup-Ordner öffnen</button>
+            <button class="btn" onclick="openCloudSetupModal()">⚙️ Cloud-Speicher &amp; Pfade verwalten...</button>
           </div>
         </div>
 
@@ -1949,7 +1952,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.10</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.10</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.11</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.11</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1958,7 +1961,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.10.
+        ✓ Sie verwenden die aktuelle Version v1.9.11.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -1972,6 +1975,34 @@
       <button class="btn primary" id="btnInstallUpdateFoot" style="display:none;background:#10b981;border-color:#059669;" onclick="installUpdateNow()">🚀 Update automatisch herunterladen &amp; installieren</button>
       <button class="btn" onclick="openReleaseUrl()">🌐 GitHub Releases öffnen ↗</button>
       <button class="btn primary" onclick="closeModal('modalAbout')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLOUD SETUP MODAL ==================== -->
+<div class="modal-bg" id="modalCloudSetup" onclick="if(event.target===this)closeModal('modalCloudSetup')">
+  <div class="modal" data-default-w="820" data-default-h="620" style="width:820px;height:620px;">
+    <div class="modal-head">
+      <span>☁️ Cloud-Speicher einrichten &amp; verbinden</span>
+      <button class="ibtn" onclick="closeModal('modalCloudSetup')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;">
+      <div style="font-size:12.5px;color:var(--fg-dim);line-height:1.4;">
+        Hier können Sie die Speicherpfade für Microsoft OneDrive, Google Drive, Apple iCloud Drive, Dropbox, Nextcloud / ownCloud oder ein eigenes Verzeichnis überprüfen, anpassen, die Schreibrechte testen und als aktives Backup-Ziel festlegen.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn" onclick="refreshCloudSetupList()">🔄 Erkennung aktualisieren</button>
+        <button class="btn" onclick="openCloudRestoreModal()">📥 Backups wiederherstellen...</button>
+        <div style="flex:1;"></div>
+        <span id="cloudSetupSummaryBadge" class="badge">Prüfe Status...</span>
+      </div>
+      <div id="cloudSetupCardsContainer" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:4px;">
+        <div style="text-align:center;color:var(--fg-muted);padding:30px;">Lade Cloud-Anbieter…</div>
+      </div>
+    </div>
+    <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11.5px;color:var(--fg-muted);">Hinweis: Backups werden im Unterordner <code>ModernExplorerBackup</code> des Cloud-Pfads gespeichert.</span>
+      <button class="btn primary" onclick="closeModal('modalCloudSetup')">Fertig</button>
     </div>
   </div>
 </div>
@@ -2114,7 +2145,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.10',
+  version: '1.9.11',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2956,7 +2987,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.10';
+  STATE.version = data.version || '1.9.11';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -5409,13 +5440,14 @@ async function updateCloudBackupStatusUi() {
       'googledrive': 'Google Drive',
       'icloud': 'Apple iCloud Drive',
       'dropbox': 'Dropbox',
+      'nextcloud': 'Nextcloud / ownCloud',
       'custom': '📁 Benutzerdefinierter Ordner...'
     };
     sel.innerHTML = `
       <option value="auto">${optLabels.auto}</option>
       ${res.providers.map(p => `
         <option value="${p.id}" ${p.id === curVal ? 'selected' : ''}>
-          ${esc(p.name)} ${p.detected ? '(Erkannt ✓)' : '(Nicht gefunden)'}
+          ${esc(p.name)} ${(p.is_available || p.detected) ? '(Erkannt ✓)' : '(Nicht gefunden)'}
         </option>
       `).join('')}
       <option value="custom" ${curVal === 'custom' ? 'selected' : ''}>${optLabels.custom}</option>
@@ -5446,7 +5478,7 @@ async function updateCloudBackupStatusUi() {
       badgeEl.textContent = 'Kein Cloud-Ordner erkannt';
     }
     if (detailsEl) {
-      detailsEl.textContent = 'Kein Cloud-Verzeichnis konfiguriert oder gefunden. Wählen Sie einen eigenen Ordner oder installieren Sie OneDrive / Google Drive / iCloud.';
+      detailsEl.textContent = 'Kein Cloud-Verzeichnis konfiguriert oder gefunden. Klicken Sie auf „Cloud einrichten“, um OneDrive, Google Drive oder einen eigenen Ordner anzupassen.';
     }
   }
 }
@@ -5468,6 +5500,226 @@ async function openCloudBackupFolder() {
   }
 }
 
+/* ==================== CLOUD SETUP MODAL LOGIC ==================== */
+let _cloudSetupCache = null;
+
+function openCloudSetupModal() {
+  openModal('modalCloudSetup');
+  refreshCloudSetupList();
+}
+
+async function refreshCloudSetupList() {
+  const container = document.getElementById('cloudSetupCardsContainer');
+  const sumBadge = document.getElementById('cloudSetupSummaryBadge');
+  if (container) {
+    container.innerHTML = '<div style="text-align:center;color:var(--fg-muted);padding:30px;">Ermittle Cloud-Dienste und Pfade…</div>';
+  }
+  if (sumBadge) {
+    sumBadge.textContent = 'Prüfe...';
+    sumBadge.style.background = '';
+    sumBadge.style.color = '';
+  }
+
+  const res = await rpc('cloud_backup_detect');
+  if (!res || !Array.isArray(res.providers)) {
+    if (container) {
+      container.innerHTML = `<div style="text-align:center;color:var(--danger);padding:24px;">Fehler beim Laden der Cloud-Dienste: ${esc(res?.error || 'Unbekannter Fehler')}</div>`;
+    }
+    return;
+  }
+  _cloudSetupCache = res;
+  renderCloudSetupList(res);
+}
+
+function renderCloudSetupList(data) {
+  const container = document.getElementById('cloudSetupCardsContainer');
+  const sumBadge = document.getElementById('cloudSetupSummaryBadge');
+  if (!container) return;
+
+  const providers = data.providers || [];
+  const activeId = data.active_provider_id || STATE.settings.cloud_backup_provider || 'auto';
+  const configuredPaths = data.cloud_provider_paths || STATE.settings.cloud_provider_paths || {};
+
+  const detectedCount = providers.filter(p => p.is_available || p.detected).length;
+  if (sumBadge) {
+    sumBadge.textContent = `${detectedCount} von ${providers.length} Anbietern erkannt / bereit`;
+    sumBadge.style.background = detectedCount > 0 ? '#059669' : '#d97706';
+    sumBadge.style.color = '#fff';
+  }
+
+  container.innerHTML = providers.map(p => {
+    const isReady = !!(p.is_available || p.detected);
+    const isActive = (activeId === p.id);
+    const currentPath = p.detected_root || '';
+    const isCustomOverride = !!p.is_custom_configured || !!configuredPaths[p.id];
+    const backupDirStr = p.backup_dir || (currentPath ? (currentPath + '\\ModernExplorerBackup') : '');
+    const escId = esc(p.id);
+
+    return `
+      <div class="prefs-card" style="margin-bottom:0;border:${isActive ? '1.5px solid var(--accent, #3b82f6)' : '1px solid var(--border)'};background:var(--bg-panel);border-radius:8px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">${esc(p.icon || '☁️')}</span>
+            <span style="font-weight:600;font-size:14px;">${esc(p.name)}</span>
+            ${isActive ? '<span class="badge" style="background:#059669;color:#fff;font-weight:600;">★ Aktives Backup-Ziel</span>' : ''}
+            ${isCustomOverride ? '<span class="badge" style="background:#0284c7;color:#fff;">Manuell konfiguriert</span>' : ''}
+          </div>
+          <div>
+            ${isReady
+              ? '<span class="badge" style="background:#059669;color:#fff;">✓ Verbunden / Bereit</span>'
+              : '<span class="badge" style="background:#d97706;color:#fff;">⚠️ Nicht gefunden / Unverbunden</span>'}
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:var(--fg-dim);margin-bottom:6px;">
+          Wurzelverzeichnis (Root-Pfad):
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+          <input class="input" id="txtCloudPath_${escId}" value="${esc(currentPath)}" placeholder="Pfad z. B. C:\\Users\\...\\${esc(p.name)}" style="flex:1;font-family:var(--font-mono);font-size:12px;" onkeydown="if(event.key==='Enter')saveCloudProviderPath('${escId}')">
+          <button class="btn" onclick="pickCloudProviderFolder('${escId}')" title="Ordner im Dateidialog auswählen">📂 Ordner wählen...</button>
+          <button class="btn primary" onclick="saveCloudProviderPath('${escId}')" title="Diesen Pfad für ${esc(p.name)} speichern">💾 Speichern</button>
+          ${isCustomOverride ? `<button class="btn" onclick="resetCloudProviderPath('${escId}')" title="Auf automatische Erkennung zurücksetzen">🔍 Auto-Erkennung</button>` : ''}
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11.5px;color:var(--fg-dim);margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+          <div>
+            <span style="font-weight:600;">Status:</span>
+            <span id="txtCloudStatus_${escId}">${esc(p.status_message || (isReady ? 'Bereit für Backups' : 'Ordner nicht vorhanden'))}</span>
+            ${backupDirStr ? `<br><span style="font-family:var(--font-mono);font-size:11px;opacity:0.85;">Sicherungsordner: ${esc(backupDirStr)}</span>` : ''}
+            ${p.backup_count > 0 ? `<br><span style="color:#059669;font-weight:600;">${p.backup_count} Backup(s) gefunden (Zuletzt: ${esc(p.latest_backup_date || '-')})</span>` : ''}
+          </div>
+          <span id="badgeTestResult_${escId}"></span>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <button class="btn" onclick="testCloudProvider('${escId}')">🧪 Verbindung &amp; Schreibtest</button>
+          ${isReady ? `<button class="btn" onclick="openCloudProviderFolder('${escId}')">📂 Im Explorer öffnen</button>` : ''}
+          ${!isActive && isReady ? `<button class="btn" onclick="setActiveCloudProvider('${escId}')" style="margin-left:auto;">Als aktives Backup-Ziel wählen</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveCloudProviderPath(providerId) {
+  const input = document.getElementById('txtCloudPath_' + providerId);
+  const path = input ? input.value.trim() : '';
+  const res = await rpc('cloud_backup_save_provider_config', {
+    provider_id: providerId,
+    path: path
+  });
+  if (res && res.ok) {
+    toast(`Pfad für ${providerId} erfolgreich gespeichert!`);
+    if (res.cloud_provider_paths) {
+      STATE.settings.cloud_provider_paths = res.cloud_provider_paths;
+    }
+    if (providerId === 'custom' && path) {
+      STATE.settings.custom_cloud_backup_dir = path;
+    }
+    _cloudSetupCache = res;
+    renderCloudSetupList(res);
+    updateCloudBackupStatusUi();
+  } else {
+    toast('Fehler beim Speichern: ' + (res?.error || 'Unbekannt'));
+  }
+}
+
+async function resetCloudProviderPath(providerId) {
+  const res = await rpc('cloud_backup_save_provider_config', {
+    provider_id: providerId,
+    path: ''
+  });
+  if (res && res.ok) {
+    toast(`Pfad für ${providerId} auf automatische Erkennung zurückgesetzt!`);
+    if (res.cloud_provider_paths) {
+      STATE.settings.cloud_provider_paths = res.cloud_provider_paths;
+    }
+    _cloudSetupCache = res;
+    renderCloudSetupList(res);
+    updateCloudBackupStatusUi();
+  } else {
+    toast('Fehler beim Zurücksetzen: ' + (res?.error || 'Unbekannt'));
+  }
+}
+
+async function pickCloudProviderFolder(providerId) {
+  const res = await rpc('cloud_backup_pick_folder');
+  if (res && res.ok && res.path) {
+    const input = document.getElementById('txtCloudPath_' + providerId);
+    if (input) input.value = res.path;
+    await saveCloudProviderPath(providerId);
+  } else if (!res || !res.cancelled) {
+    const cur = document.getElementById('txtCloudPath_' + providerId)?.value || '';
+    const manual = prompt('Geben Sie den absoluten Pfad zum Stammverzeichnis des Cloud-Speichers ein:', cur);
+    if (manual !== null) {
+      const input = document.getElementById('txtCloudPath_' + providerId);
+      if (input) input.value = manual.trim();
+      await saveCloudProviderPath(providerId);
+    }
+  }
+}
+
+async function testCloudProvider(providerId) {
+  const input = document.getElementById('txtCloudPath_' + providerId);
+  const path = input ? input.value.trim() : null;
+  const badge = document.getElementById('badgeTestResult_' + providerId);
+  if (badge) {
+    badge.className = 'badge';
+    badge.textContent = 'Teste Schreibzugriff…';
+    badge.style.background = '#0284c7';
+    badge.style.color = '#fff';
+  }
+
+  const res = await rpc('cloud_backup_test_provider', {
+    provider_id: providerId,
+    path: path || undefined
+  });
+
+  if (res && res.ok) {
+    if (badge) {
+      badge.textContent = '✓ Schreibtest bestanden';
+      badge.style.background = '#059669';
+      badge.style.color = '#fff';
+    }
+    toast(res.message || 'Verbindung & Schreibtest erfolgreich!');
+    refreshCloudSetupList();
+  } else {
+    if (badge) {
+      badge.textContent = '✗ Test fehlgeschlagen';
+      badge.style.background = '#dc2626';
+      badge.style.color = '#fff';
+    }
+    toast('Test fehlgeschlagen: ' + (res?.message || res?.error || 'Zugriff verweigert'));
+  }
+}
+
+async function setActiveCloudProvider(providerId) {
+  const res = await rpc('cloud_backup_save_provider_config', {
+    provider_id: providerId,
+    set_as_active: true
+  });
+  if (res && res.ok) {
+    STATE.settings.cloud_backup_provider = providerId;
+    if (res.cloud_provider_paths) {
+      STATE.settings.cloud_provider_paths = res.cloud_provider_paths;
+    }
+    toast(`"${providerId}" als aktives Backup-Ziel festgelegt!`);
+    _cloudSetupCache = res;
+    renderCloudSetupList(res);
+    updateCloudBackupStatusUi();
+  } else {
+    toast('Fehler beim Aktivieren: ' + (res?.error || 'Unbekannt'));
+  }
+}
+
+async function openCloudProviderFolder(providerId) {
+  const res = await rpc('open_cloud_backup_dir', { provider: providerId });
+  if (res && res.error) {
+    toast('Fehler beim Öffnen: ' + res.error);
+  }
+}
+
+/* ==================== CLOUD RESTORE MODAL LOGIC ==================== */
 function openCloudRestoreModal() {
   openModal('modalCloudRestore');
   refreshCloudRestoreList();
@@ -5495,12 +5747,12 @@ async function refreshCloudRestoreList() {
 
   if (tbody) {
     tbody.innerHTML = res.backups.map(b => {
-      const escPath = b.full_path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const escPath = (b.file_path || b.full_path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       return `
         <tr>
           <td><strong>${esc(b.provider_name || 'Cloud')}</strong></td>
           <td><code style="font-family:var(--font-mono);font-size:11.5px;">${esc(b.file_name)}</code></td>
-          <td>${esc(b.modified_str)}</td>
+          <td>${esc(b.created_at || b.modified_str || '-')}</td>
           <td><span class="badge">v${esc(b.app_version || '1.0')}</span></td>
           <td style="text-align:right;">
             <button class="btn primary" style="padding:2px 8px;font-size:11px;" onclick="restoreCloudBackupByPath('${escPath}')">✓ Wiederherstellen</button>

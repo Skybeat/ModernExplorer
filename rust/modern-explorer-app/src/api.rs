@@ -192,6 +192,9 @@ impl BackendState {
             "cloud_backup_list" => self.rpc_cloud_backup_list(params),
             "cloud_backup_restore" => self.rpc_cloud_backup_restore(params),
             "cloud_backup_check_fresh_install" => self.rpc_cloud_backup_check_fresh_install(),
+            "cloud_backup_save_provider_config" => self.rpc_cloud_backup_save_provider_config(params),
+            "cloud_backup_test_provider" => self.rpc_cloud_backup_test_provider(params),
+            "cloud_backup_pick_folder" => self.rpc_cloud_backup_pick_folder(),
             "open_cloud_backup_dir" => self.rpc_open_cloud_backup_dir(params),
             "export_color_theme" => self.rpc_export_color_theme(params),
             "import_color_theme" => self.rpc_import_color_theme(params),
@@ -823,6 +826,7 @@ impl BackendState {
                     let _ = CloudBackupService::create_cloud_backup(
                         &self.settings.cloud_backup_provider,
                         self.settings.custom_cloud_backup_dir.as_deref(),
+                        Some(&self.settings.cloud_provider_paths),
                         &self.settings,
                         Some(self.favorites.items.clone()),
                         Some(self.user_commands.commands.clone()),
@@ -935,8 +939,28 @@ impl BackendState {
     }
 
     fn rpc_cloud_backup_detect(&self) -> Value {
-        let providers = CloudBackupService::detect_providers(self.settings.custom_cloud_backup_dir.as_deref());
-        json!({ "ok": true, "providers": providers })
+        let providers = CloudBackupService::detect_providers(
+            self.settings.custom_cloud_backup_dir.as_deref(),
+            Some(&self.settings.cloud_provider_paths),
+        );
+        let active_dir = CloudBackupService::get_backup_dir(
+            &self.settings.cloud_backup_provider,
+            self.settings.custom_cloud_backup_dir.as_deref(),
+            Some(&self.settings.cloud_provider_paths),
+        )
+        .map(|p| p.to_string_lossy().to_string())
+        .ok();
+
+        let active_prov_info = providers.iter().find(|p| p.id == self.settings.cloud_backup_provider).cloned();
+
+        json!({
+            "ok": true,
+            "providers": providers,
+            "active_provider": active_prov_info,
+            "active_provider_id": self.settings.cloud_backup_provider,
+            "active_dir": active_dir,
+            "cloud_provider_paths": self.settings.cloud_provider_paths
+        })
     }
 
     fn rpc_cloud_backup_save(&mut self, params: &Value) -> Value {
@@ -950,6 +974,7 @@ impl BackendState {
         match CloudBackupService::create_cloud_backup(
             provider,
             custom_path,
+            Some(&self.settings.cloud_provider_paths),
             &self.settings,
             Some(self.favorites.items.clone()),
             Some(self.user_commands.commands.clone()),
@@ -964,7 +989,11 @@ impl BackendState {
     fn rpc_cloud_backup_list(&self, params: &Value) -> Value {
         let provider_filter = params.get("provider").and_then(|v| v.as_str());
         let custom_path = self.settings.custom_cloud_backup_dir.as_deref();
-        let list = CloudBackupService::list_backups(provider_filter, custom_path);
+        let list = CloudBackupService::list_backups(
+            provider_filter,
+            custom_path,
+            Some(&self.settings.cloud_provider_paths),
+        );
         json!({ "ok": true, "backups": list })
     }
 
@@ -1007,13 +1036,15 @@ impl BackendState {
     fn rpc_cloud_backup_check_fresh_install(&self) -> Value {
         let is_fresh = !self.settings.first_run_completed || SettingsStore::is_fresh_install();
         let backup = if is_fresh {
-            CloudBackupService::scan_for_fresh_install_backups()
+            CloudBackupService::scan_for_fresh_install_backups(Some(&self.settings.cloud_provider_paths))
         } else {
             None
         };
+        let detected_backups = if let Some(ref b) = backup { vec![b.clone()] } else { vec![] };
         json!({
             "is_fresh_install": is_fresh,
-            "found_backup": backup
+            "found_backup": backup,
+            "detected_backups": detected_backups
         })
     }
 
@@ -1023,13 +1054,103 @@ impl BackendState {
             .and_then(|v| v.as_str())
             .unwrap_or(&self.settings.cloud_backup_provider);
         let custom_path = self.settings.custom_cloud_backup_dir.as_deref();
-        match CloudBackupService::get_backup_dir(provider, custom_path) {
+        match CloudBackupService::get_backup_dir(
+            provider,
+            custom_path,
+            Some(&self.settings.cloud_provider_paths),
+        ) {
             Ok(dir) => {
                 let _ = open::that(&dir);
                 json!({ "ok": true, "path": dir.to_string_lossy().to_string() })
             }
             Err(e) => json!({ "error": e }),
         }
+    }
+
+    fn rpc_cloud_backup_save_provider_config(&mut self, params: &Value) -> Value {
+        let provider_id = match params.get("provider_id").and_then(|v| v.as_str()) {
+            Some(id) => id.to_string(),
+            None => return json!({ "error": "provider_id fehlt" }),
+        };
+        let path = params.get("path").and_then(|v| v.as_str()).map(|s| s.trim().to_string());
+        let set_as_active = params.get("set_as_active").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        if let Some(p) = path {
+            if p.is_empty() {
+                self.settings.cloud_provider_paths.remove(&provider_id);
+                if provider_id == "custom" {
+                    self.settings.custom_cloud_backup_dir = None;
+                }
+            } else {
+                self.settings.cloud_provider_paths.insert(provider_id.clone(), p.clone());
+                if provider_id == "custom" {
+                    self.settings.custom_cloud_backup_dir = Some(p);
+                }
+            }
+        }
+        if set_as_active {
+            self.settings.cloud_backup_provider = provider_id;
+        }
+        SettingsStore::save(&self.settings);
+
+        let providers = CloudBackupService::detect_providers(
+            self.settings.custom_cloud_backup_dir.as_deref(),
+            Some(&self.settings.cloud_provider_paths),
+        );
+        json!({
+            "ok": true,
+            "providers": providers,
+            "active_provider": self.settings.cloud_backup_provider,
+            "cloud_provider_paths": self.settings.cloud_provider_paths
+        })
+    }
+
+    fn rpc_cloud_backup_test_provider(&self, params: &Value) -> Value {
+        let provider_id = match params.get("provider_id").and_then(|v| v.as_str()) {
+            Some(id) => id,
+            None => return json!({ "error": "provider_id fehlt" }),
+        };
+        let path_override = params.get("path").and_then(|v| v.as_str());
+        let (ok, message) = CloudBackupService::test_provider(
+            provider_id,
+            path_override,
+            Some(&self.settings.cloud_provider_paths),
+        );
+        json!({ "ok": ok, "message": message })
+    }
+
+    fn rpc_cloud_backup_pick_folder(&self) -> Value {
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            let ps_script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = "Wählen Sie das Stammverzeichnis Ihres Cloud-Speichers"
+$dialog.ShowNewFolderButton = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output $dialog.SelectedPath
+}
+"#;
+            let mut cmd = Command::new("powershell");
+            cmd.args(&["-NoProfile", "-NonInteractive", "-Command", ps_script]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            if let Ok(output) = cmd.output() {
+                if output.status.success() {
+                    let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path_str.is_empty() {
+                        return json!({ "ok": true, "path": path_str });
+                    }
+                }
+            }
+        }
+        json!({ "ok": false, "cancelled": true })
     }
 
     fn rpc_export_color_theme(&self, params: &Value) -> Value {
