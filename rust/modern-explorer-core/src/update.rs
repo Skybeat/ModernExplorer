@@ -42,7 +42,7 @@ pub struct GitHubReleaseInfo {
 pub struct GitHubUpdateService;
 
 impl GitHubUpdateService {
-    pub const CURRENT_VERSION: &'static str = "1.9.7";
+    pub const CURRENT_VERSION: &'static str = "1.9.8";
     pub const RELEASES_URL: &'static str = "https://github.com/Skybeat/ModernExplorer/releases";
     pub const LATEST_API_URL: &'static str =
         "https://api.github.com/repos/Skybeat/ModernExplorer/releases/latest";

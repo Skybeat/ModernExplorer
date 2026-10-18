@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.7)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.8)'
         required: true
-        default: 'v1.9.7'
+        default: 'v1.9.8'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.7" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.8" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -207,6 +207,7 @@ jobs:
             "## What's New in Modern Explorer Studio $tag (Rust Edition)",
             '',
             "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            '- **Comprehensive Font Size Customization for Settings & Child Dialogs (v1.9.8):** Added dedicated Settings window font size scaling (`settings_window_font_size`) that scales the entire Settings window (`.prefs`, `#modalSettings`, nav items, section titles, rows, controls, and tables) both individually and via Global Font Size (`use_global_font_size`). Added live reactive scaling on slider drag (`updateFontSettingLive`), complete dialog font mapping for all tool windows, and missing script template defaults.',
             '- **Total Commander Color Customization & Rule-Based File-Type Coloring (v1.9.7):** Full Total Commander style color customization in Settings (`Colors & Highlighting`) with 1-click presets (`Modern Studio`, `Total Commander Classic`, `Norton Commander DOS`, `TC Dark Commander`, `Retro Matrix`, `Solarized Commander`), interactive live preview table, customizable file list primary & zebra-stripe backgrounds, grid lines, full-row inverted focus cursor (`invert_cursor`), folder/hidden/readonly text colors, and prioritized rule-based coloring by file mask & file age (`FileTypeColorRule`).',
             '- **Expanded Preferences, Natural Sorting, External Tools & JSON Backup (v1.9.7):** Added UI bar visibility toggles (Drive Bar, Favorites Bar, Left Tool Rail, Breadcrumbs, F1–F12 Bar, Status Bar, Startup Folder Tree, UI Zoom 75%–160%), Natural Number Sorting (`natural_number_sorting`), customizable size (`dynamic`/`bytes`/`kb`/`mb`) and date/time formats, `[..]` parent folder toggle, Total Commander keyboard/mouse ergonomics (`space_moves_down_on_mark`, double-click empty space goes up, middle-click opens tab, overwrite confirmation), external `F4` editor / diff tool / `F9` terminal configuration, Power-Tool defaults, and 1-click Settings JSON Export/Import.',
             '- **Native Self-Replace In-Place Updater (v1.9.6):** Direct binary replacement using a lightweight detached background updater script (`update-self-replace.bat` on Windows, POSIX shell script on Linux/macOS) with robust retry loop and automatic application restart without requiring external Inno Setup or elevated UAC installer steps.',

@@ -306,6 +306,7 @@ pub struct AppSettings {
     pub child_window_font_size: f32,
 
     // Individual Child Window Font Sizes
+    pub settings_window_font_size: f32,
     pub quick_viewer_font_size: f32,
     pub editor_font_size: f32,
     pub storage_analyzer_font_size: f32,
@@ -439,6 +440,7 @@ impl Default for AppSettings {
             preview_pane_font_size: 12.5,
             child_window_font_size: 13.0,
 
+            settings_window_font_size: 12.5,
             quick_viewer_font_size: 13.0,
             editor_font_size: 13.0,
             storage_analyzer_font_size: 12.5,
@@ -561,6 +563,7 @@ impl AppSettings {
         self.function_key_bar_font_size = def.function_key_bar_font_size;
         self.preview_pane_font_size = def.preview_pane_font_size;
         self.child_window_font_size = def.child_window_font_size;
+        self.settings_window_font_size = def.settings_window_font_size;
         self.quick_viewer_font_size = def.quick_viewer_font_size;
         self.editor_font_size = def.editor_font_size;
         self.storage_analyzer_font_size = def.storage_analyzer_font_size;

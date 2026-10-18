@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.7 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.8 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -118,12 +118,15 @@
 
     --fs-filelist: 13px;
     --fs-details: 12px;
+    --fs-toolbar: 12.5px;
     --fs-tabs: 12px;
     --fs-drives: 12px;
     --fs-address: 12.5px;
     --fs-breadcrumbs: 11.5px;
     --fs-status: 11.5px;
     --fs-fnbar: 11.5px;
+    --fs-preview: 12.5px;
+    --fs-settings: 12.5px;
     --fs-child: 13px;
   }
 
@@ -152,7 +155,7 @@
   .menubar {
     display: flex; align-items: center; gap: 2px;
     padding: 0 10px; background: var(--bg-panel);
-    border-bottom: 1px solid var(--border); font-size: 12.5px;
+    border-bottom: 1px solid var(--border); font-size: var(--fs-toolbar);
     position: relative; z-index: 200;
   }
   .app-logo {
@@ -182,7 +185,7 @@
   .dd-item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 6px 10px; border-radius: 4px; color: var(--fg);
-    font-size: 12.5px; cursor: pointer; gap: 16px; white-space: nowrap;
+    font-size: var(--fs-toolbar); cursor: pointer; gap: 16px; white-space: nowrap;
   }
   .dd-item:hover { background: var(--accent-soft); color: var(--accent); }
   .dd-item .dd-left { display: flex; align-items: center; gap: 8px; }
@@ -195,7 +198,7 @@
   .dd-sep { height: 1px; background: var(--border); margin: 4px 2px; }
   .menubar-spacer { flex: 1; }
   .doc-title {
-    color: var(--fg-dim); font-size: 12px; display: flex; align-items: center; gap: 8px;
+    color: var(--fg-dim); font-size: var(--fs-toolbar); display: flex; align-items: center; gap: 8px;
     position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;
   }
   .doc-title .badge {
@@ -222,7 +225,7 @@
     height: 28px; min-width: 28px; padding: 0 8px;
     border: 1px solid transparent; border-radius: 5px;
     background: transparent; color: var(--fg-dim);
-    cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.1s;
+    cursor: pointer; font-size: calc(var(--fs-toolbar) - 0.5px); white-space: nowrap; transition: all 0.1s;
   }
   .ibtn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
   .ibtn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
@@ -233,7 +236,7 @@
   }
   .seg button {
     border: none; background: transparent; color: var(--fg-dim);
-    padding: 3px 9px; font-size: 11.5px; border-radius: 4px; cursor: pointer;
+    padding: 3px 9px; font-size: calc(var(--fs-toolbar) - 1px); border-radius: 4px; cursor: pointer;
     display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
   }
   .seg button:hover { color: var(--fg); }
@@ -243,14 +246,14 @@
   .favbar {
     display: flex; align-items: center; gap: 4px; padding: 3px 10px;
     background: var(--bg-panel); border-bottom: 1px solid var(--border);
-    overflow-x: auto; font-size: 11.5px; min-height: 28px;
+    overflow-x: auto; font-size: calc(var(--fs-toolbar) - 1px); min-height: 28px;
   }
   .fav-label { color: var(--fg-muted); font-weight: 600; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .fav-chip {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 2px 8px; border-radius: 4px; background: var(--bg-elev);
     border: 1px solid var(--border); color: var(--fg-dim); cursor: pointer;
-    white-space: nowrap; font-size: 11.5px;
+    white-space: nowrap; font-size: calc(var(--fs-toolbar) - 1px);
   }
   .fav-chip:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-strong); }
 
@@ -607,7 +610,7 @@
     display: flex; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-sunken);
   }
   .dock-tab {
-    flex: 1; text-align: center; padding: 7px 3px; font-size: 11.5px;
+    flex: 1; text-align: center; padding: 7px 3px; font-size: calc(var(--fs-preview) - 1px);
     color: var(--fg-dim); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
@@ -619,7 +622,7 @@
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .dock-min-btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
-  .dock-body { flex: 1; overflow-y: auto; padding: 10px; font-size: 12px; }
+  .dock-body { flex: 1; overflow-y: auto; padding: 10px; font-size: var(--fs-preview); }
 
   /* ============ TREEMAP (.NET PARITY STYLES) ============ */
   .tm-row {
@@ -760,7 +763,7 @@
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px; border-bottom: 1px solid var(--border);
-    font-weight: 600; font-size: 13.5px; background: var(--bg-elev);
+    font-weight: 600; font-size: calc(1em + 0.5px); background: var(--bg-elev);
     cursor: move; user-select: none; flex-shrink: 0; gap: 8px;
   }
   .modal-head-right {
@@ -812,10 +815,14 @@
     border-radius: 5px; color: var(--fg); font-size: 12.5px; outline: none;
   }
   .input:focus, .select:focus, .textarea:focus { border-color: var(--accent); }
+  .modal .btn { font-size: calc(1em - 0.5px); }
+  .modal .input, .modal .select, .modal .textarea, .modal table.data-tbl { font-size: 1em; }
 
   /* Nuharji/markdown-studio .prefs 2-column Settings Dialog */
+  #modalSettings > .modal { font-size: var(--fs-settings) !important; }
   .prefs {
-    display: grid; grid-template-columns: 215px 1fr; flex: 1; min-height: 0; height: 100%;
+    display: grid; grid-template-columns: 225px 1fr; flex: 1; min-height: 0; height: 100%;
+    font-size: var(--fs-settings);
   }
   .prefs-nav {
     background: var(--bg-sunken); border-right: 1px solid var(--border);
@@ -824,14 +831,14 @@
   .prefs-nav-item {
     display: flex; align-items: center; gap: 9px;
     padding: 8px 10px; border-radius: var(--radius);
-    color: var(--fg-dim); font-size: 12.5px; cursor: pointer;
+    color: var(--fg-dim); font-size: var(--fs-settings); cursor: pointer;
   }
   .prefs-nav-item:hover { background: var(--bg-hover); color: var(--fg); }
   .prefs-nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-  .prefs-pane { display: none; padding: 16px 20px; overflow-y: auto; }
+  .prefs-pane { display: none; padding: 16px 20px; overflow-y: auto; font-size: var(--fs-settings); }
   .prefs-pane.active { display: block; }
   .prefs-section-title {
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    font-size: calc(var(--fs-settings) - 1.5px); font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.06em; color: var(--fg-muted); margin: 16px 0 8px 0;
   }
   .prefs-section-title:first-child { margin-top: 0; }
@@ -844,9 +851,11 @@
     padding: 8px 0; border-bottom: 1px solid var(--border); gap: 14px;
   }
   .prefs-row:last-child { border-bottom: none; }
-  .prefs-row .pr-label { font-size: 12.5px; color: var(--fg); font-weight: 500; }
-  .prefs-row .pr-sub { font-size: 11.5px; color: var(--fg-muted); margin-top: 2px; }
+  .prefs-row .pr-label { font-size: var(--fs-settings); color: var(--fg); font-weight: 500; }
+  .prefs-row .pr-sub { font-size: calc(var(--fs-settings) - 1px); color: var(--fg-muted); margin-top: 2px; }
   .prefs-row .pr-ctl { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  #modalSettings .btn { font-size: calc(var(--fs-settings) - 0.5px); }
+  #modalSettings .input, #modalSettings .select, #modalSettings table.data-tbl { font-size: var(--fs-settings); }
 
   /* Studio Toggle Switch (.switch) */
   .switch {
@@ -1219,7 +1228,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.7 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.8 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1689,16 +1698,16 @@
           <div class="prefs-row">
             <div><div class="pr-label">Globale Schriftgröße (8 – 24 px)</div></div>
             <div class="pr-ctl">
-              <input type="range" min="8" max="24" step="0.5" id="rng-global_font_size" oninput="updateSetting('global_font_size', parseFloat(this.value))">
+              <input type="range" min="8" max="24" step="0.5" id="rng-global_font_size" oninput="updateFontSettingLive('global_font_size', parseFloat(this.value));document.getElementById('lbl-global_font_size').textContent=this.value+' px'" onchange="updateSetting('global_font_size', parseFloat(this.value))">
               <span id="lbl-global_font_size" style="min-width:46px;text-align:right;font-family:var(--font-mono)">13 px</span>
             </div>
           </div>
         </div>
 
-        <div class="prefs-section-title">🖥 Hauptfenster — Einzelne Bereiche (8 Bereiche)</div>
+        <div class="prefs-section-title">🖥 Hauptfenster — Einzelne Bereiche (10 Bereiche)</div>
         <div class="prefs-card" id="fontMainAreasList"></div>
 
-        <div class="prefs-section-title">🪟 Child-Fenster — Einzelne Dialoge &amp; Werkzeuge (10 Fenster)</div>
+        <div class="prefs-section-title">🪟 Einstellungsbereich &amp; Child-Fenster — Einzelne Dialoge &amp; Werkzeuge (12 Fenster)</div>
         <div class="prefs-card" id="fontChildWindowsList"></div>
       </div>
 
@@ -1754,7 +1763,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.7</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.8</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1841,7 +1850,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.7</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.7</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.8</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.8</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1850,7 +1859,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.7.
+        ✓ Sie verwenden die aktuelle Version v1.9.8.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -1966,7 +1975,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.7',
+  version: '1.9.8',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2762,13 +2771,20 @@ function applySettingsToDom() {
   const g = s.use_global_font_size ? (s.global_font_size || 13) : null;
   r.setProperty('--fs-filelist', (g ?? s.file_list_font_size ?? 13) + 'px');
   r.setProperty('--fs-details', (g ?? s.file_list_details_font_size ?? 12) + 'px');
+  r.setProperty('--fs-toolbar', (g ?? s.toolbar_font_size ?? 12.5) + 'px');
   r.setProperty('--fs-tabs', (g ?? s.tab_header_font_size ?? 12) + 'px');
   r.setProperty('--fs-drives', (g ?? s.drive_bar_font_size ?? 12) + 'px');
   r.setProperty('--fs-address', (g ?? s.address_bar_font_size ?? 12.5) + 'px');
   r.setProperty('--fs-breadcrumbs', (g ?? s.breadcrumb_font_size ?? 11.5) + 'px');
   r.setProperty('--fs-status', (g ?? s.status_bar_font_size ?? 11.5) + 'px');
   r.setProperty('--fs-fnbar', (g ?? s.function_key_bar_font_size ?? 11.5) + 'px');
+  r.setProperty('--fs-preview', (g ?? s.preview_pane_font_size ?? 12.5) + 'px');
+  r.setProperty('--fs-settings', (g ?? s.settings_window_font_size ?? 12.5) + 'px');
   r.setProperty('--fs-child', (g ?? s.child_window_font_size ?? 13) + 'px');
+  document.querySelectorAll('.modal-bg.open > .modal').forEach(modal => {
+    const key = modal.dataset.boundsKey || modal.closest('.modal-bg')?.id || 'modalTool';
+    modal.style.fontSize = getModalSpecificFontSize(key);
+  });
 
   document.getElementById('drives-left').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
   document.getElementById('drives-right').style.display = s.show_drive_bar !== false ? 'flex' : 'none';
@@ -2800,7 +2816,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.7';
+  STATE.version = data.version || '1.9.8';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -4381,15 +4397,19 @@ const TREEMAP_COLOR_TARGETS = [
 const MAIN_FONT_FIELDS = [
   { key: 'file_list_font_size', label: '📋 Dateiliste (Dateinamen & Ordner)', min: 9, max: 24 },
   { key: 'file_list_details_font_size', label: '📊 Dateiliste Details (Größe, Datum, Typ & Spaltenköpfe)', min: 8, max: 22 },
+  { key: 'toolbar_font_size', label: '🧭 Menüleiste, Optionsleiste & Favoritenleiste', min: 9, max: 22 },
   { key: 'tab_header_font_size', label: '🗂️ Tabs (Ordner-Reiter)', min: 9, max: 22 },
   { key: 'drive_bar_font_size', label: '💾 Laufwerksleiste (C:, D:, …)', min: 9, max: 22 },
   { key: 'address_bar_font_size', label: '📍 Adressleiste & Filterfeld', min: 9, max: 22 },
   { key: 'breadcrumb_font_size', label: '🧭 Breadcrumb-Pfadnavigation', min: 8, max: 20 },
   { key: 'status_bar_font_size', label: 'ℹ️ Statusleiste (Elementanzahl & Infos)', min: 8, max: 20 },
-  { key: 'function_key_bar_font_size', label: '⌨️ Funktionsleiste (F1–F12 Buttons)', min: 8, max: 20 }
+  { key: 'function_key_bar_font_size', label: '⌨️ Funktionsleiste (F1–F12 Buttons)', min: 8, max: 20 },
+  { key: 'preview_pane_font_size', label: '👁️ Rechter Vorschau- & Inspector-Bereich (Strg+Q)', min: 9, max: 22 }
 ];
 
 const CHILD_FONT_FIELDS = [
+  { key: 'settings_window_font_size', label: '⚙️ Einstellungsbereich / Einstellungen (SettingsWindow)', min: 9, max: 24 },
+  { key: 'child_window_font_size', label: '🪟 Allgemeine Unterfenster & Dialoge (Standard)', min: 9, max: 24 },
   { key: 'quick_viewer_font_size', label: '👁️ Quick-Viewer / Schnellansicht (F3)', min: 8, max: 24 },
   { key: 'editor_font_size', label: '✏️ Interner Text- & Code-Editor (F4)', min: 8, max: 24 },
   { key: 'storage_analyzer_font_size', label: '🗺️ Speicherplatz-Analysator & Treemap (Strg+Shift+W)', min: 8, max: 24 },
@@ -4914,6 +4934,11 @@ async function importSettingsJsonPrompt() {
   }
 }
 
+function updateFontSettingLive(key, val) {
+  STATE.settings[key] = val;
+  applySettingsToDom();
+}
+
 function renderFontsSettings() {
   const disabledAttr = STATE.settings.use_global_font_size ? 'disabled style="opacity:0.45"' : '';
   const buildFontRows = (arr) => arr.map(f => {
@@ -4923,7 +4948,8 @@ function renderFontsSettings() {
         <div><div class="pr-label">${esc(f.label)}</div></div>
         <div class="pr-ctl">
           <input type="range" min="${f.min}" max="${f.max}" step="0.5" value="${val}" ${disabledAttr}
-            oninput="updateSetting('${f.key}', parseFloat(this.value));this.nextElementSibling.textContent=this.value+' px'">
+            oninput="updateFontSettingLive('${f.key}', parseFloat(this.value));this.nextElementSibling.textContent=this.value+' px'"
+            onchange="updateSetting('${f.key}', parseFloat(this.value))">
           <span style="min-width:46px;text-align:right;font-family:var(--font-mono)">${val} px</span>
         </div>
       </div>
@@ -8293,15 +8319,24 @@ async function createFilesystemLinkNow() {
 /* ==================== RESIZABLE, DRAGGABLE & PERSISTENT CHILD WINDOWS ==================== */
 const MODAL_FONT_KEY_MAP = {
   'modalSettings': 'settings_window_font_size',
-  'modalPalette': 'command_palette_font_size',
+  'modalViewer': 'quick_viewer_font_size',
+  'modalAbout': 'about_window_font_size',
+  'modalPalette': 'child_window_font_size',
   'tool:BatchRename': 'batch_rename_font_size',
-  'tool:Diff': 'diff_viewer_font_size',
-  'tool:Sync': 'sync_window_font_size',
-  'tool:DeepSearch': 'search_window_font_size',
+  'tool:Diff': 'editor_font_size',
+  'tool:Sync': 'directory_sync_font_size',
+  'tool:DeepSearch': 'deep_search_font_size',
   'tool:Duplicates': 'duplicate_finder_font_size',
-  'tool:Treemap': 'treemap_window_font_size',
-  'tool:Checksums': 'checksum_window_font_size',
-  'tool:Git': 'git_panel_font_size'
+  'tool:Treemap': 'storage_analyzer_font_size',
+  'tool:Checksums': 'child_window_font_size',
+  'tool:SplitShred': 'child_window_font_size',
+  'tool:Tags': 'child_window_font_size',
+  'tool:AttrExif': 'child_window_font_size',
+  'tool:SmartExport': 'child_window_font_size',
+  'tool:Archive': 'archive_dialog_font_size',
+  'tool:Remote': 'ftp_manager_font_size',
+  'tool:Git': 'child_window_font_size',
+  'tool:Workspaces': 'child_window_font_size'
 };
 
 function getModalSpecificFontSize(key) {
