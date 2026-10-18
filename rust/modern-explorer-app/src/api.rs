@@ -1522,26 +1522,80 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         let left_path = params
             .get("left_path")
             .and_then(|v| v.as_str())
-            .unwrap_or("");
+            .unwrap_or("")
+            .trim();
         let right_path = params
             .get("right_path")
             .and_then(|v| v.as_str())
-            .unwrap_or("");
+            .unwrap_or("")
+            .trim();
         let ignore_ws = params
             .get("ignore_whitespace")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let left_text = if let Some(lt) = params.get("left_text").and_then(|v| v.as_str()) {
+        let has_explicit_text = params.get("left_text").is_some() || params.get("right_text").is_some();
+
+        if !has_explicit_text && (left_path.is_empty() || right_path.is_empty()) {
+            return json!({
+                "error": "Bitte wählen Sie sowohl die linke als auch die rechte Datei für den Vergleich aus."
+            });
+        }
+
+        let left_bytes = if has_explicit_text {
+            None
+        } else {
+            match fs::read(left_path) {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    return json!({ "error": format!("Fehler beim Lesen der linken Datei ({}): {}", left_path, e) });
+                }
+            }
+        };
+
+        let right_bytes = if has_explicit_text {
+            None
+        } else {
+            match fs::read(right_path) {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    return json!({ "error": format!("Fehler beim Lesen der rechten Datei ({}): {}", right_path, e) });
+                }
+            }
+        };
+
+        let mut left_text = if let Some(lt) = params.get("left_text").and_then(|v| v.as_str()) {
             lt.to_string()
+        } else if let Some(ref lb) = left_bytes {
+            FileDiffService::convert_bytes_for_diff(Path::new(left_path), lb).unwrap_or_default()
         } else {
-            fs::read_to_string(left_path).unwrap_or_default()
+            String::new()
         };
-        let right_text = if let Some(rt) = params.get("right_text").and_then(|v| v.as_str()) {
+
+        let mut right_text = if let Some(rt) = params.get("right_text").and_then(|v| v.as_str()) {
             rt.to_string()
+        } else if let Some(ref rb) = right_bytes {
+            FileDiffService::convert_bytes_for_diff(Path::new(right_path), rb).unwrap_or_default()
         } else {
-            fs::read_to_string(right_path).unwrap_or_default()
+            String::new()
         };
+
+        if let (Some(ref lb), Some(ref rb)) = (&left_bytes, &right_bytes) {
+            if left_text == right_text && lb != rb {
+                let left_hash = FileDiffService::compute_sha256_hex(lb);
+                let right_hash = FileDiffService::compute_sha256_hex(rb);
+                left_text.push_str(&format!(
+                    "\n\n=== [Binäre Datei-Eigenschaften (Extrahierter Text ist identisch)] ===\nDateigröße: {} Bytes\nSHA-256: {}\n",
+                    lb.len(),
+                    left_hash
+                ));
+                right_text.push_str(&format!(
+                    "\n\n=== [Binäre Datei-Eigenschaften (Extrahierter Text ist identisch)] ===\nDateigröße: {} Bytes\nSHA-256: {}\n",
+                    rb.len(),
+                    right_hash
+                ));
+            }
+        }
 
         let diff = FileDiffService::compare_text(&left_text, &right_text, ignore_ws);
         let rows: Vec<Value> = diff

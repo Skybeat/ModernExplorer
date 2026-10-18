@@ -13,6 +13,8 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use lopdf::Document;
+
 // ============================================================================
 // 1. Visual Side-by-Side File Diff Viewer (FileDiffService)
 // ============================================================================
@@ -48,13 +50,242 @@ pub struct FileDiffResult {
 pub struct FileDiffService;
 
 impl FileDiffService {
+    pub fn compute_sha256_hex(bytes: &[u8]) -> String {
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    pub fn read_file_for_diff(path: &Path) -> Result<String, String> {
+        if !path.exists() {
+            return Err(format!("Datei existiert nicht: {}", path.display()));
+        }
+        let bytes = fs::read(path).map_err(|e| format!("Fehler beim Lesen von {}: {}", path.display(), e))?;
+        Self::convert_bytes_for_diff(path, &bytes)
+    }
+
+    pub fn convert_bytes_for_diff(path: &Path, bytes: &[u8]) -> Result<String, String> {
+        let is_pdf = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("pdf"))
+            .unwrap_or(false)
+            || bytes.starts_with(b"%PDF-");
+
+        if is_pdf {
+            return Ok(Self::extract_pdf_diff_content(path, bytes));
+        }
+
+        Ok(Self::decode_bytes_to_diffable_text(bytes))
+    }
+
+    pub fn extract_pdf_diff_content(path: &Path, bytes: &[u8]) -> String {
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("PDF");
+        match Document::load_mem(bytes) {
+            Ok(doc) => {
+                let pages = doc.get_pages();
+                let total_pages = pages.len();
+                let mut full_text = String::new();
+                let mut extracted_any = false;
+
+                for (page_num, _) in &pages {
+                    let page_text = doc.extract_text(&[*page_num]).unwrap_or_default();
+                    let trimmed = page_text.trim();
+                    if !trimmed.is_empty() {
+                        extracted_any = true;
+                    }
+                    full_text.push_str(&format!("=== [Seite {} / {}] ===\n", page_num, total_pages));
+                    if trimmed.is_empty() {
+                        full_text.push_str("(Kein extrahierbarer Text auf dieser Seite)\n");
+                    } else {
+                        for line in page_text.lines() {
+                            full_text.push_str(line.trim_end());
+                            full_text.push('\n');
+                        }
+                    }
+                    full_text.push('\n');
+                }
+
+                if extracted_any {
+                    let mut header = format!("[PDF Dokument: {} — {} Seiten, Version {}]\n\n", file_name, total_pages, doc.version);
+                    header.push_str(&full_text);
+                    return header;
+                }
+
+                Self::extract_pdf_structure_and_metadata(&doc, bytes, file_name)
+            }
+            Err(e) => {
+                let mut out = format!("[PDF Ladefehler: {} — Zeige Binär-Hex-Dump]\n\n", e);
+                out.push_str(&Self::format_binary_hex_dump(bytes));
+                out
+            }
+        }
+    }
+
+    pub fn extract_pdf_structure_and_metadata(doc: &Document, bytes: &[u8], file_name: &str) -> String {
+        let mut out = String::new();
+        out.push_str(&format!("[PDF Dokument-Struktur & Metadaten (Keine eingebettete Text-Ebene gefunden: {})]\n", file_name));
+        out.push_str(&format!("PDF-Version: {}\n", doc.version));
+        out.push_str(&format!("Dateigröße: {} Bytes\n", bytes.len()));
+
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let sha256_hex = format!("{:x}", hasher.finalize());
+        out.push_str(&format!("SHA-256 Prüfsumme: {}\n", sha256_hex));
+
+        let pages = doc.get_pages();
+        out.push_str(&format!("Seitenanzahl: {}\n\n", pages.len()));
+
+        out.push_str("=== Seiten-Details ===\n");
+        for (page_num, object_id) in &pages {
+            out.push_str(&format!("Seite {}: Objekt {:?}", page_num, object_id));
+            if let Ok(page_obj) = doc.get_object(*object_id) {
+                if let Ok(dict) = page_obj.as_dict() {
+                    if let Ok(media_box) = dict.get(b"MediaBox") {
+                        out.push_str(&format!(" | MediaBox: {:?}", media_box));
+                    }
+                    if let Ok(rotate) = dict.get(b"Rotate") {
+                        out.push_str(&format!(" | Drehung: {:?}", rotate));
+                    }
+                    if let Ok(resources) = dict.get(b"Resources") {
+                        if let Ok(r_dict) = resources.as_dict() {
+                            let keys: Vec<String> = r_dict.iter().map(|(k, _)| String::from_utf8_lossy(k).to_string()).collect();
+                            out.push_str(&format!(" | Ressourcen: [{}]", keys.join(", ")));
+                        }
+                    }
+                }
+            }
+            out.push('\n');
+        }
+
+        out.push_str("\n=== Dokument-Informationen (Trailer / Info) ===\n");
+        if let Ok(info_ref) = doc.trailer.get(b"Info") {
+            if let Ok(ref_id) = info_ref.as_reference() {
+                if let Ok(info_dict) = doc.get_object(ref_id).and_then(|o| o.as_dict()) {
+                    for (key, val) in info_dict.iter() {
+                        let k = String::from_utf8_lossy(key);
+                        out.push_str(&format!("{}: {:?}\n", k, val));
+                    }
+                }
+            }
+        }
+
+        out.push_str("\n=== Enthaltene PDF-Objekte & Ströme ===\n");
+        for (id, obj) in &doc.objects {
+            match obj {
+                lopdf::Object::Stream(s) => {
+                    let type_name = s.dict.get(b"Type").ok().map(|o| format!("{:?}", o)).unwrap_or_else(|| "-".to_string());
+                    let subtype = s.dict.get(b"Subtype").ok().map(|o| format!("{:?}", o)).unwrap_or_else(|| "-".to_string());
+                    let filter = s.dict.get(b"Filter").ok().map(|o| format!("{:?}", o)).unwrap_or_else(|| "-".to_string());
+                    out.push_str(&format!("Stream {:?}: Type={}, Subtype={}, Filter={}, Länge={} Bytes\n", id, type_name, subtype, filter, s.content.len()));
+                }
+                lopdf::Object::Dictionary(d) => {
+                    let type_name = d.get(b"Type").ok().map(|o| format!("{:?}", o)).unwrap_or_else(|| "-".to_string());
+                    let subtype = d.get(b"Subtype").ok().map(|o| format!("{:?}", o)).unwrap_or_else(|| "-".to_string());
+                    if type_name != "-" || subtype != "-" {
+                        out.push_str(&format!("Dict {:?}: Type={}, Subtype={}\n", id, type_name, subtype));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        out
+    }
+
+    pub fn decode_bytes_to_diffable_text(bytes: &[u8]) -> String {
+        if bytes.is_empty() {
+            return String::new();
+        }
+
+        // Check for UTF-8 BOM
+        if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+            if let Ok(s) = std::str::from_utf8(&bytes[3..]) {
+                return s.to_string();
+            }
+        }
+
+        // Check for UTF-16 LE BOM
+        if bytes.starts_with(&[0xFF, 0xFE]) {
+            let u16s: Vec<u16> = bytes[2..]
+                .chunks_exact(2)
+                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .collect();
+            if let Ok(s) = String::from_utf16(&u16s) {
+                return s;
+            }
+        }
+
+        // Check for UTF-16 BE BOM
+        if bytes.starts_with(&[0xFE, 0xFF]) {
+            let u16s: Vec<u16> = bytes[2..]
+                .chunks_exact(2)
+                .map(|c| u16::from_be_bytes([c[0], c[1]]))
+                .collect();
+            if let Ok(s) = String::from_utf16(&u16s) {
+                return s;
+            }
+        }
+
+        // Try standard UTF-8
+        if let Ok(s) = std::str::from_utf8(bytes) {
+            return s.to_string();
+        }
+
+        // Check if mostly text or binary
+        let sample = &bytes[..bytes.len().min(4096)];
+        let null_count = sample.iter().filter(|&&b| b == 0).count();
+        if null_count > 0 {
+            // Binary file: format as hex dump lines
+            return Self::format_binary_hex_dump(bytes);
+        }
+
+        // Fallback: UTF-8 lossy (handles Windows-1252 / Latin-1 nicely)
+        String::from_utf8_lossy(bytes).into_owned()
+    }
+
+    pub fn format_binary_hex_dump(bytes: &[u8]) -> String {
+        let mut out = String::new();
+        let max_len = bytes.len().min(512 * 1024);
+        for (i, chunk) in bytes[..max_len].chunks(16).enumerate() {
+            let offset = i * 16;
+            let mut hex_part = String::new();
+            let mut ascii_part = String::new();
+            for (j, &b) in chunk.iter().enumerate() {
+                if j == 8 {
+                    hex_part.push(' ');
+                }
+                hex_part.push_str(&format!("{:02x} ", b));
+                if (32..=126).contains(&b) {
+                    ascii_part.push(b as char);
+                } else {
+                    ascii_part.push('.');
+                }
+            }
+            out.push_str(&format!("{:08x}: {:<49} |{}|\n", offset, hex_part.trim_end(), ascii_part));
+        }
+        if bytes.len() > max_len {
+            out.push_str(&format!("... [Gekürzt: {} Bytes weitere Binärdaten] ...\n", bytes.len() - max_len));
+        }
+        out
+    }
+
     pub fn compare_files(
         left_path: &Path,
         right_path: &Path,
         ignore_whitespace: bool,
     ) -> Result<FileDiffResult, String> {
-        let left_text = fs::read_to_string(left_path).map_err(|e| e.to_string())?;
-        let right_text = fs::read_to_string(right_path).map_err(|e| e.to_string())?;
+        let left_bytes = fs::read(left_path).map_err(|e| format!("Fehler beim Lesen der linken Datei ({}): {}", left_path.display(), e))?;
+        let right_bytes = fs::read(right_path).map_err(|e| format!("Fehler beim Lesen der rechten Datei ({}): {}", right_path.display(), e))?;
+
+        let mut left_text = Self::convert_bytes_for_diff(left_path, &left_bytes)?;
+        let mut right_text = Self::convert_bytes_for_diff(right_path, &right_bytes)?;
+
+        if left_text == right_text && left_bytes != right_bytes {
+            let left_hash = format!("{:x}", Sha256::digest(&left_bytes));
+            let right_hash = format!("{:x}", Sha256::digest(&right_bytes));
+            left_text.push_str(&format!("\n\n=== [Binäre Datei-Eigenschaften (Extrahierter Text ist identisch)] ===\nDateigröße: {} Bytes\nSHA-256: {}\n", left_bytes.len(), left_hash));
+            right_text.push_str(&format!("\n\n=== [Binäre Datei-Eigenschaften (Extrahierter Text ist identisch)] ===\nDateigröße: {} Bytes\nSHA-256: {}\n", right_bytes.len(), right_hash));
+        }
+
         Ok(Self::compare_text(&left_text, &right_text, ignore_whitespace))
     }
 

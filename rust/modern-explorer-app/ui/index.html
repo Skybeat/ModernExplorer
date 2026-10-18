@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.12 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.13 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1258,7 +1258,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.12 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.13 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1801,7 +1801,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.12</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.13</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1952,7 +1952,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.12</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.12</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.13</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.13</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1961,7 +1961,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.12.
+        ✓ Sie verwenden die aktuelle Version v1.9.13.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2145,7 +2145,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.12',
+  version: '1.9.13',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2853,8 +2853,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.12": "Installed version: v1.9.12",
-  "Installierte Version: v1.9.12": "Installed version: v1.9.12",
+  "Installierte Version: v1.9.13": "Installed version: v1.9.13",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -3933,7 +3932,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.12';
+  STATE.version = data.version || '1.9.13';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -7537,10 +7536,21 @@ async function executeBatchRename() {
 
 /* 2. Side-by-Side File Diff (Ctrl+Shift+U) */
 async function openDiffModal() {
-  const lItem = getSelectedSingleItem('left');
-  const rItem = getSelectedSingleItem('right');
-  const lp = lItem && !lItem.is_directory ? lItem.full_path : '';
-  const rp = rItem && !rItem.is_directory ? rItem.full_path : '';
+  const activeSide = STATE.activeSide || 'left';
+  let lp = '';
+  let rp = '';
+
+  const activePaths = getActionPaths(activeSide);
+  if (activePaths.length >= 2) {
+    lp = activePaths[0];
+    rp = activePaths[1];
+  } else {
+    const lItem = getSelectedSingleItem('left');
+    const rItem = getSelectedSingleItem('right');
+    lp = lItem && !lItem.is_directory ? lItem.full_path : (activePaths[0] || '');
+    rp = rItem && !rItem.is_directory ? rItem.full_path : '';
+  }
+
   const extDiff = (STATE.settings.external_diff_tool_path || '').trim();
   if (extDiff && lp && rp) {
     const lres = await rpc('launch_external_tool', { tool: extDiff, args: [lp, rp] });
@@ -7549,19 +7559,35 @@ async function openDiffModal() {
       return;
     }
   }
+
   showToolModal('⚖ Visueller Side-by-Side Datei-Diff-Viewer (Strg+Shift+U)', `
-    <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
-      <input class="input" id="diff-left" value="${esc(lp)}" placeholder="Linke Datei…">
-      <input class="input" id="diff-right" value="${esc(rp)}" placeholder="Rechte Datei…">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0;">
+      <input class="input" id="diff-left" value="${esc(lp)}" placeholder="Linke Datei…" style="flex:1;">
+      <button class="btn" onclick="swapDiffInputs()" title="Seiten tauschen (Links ⇄ Rechts)" style="padding:4px 8px;">⇄</button>
+      <input class="input" id="diff-right" value="${esc(rp)}" placeholder="Rechte Datei…" style="flex:1;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;user-select:none;">
+        <input type="checkbox" id="diff-ignore-ws" onchange="runDiffCompare()"> Leerzeichen ignorieren
+      </label>
       <button class="btn primary" onclick="runDiffCompare()">Vergleichen</button>
-      ${extDiff ? `<button class="btn" onclick="launchExternalDiffFromModal()">🚀 Extern (${esc(extDiff)})</button>` : '<span></span>'}
+      ${extDiff ? `<button class="btn" onclick="launchExternalDiffFromModal()">🚀 Extern (${esc(extDiff)})</button>` : ''}
     </div>
     <div id="diff-summary" style="margin-bottom:8px;font-weight:600;flex-shrink:0;"></div>
     <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;">
-      <table class="data-tbl"><thead><tr><th>#L</th><th>Links</th><th>#R</th><th>Rechts</th><th>Status</th></tr></thead><tbody id="diff-tbody"></tbody></table>
+      <table class="data-tbl"><thead><tr><th style="width:40px;text-align:right;">#L</th><th>Links</th><th style="width:40px;text-align:right;">#R</th><th>Rechts</th><th style="width:80px;">Status</th></tr></thead><tbody id="diff-tbody"></tbody></table>
     </div>
   `, null, 'tool:Diff');
   if (lp && rp) runDiffCompare();
+}
+
+function swapDiffInputs() {
+  const l = document.getElementById('diff-left');
+  const r = document.getElementById('diff-right');
+  if (l && r) {
+    const tmp = l.value;
+    l.value = r.value;
+    r.value = tmp;
+    runDiffCompare();
+  }
 }
 
 async function launchExternalDiffFromModal() {
@@ -7575,20 +7601,54 @@ async function launchExternalDiffFromModal() {
 }
 
 async function runDiffCompare() {
-  const left_path = document.getElementById('diff-left').value.trim();
-  const right_path = document.getElementById('diff-right').value.trim();
-  const res = await rpc('file_diff', { left_path, right_path, ignore_whitespace: false });
-  document.getElementById('diff-summary').innerHTML = `Hunks: <strong>${res.hunk_count||0}</strong> • <span style="color:var(--ok)">+${res.added_count||0} Added</span> • <span style="color:var(--danger)">-${res.removed_count||0} Removed</span> • <span style="color:var(--warn)">~${res.modified_count||0} Modified</span>`;
-  document.getElementById('diff-tbody').innerHTML = (res.rows || []).map(r => {
-    const bg = r.kind === 'Added' ? 'rgba(79,209,139,0.12)' : (r.kind === 'Removed' ? 'rgba(244,112,103,0.12)' : (r.kind === 'Modified' ? 'rgba(245,185,66,0.12)' : 'transparent'));
-    return `<tr style="background:${bg}">
-      <td style="color:var(--fg-muted)">${r.left_line_number ?? ''}</td>
-      <td style="white-space:pre-wrap">${esc(r.left_text)}</td>
-      <td style="color:var(--fg-muted)">${r.right_line_number ?? ''}</td>
-      <td style="white-space:pre-wrap">${esc(r.right_text)}</td>
-      <td>${esc(r.kind)}</td>
-    </tr>`;
-  }).join('');
+  const left_path = document.getElementById('diff-left')?.value.trim() || '';
+  const right_path = document.getElementById('diff-right')?.value.trim() || '';
+  const ignore_whitespace = !!document.getElementById('diff-ignore-ws')?.checked;
+  const summaryEl = document.getElementById('diff-summary');
+  const tbodyEl = document.getElementById('diff-tbody');
+
+  if (!left_path || !right_path) {
+    if (summaryEl) summaryEl.innerHTML = '<span style="color:var(--warn)">Bitte zwei Dateien zum Vergleichen auswählen oder eingeben.</span>';
+    return;
+  }
+  if (summaryEl) summaryEl.innerHTML = '<span style="color:var(--accent)">Vergleiche Dateien (PDF / Text / Binär)...</span>';
+
+  const res = await rpc('file_diff', { left_path, right_path, ignore_whitespace });
+  if (!res || res.error) {
+    if (summaryEl) summaryEl.innerHTML = `<span style="color:var(--danger)">Fehler beim Vergleichen: ${esc(res?.error || 'Unbekannter Fehler')}</span>`;
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger)">${esc(res?.error || 'Fehler beim Vergleichen der Dateien')}</td></tr>`;
+    return;
+  }
+
+  const hunkCount = res.hunk_count || 0;
+  const addedCount = res.added_count || 0;
+  const removedCount = res.removed_count || 0;
+  const modifiedCount = res.modified_count || 0;
+  const rows = res.rows || [];
+
+  if (hunkCount === 0 && rows.length > 0) {
+    if (summaryEl) summaryEl.innerHTML = `Dateien sind inhaltlich identisch (${rows.length} Zeilen) • <span style="color:var(--ok)">✓ Keine Unterschiede</span>`;
+  } else {
+    if (summaryEl) summaryEl.innerHTML = `Hunks: <strong>${hunkCount}</strong> • <span style="color:var(--ok)">+${addedCount} Added</span> • <span style="color:var(--danger)">-${removedCount} Removed</span> • <span style="color:var(--warn)">~${modifiedCount} Modified</span> • Zeilen: ${rows.length}`;
+  }
+
+  if (rows.length === 0) {
+    if (tbodyEl) tbodyEl.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--fg-muted)">Keine Zeilen im Diff vorhanden (Dateien sind leer).</td></tr>`;
+    return;
+  }
+
+  if (tbodyEl) {
+    tbodyEl.innerHTML = rows.map(r => {
+      const bg = r.kind === 'Added' ? 'rgba(79,209,139,0.12)' : (r.kind === 'Removed' ? 'rgba(244,112,103,0.12)' : (r.kind === 'Modified' ? 'rgba(245,185,66,0.12)' : 'transparent'));
+      return `<tr style="background:${bg}">
+        <td style="color:var(--fg-muted);user-select:none;text-align:right;padding-right:6px;">${r.left_line_number ?? ''}</td>
+        <td style="white-space:pre-wrap;word-break:break-all;">${esc(r.left_text)}</td>
+        <td style="color:var(--fg-muted);user-select:none;text-align:right;padding-right:6px;">${r.right_line_number ?? ''}</td>
+        <td style="white-space:pre-wrap;word-break:break-all;">${esc(r.right_text)}</td>
+        <td style="font-size:11px;font-weight:600;color:var(--fg-dim);">${esc(r.kind)}</td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 /* 3. Directory Sync (Ctrl+Shift+S) */

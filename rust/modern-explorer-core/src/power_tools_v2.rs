@@ -798,6 +798,12 @@ pub struct PdfInfoDto {
 pub struct PdfToolkitService;
 
 impl PdfToolkitService {
+    pub fn extract_text_from_pdf(path: &Path) -> Result<String, String> {
+        let doc = Document::load(path).map_err(|e| format!("PDF Ladefehler: {}", e))?;
+        let pages: Vec<u32> = doc.get_pages().keys().copied().collect();
+        doc.extract_text(&pages).map_err(|e| format!("PDF Textextraktion Fehler: {}", e))
+    }
+
     pub fn inspect_pdf(path: &Path) -> Result<PdfInfoDto, String> {
         let doc = Document::load(path).map_err(|e| format!("PDF Ladefehler: {}", e))?;
         let size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);

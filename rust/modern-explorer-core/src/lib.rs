@@ -42,6 +42,47 @@ mod tests {
     }
 
     #[test]
+    fn file_diff_service_handles_pdf_and_binary_comparisons() {
+        let dir = TempDir::new().unwrap();
+        let bin_a = dir.path().join("a.bin");
+        let bin_b = dir.path().join("b.bin");
+        fs::write(&bin_a, b"\x00\x01\x02\x03hello").unwrap();
+        fs::write(&bin_b, b"\x00\x01\x02\x04hello").unwrap();
+
+        let diff_bin = FileDiffService::compare_files(&bin_a, &bin_b, false).unwrap();
+        assert!(diff_bin.rows.len() > 0);
+        assert!(diff_bin.modified_count > 0 || diff_bin.hunk_count > 0);
+
+        let mut doc = lopdf::Document::with_version("1.5");
+        let pages_id = doc.new_object_id();
+        let mut page_dict = lopdf::Dictionary::new();
+        page_dict.set("Type", "Page");
+        page_dict.set("Parent", pages_id);
+        let page_id = doc.add_object(lopdf::Object::Dictionary(page_dict));
+
+        let mut pages_dict = lopdf::Dictionary::new();
+        pages_dict.set("Type", "Pages");
+        pages_dict.set("Kids", vec![page_id.into()]);
+        pages_dict.set("Count", 1);
+        doc.objects.insert(pages_id, lopdf::Object::Dictionary(pages_dict));
+
+        let mut catalog_dict = lopdf::Dictionary::new();
+        catalog_dict.set("Type", "Catalog");
+        catalog_dict.set("Pages", pages_id);
+        let catalog_id = doc.add_object(lopdf::Object::Dictionary(catalog_dict));
+        doc.trailer.set("Root", catalog_id);
+
+        let mut pdf_bytes = Vec::new();
+        doc.save_to(&mut pdf_bytes).unwrap();
+
+        let pdf_path = dir.path().join("doc.pdf");
+        fs::write(&pdf_path, &pdf_bytes).unwrap();
+        let extracted = FileDiffService::read_file_for_diff(&pdf_path).unwrap();
+        assert!(extracted.contains("PDF"));
+        assert!(extracted.contains("1.5"));
+    }
+
+    #[test]
     fn checksum_batch_service_computes_hashes_and_verifies_manifest() {
         let dir = TempDir::new().unwrap();
         let file_a = dir.path().join("alpha.txt");
