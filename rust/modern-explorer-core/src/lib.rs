@@ -1,5 +1,6 @@
 pub mod app_paths;
 pub mod archive;
+pub mod cloud_backup;
 pub mod features;
 pub mod filesystem;
 pub mod localization;

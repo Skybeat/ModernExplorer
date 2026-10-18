@@ -345,7 +345,21 @@ pub struct AppSettings {
     #[serde(default = "default_duplicates_min_size_kb")]
     pub duplicates_min_size_kb: u32,
 
+    // 7. Cloud Backup & Synchronization
+    #[serde(default = "default_cloud_provider")]
+    pub cloud_backup_provider: String,
+    #[serde(default)]
+    pub auto_cloud_backup_enabled: bool,
+    #[serde(default)]
+    pub custom_cloud_backup_dir: Option<String>,
+    #[serde(default = "default_true")]
+    pub first_run_completed: bool,
+
     pub dialog_sizes: HashMap<String, WindowBounds>,
+}
+
+fn default_cloud_provider() -> String {
+    "onedrive".to_string()
 }
 
 impl Default for AppSettings {
@@ -472,6 +486,11 @@ impl Default for AppSettings {
             default_share_server_port: 8787,
             quick_viewer_max_kb: 512,
             duplicates_min_size_kb: 1,
+
+            cloud_backup_provider: default_cloud_provider(),
+            auto_cloud_backup_enabled: false,
+            custom_cloud_backup_dir: None,
+            first_run_completed: true,
 
             dialog_sizes: HashMap::new(),
         }
@@ -656,6 +675,10 @@ impl SettingsStore {
             .unwrap_or_else(std::env::temp_dir)
     }
 
+    pub fn is_fresh_install() -> bool {
+        !AppPaths::settings_file().exists()
+    }
+
     pub fn load() -> AppSettings {
         Self::load_from(&AppPaths::settings_file())
     }
@@ -666,7 +689,9 @@ impl SettingsStore {
                 return settings;
             }
         }
-        AppSettings::default()
+        let mut def = AppSettings::default();
+        def.first_run_completed = false;
+        def
     }
 
     pub fn save(settings: &AppSettings) {

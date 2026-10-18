@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.9)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.10)'
         required: true
-        default: 'v1.9.9'
+        default: 'v1.9.10'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.9" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.10" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -207,6 +207,7 @@ jobs:
             "## What's New in Modern Explorer Studio $tag (Rust Edition)",
             '',
             "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            '- **Cloud & Local Settings Backup with Fresh Install Restoration (v1.9.10):** Added comprehensive cloud backup service detecting Microsoft OneDrive, Google Drive, Apple iCloud Drive, Dropbox, and custom user-defined directories. Supports automatic cloud backup on settings change, timestamped and latest-package backups, 1-click cloud restoration modal, and startup cloud backup detection banner on fresh installations. Added separate standalone Color Theme export/import (`.json` and clipboard) preserving all Total Commander style custom colors, zebra stripes, grid lines, and filetype color rules.',
             '- **Keyboard & Arrow Key Navigation to Parent Directory [..] (v1.9.9):** In the Explorer pane, users can now navigate seamlessly onto the parent directory entry (`[..] <UP>`) using `ArrowUp`, `ArrowLeft`, `Home`, and back with `ArrowDown` / `ArrowRight`. Pressing `Enter` on the selected parent entry navigates up immediately, single-click/double-click and context menu are fully wired, and safe boundary guards prevent accidental marking or deletion while parent is selected.',
             '- **Comprehensive Font Size Customization for Settings & Child Dialogs (v1.9.8):** Added dedicated Settings window font size scaling (`settings_window_font_size`) that scales the entire Settings window (`.prefs`, `#modalSettings`, nav items, section titles, rows, controls, and tables) both individually and via Global Font Size (`use_global_font_size`). Added live reactive scaling on slider drag (`updateFontSettingLive`), complete dialog font mapping for all tool windows, and missing script template defaults.',
             '- **Total Commander Color Customization & Rule-Based File-Type Coloring (v1.9.7):** Full Total Commander style color customization in Settings (`Colors & Highlighting`) with 1-click presets (`Modern Studio`, `Total Commander Classic`, `Norton Commander DOS`, `TC Dark Commander`, `Retro Matrix`, `Solarized Commander`), interactive live preview table, customizable file list primary & zebra-stripe backgrounds, grid lines, full-row inverted focus cursor (`invert_cursor`), folder/hidden/readonly text colors, and prioritized rule-based coloring by file mask & file age (`FileTypeColorRule`).',

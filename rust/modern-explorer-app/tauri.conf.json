@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ModernExplorer-Rust",
-  "version": "1.9.9",
+  "version": "1.9.10",
   "identifier": "com.modernexplorer.studio",
   "build": {
     "frontendDist": "ui"
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "ModernExplorer Studio — Dual-Pane File Manager v1.9.9 (Rust Edition)",
+        "title": "ModernExplorer Studio — Dual-Pane File Manager v1.9.10 (Rust Edition)",
         "width": 1280,
         "height": 800,
         "minWidth": 980,

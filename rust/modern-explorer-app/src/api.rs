@@ -1,5 +1,6 @@
 use modern_explorer_core::{
     archive::{ArchiveFormat, ArchiveService},
+    cloud_backup::{CloudBackupService, ColorThemePackage, SettingsBackupPackage},
     features::{
         BatchAttributeTimestampOptions, ChecksumBatchService, ChecksumManifestFormat,
         FileBasketService, FileDiffService, FileSplitAndShredService, FileTagColor,
@@ -186,6 +187,16 @@ impl BackendState {
             "link_manager" => self.rpc_link_manager(params),
             "check_updates" => self.rpc_check_updates(params),
             "install_update" => self.rpc_install_update(params),
+            "cloud_backup_detect" => self.rpc_cloud_backup_detect(),
+            "cloud_backup_save" => self.rpc_cloud_backup_save(params),
+            "cloud_backup_list" => self.rpc_cloud_backup_list(params),
+            "cloud_backup_restore" => self.rpc_cloud_backup_restore(params),
+            "cloud_backup_check_fresh_install" => self.rpc_cloud_backup_check_fresh_install(),
+            "open_cloud_backup_dir" => self.rpc_open_cloud_backup_dir(params),
+            "export_color_theme" => self.rpc_export_color_theme(params),
+            "import_color_theme" => self.rpc_import_color_theme(params),
+            "export_settings_package" => self.rpc_export_settings_package(),
+            "import_settings_package" => self.rpc_import_settings_package(params),
             "open_url" => {
                 if let Some(u) = params.get("url").and_then(|v| v.as_str()) {
                     GitHubUpdateService::open_release_in_browser(Some(u));
@@ -808,6 +819,17 @@ impl BackendState {
                 updated.main_window_maximized = self.settings.main_window_maximized;
                 self.settings = updated;
                 SettingsStore::save(&self.settings);
+                if self.settings.auto_cloud_backup_enabled {
+                    let _ = CloudBackupService::create_cloud_backup(
+                        &self.settings.cloud_backup_provider,
+                        self.settings.custom_cloud_backup_dir.as_deref(),
+                        &self.settings,
+                        Some(self.favorites.items.clone()),
+                        Some(self.user_commands.commands.clone()),
+                        Some("Automatisches Cloud-Backup".to_string()),
+                        GitHubUpdateService::CURRENT_VERSION,
+                    );
+                }
                 return json!({ "ok": true, "settings": self.settings });
             }
         }
@@ -910,6 +932,193 @@ impl BackendState {
         let dir = SettingsStore::config_dir();
         let _ = open::that(&dir);
         json!({ "ok": true, "path": dir.to_string_lossy() })
+    }
+
+    fn rpc_cloud_backup_detect(&self) -> Value {
+        let providers = CloudBackupService::detect_providers(self.settings.custom_cloud_backup_dir.as_deref());
+        json!({ "ok": true, "providers": providers })
+    }
+
+    fn rpc_cloud_backup_save(&mut self, params: &Value) -> Value {
+        let provider = params
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&self.settings.cloud_backup_provider);
+        let desc = params.get("description").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let custom_path = self.settings.custom_cloud_backup_dir.as_deref();
+
+        match CloudBackupService::create_cloud_backup(
+            provider,
+            custom_path,
+            &self.settings,
+            Some(self.favorites.items.clone()),
+            Some(self.user_commands.commands.clone()),
+            desc,
+            GitHubUpdateService::CURRENT_VERSION,
+        ) {
+            Ok(info) => json!({ "ok": true, "backup": info }),
+            Err(e) => json!({ "error": e }),
+        }
+    }
+
+    fn rpc_cloud_backup_list(&self, params: &Value) -> Value {
+        let provider_filter = params.get("provider").and_then(|v| v.as_str());
+        let custom_path = self.settings.custom_cloud_backup_dir.as_deref();
+        let list = CloudBackupService::list_backups(provider_filter, custom_path);
+        json!({ "ok": true, "backups": list })
+    }
+
+    fn rpc_cloud_backup_restore(&mut self, params: &Value) -> Value {
+        let path_str = match params.get("file_path").and_then(|v| v.as_str()) {
+            Some(p) => p,
+            None => return json!({ "error": "file_path fehlt" }),
+        };
+        let pb = PathBuf::from(path_str);
+        match CloudBackupService::load_backup_from_file(&pb) {
+            Ok(pkg) => {
+                let prev_x = self.settings.main_window_x;
+                let prev_y = self.settings.main_window_y;
+                let prev_max = self.settings.main_window_maximized;
+                self.settings = pkg.settings;
+                self.settings.main_window_x = prev_x;
+                self.settings.main_window_y = prev_y;
+                self.settings.main_window_maximized = prev_max;
+                self.settings.first_run_completed = true;
+                SettingsStore::save(&self.settings);
+                if let Some(favs) = pkg.favorites {
+                    self.favorites.items = favs;
+                    self.favorites.save();
+                }
+                if let Some(cmds) = pkg.user_commands {
+                    self.user_commands.commands = cmds;
+                    self.user_commands.save();
+                }
+                json!({
+                    "ok": true,
+                    "settings": self.settings,
+                    "favorites": self.favorites.items,
+                    "message": "Backup erfolgreich wiederhergestellt!"
+                })
+            }
+            Err(e) => json!({ "error": e }),
+        }
+    }
+
+    fn rpc_cloud_backup_check_fresh_install(&self) -> Value {
+        let is_fresh = !self.settings.first_run_completed || SettingsStore::is_fresh_install();
+        let backup = if is_fresh {
+            CloudBackupService::scan_for_fresh_install_backups()
+        } else {
+            None
+        };
+        json!({
+            "is_fresh_install": is_fresh,
+            "found_backup": backup
+        })
+    }
+
+    fn rpc_open_cloud_backup_dir(&self, params: &Value) -> Value {
+        let provider = params
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&self.settings.cloud_backup_provider);
+        let custom_path = self.settings.custom_cloud_backup_dir.as_deref();
+        match CloudBackupService::get_backup_dir(provider, custom_path) {
+            Ok(dir) => {
+                let _ = open::that(&dir);
+                json!({ "ok": true, "path": dir.to_string_lossy().to_string() })
+            }
+            Err(e) => json!({ "error": e }),
+        }
+    }
+
+    fn rpc_export_color_theme(&self, params: &Value) -> Value {
+        let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("Mein Farbschema");
+        let author = params.get("author").and_then(|v| v.as_str());
+        let desc = params.get("description").and_then(|v| v.as_str());
+        let theme = CloudBackupService::export_color_theme(
+            &self.settings,
+            name,
+            author,
+            desc,
+            GitHubUpdateService::CURRENT_VERSION,
+        );
+        json!({ "ok": true, "theme": theme })
+    }
+
+    fn rpc_import_color_theme(&mut self, params: &Value) -> Value {
+        let theme_val = match params.get("theme") {
+            Some(v) => v,
+            None => return json!({ "error": "theme parameter fehlt" }),
+        };
+        match serde_json::from_value::<ColorThemePackage>(theme_val.clone()) {
+            Ok(theme) => {
+                CloudBackupService::apply_color_theme(&mut self.settings, &theme);
+                SettingsStore::save(&self.settings);
+                json!({
+                    "ok": true,
+                    "settings": self.settings,
+                    "theme_name": theme.name
+                })
+            }
+            Err(e) => json!({ "error": format!("Ungültiges Farbschema-Format: {}", e) }),
+        }
+    }
+
+    fn rpc_export_settings_package(&self) -> Value {
+        let pkg = SettingsBackupPackage {
+            schema_type: CloudBackupService::SCHEMA_TYPE_BACKUP.to_string(),
+            schema_version: CloudBackupService::CURRENT_SCHEMA_VERSION,
+            app_version: GitHubUpdateService::CURRENT_VERSION.to_string(),
+            created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            device_name: std::env::var("COMPUTERNAME").unwrap_or_else(|_| "Desktop".to_string()),
+            backup_type: "export_file".to_string(),
+            description: Some("Vollständiges Einstellungs-Backup".to_string()),
+            settings: self.settings.clone(),
+            favorites: Some(self.favorites.items.clone()),
+            user_commands: Some(self.user_commands.commands.clone()),
+        };
+        json!({ "ok": true, "package": pkg })
+    }
+
+    fn rpc_import_settings_package(&mut self, params: &Value) -> Value {
+        let pkg_val = match params.get("package") {
+            Some(v) => v,
+            None => return json!({ "error": "package parameter fehlt" }),
+        };
+
+        if let Ok(pkg) = serde_json::from_value::<SettingsBackupPackage>(pkg_val.clone()) {
+            let prev_x = self.settings.main_window_x;
+            let prev_y = self.settings.main_window_y;
+            let prev_max = self.settings.main_window_maximized;
+            self.settings = pkg.settings;
+            self.settings.main_window_x = prev_x;
+            self.settings.main_window_y = prev_y;
+            self.settings.main_window_maximized = prev_max;
+            self.settings.first_run_completed = true;
+            SettingsStore::save(&self.settings);
+            if let Some(favs) = pkg.favorites {
+                self.favorites.items = favs;
+                self.favorites.save();
+            }
+            if let Some(cmds) = pkg.user_commands {
+                self.user_commands.commands = cmds;
+                self.user_commands.save();
+            }
+            return json!({ "ok": true, "settings": self.settings, "favorites": self.favorites.items });
+        }
+
+        if let Ok(mut settings) = serde_json::from_value::<AppSettings>(pkg_val.clone()) {
+            settings.main_window_x = self.settings.main_window_x;
+            settings.main_window_y = self.settings.main_window_y;
+            settings.main_window_maximized = self.settings.main_window_maximized;
+            settings.first_run_completed = true;
+            self.settings = settings;
+            SettingsStore::save(&self.settings);
+            return json!({ "ok": true, "settings": self.settings });
+        }
+
+        json!({ "error": "Ungültiges Einstellungs-Format" })
     }
 
     fn rpc_launch_external_tool(&self, params: &Value) -> Value {
