@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.11)'
+        description: 'Semantic Version release tag (MAJOR.MINOR.PATCH, e.g. v1.9.12)'
         required: true
-        default: 'v1.9.11'
+        default: 'v1.9.12'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           $rawTag = "${{ github.event.inputs.tag_name || github.ref_name }}"
           $version = $rawTag.TrimStart('v')
-          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.11" }
+          if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch '^\d+\.\d+\.\d+') { $version = "1.9.12" }
 
           New-Item -ItemType Directory -Force -Path dist-rust | Out-Null
           $distFull = (Resolve-Path dist-rust).Path
@@ -207,6 +207,7 @@ jobs:
             "## What's New in Modern Explorer Studio $tag (Rust Edition)",
             '',
             "### ModernExplorer Studio (Rust Edition) Updates in $tag",
+            '- **Comprehensive Multi-Language Localization System (v1.9.12):** Full end-to-end UI localization covering all 9 Settings tabs, section titles, option cards, form controls, dropdown choices, table headers, buttons, context menus, command palette, shortcuts table, and all 20+ power-tool modals (`showToolModal`). Built a safe, reversible DOM tree localization engine (`translateElementTree`) that preserves original German markup, integrated an expanded 890+ entry dictionary with automatic English fallbacks (`I18N[lang] -> I18N.en -> I18N.de -> raw`), and dynamically localizes on language selection without restart.',
             '- **Cloud Provider Setup & Auto-Detection Fix (v1.9.11):** Fixed Microsoft OneDrive detection status badge bug. Enhanced cloud directory resolver with Windows Registry scanning (`HKCU\Software\Microsoft\OneDrive\Accounts\Personal\UserFolder`, etc.) and multi-drive path resolution for OneDrive, Google Drive, Apple iCloud Drive, Dropbox, and Nextcloud/ownCloud. Added dedicated Cloud Configuration Wizard modal (`Cloud-Speicher einrichten & verbinden`) allowing users to configure custom root paths for all cloud providers, run interactive connection & write tests, select folders via folder browser, and choose the active backup target. Custom provider paths are now persisted in settings (`cloud_provider_paths`).',
             '- **Cloud & Local Settings Backup with Fresh Install Restoration (v1.9.10):** Added comprehensive cloud backup service detecting Microsoft OneDrive, Google Drive, Apple iCloud Drive, Dropbox, and custom user-defined directories. Supports automatic cloud backup on settings change, timestamped and latest-package backups, 1-click cloud restoration modal, and startup cloud backup detection banner on fresh installations. Added separate standalone Color Theme export/import (`.json` and clipboard) preserving all Total Commander style custom colors, zebra stripes, grid lines, and filetype color rules.',
             '- **Keyboard & Arrow Key Navigation to Parent Directory [..] (v1.9.9):** In the Explorer pane, users can now navigate seamlessly onto the parent directory entry (`[..] <UP>`) using `ArrowUp`, `ArrowLeft`, `Home`, and back with `ArrowDown` / `ArrowRight`. Pressing `Enter` on the selected parent entry navigates up immediately, single-click/double-click and context menu are fully wired, and safe boundary guards prevent accidental marking or deletion while parent is selected.',
