@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.8 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.9 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -506,6 +506,20 @@
   .file-row.invert-cursor.selected .f-mod,
   .file-row.invert-cursor.selected .f-type {
     color: var(--sel-text-color) !important;
+  }
+  .file-row.is-parent-dir { cursor: pointer; }
+  .file-row.is-parent-dir .f-name { color: var(--fg-dim); font-weight: 600; }
+  .file-row.is-parent-dir .f-size-cell { color: var(--fg-dim); }
+  .file-row.is-parent-dir.selected .f-name,
+  .file-row.is-parent-dir.selected .f-size-cell {
+    color: var(--sel-text-color, var(--accent)) !important;
+    font-weight: 700;
+  }
+  .file-card.is-parent-dir { cursor: pointer; }
+  .file-card.is-parent-dir .card-name { font-weight: 600; color: var(--fg-dim); }
+  .file-card.is-parent-dir.selected .card-name {
+    color: var(--sel-text-color, var(--accent)) !important;
+    font-weight: 700;
   }
   .f-check {
     width: 15px; height: 15px; border-radius: 3px; border: 1px solid var(--border-strong);
@@ -1228,7 +1242,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.8 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.9 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1763,7 +1777,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.8</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.9</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1850,7 +1864,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.8</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.8</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.9</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.9</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1859,7 +1873,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.8.
+        ✓ Sie verwenden die aktuelle Version v1.9.9.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -1975,7 +1989,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.8',
+  version: '1.9.9',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2816,7 +2830,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.8';
+  STATE.version = data.version || '1.9.9';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -2931,6 +2945,14 @@ async function initApp() {
 function getTab(side) {
   const p = STATE.panes[side];
   return p.tabs[p.activeTab] || p.tabs[0];
+}
+
+function isParentDirVisible(side = STATE.activeSide) {
+  const s = STATE.settings;
+  const tab = getTab(side);
+  if (!tab || !tab.path) return false;
+  const hasParent = tab.path.startsWith('archive://') || (tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/')));
+  return hasParent && s.show_parent_dir_entry !== false;
 }
 
 function setActiveSide(side) {
@@ -3179,13 +3201,20 @@ async function loadPane(side, recordHistory = false, selectPathOnLoad = null) {
       const normTarget = selectPathOnLoad.replace(/[\\/]+$/, '').toLowerCase();
       const found = p.items.findIndex(i => i.full_path.replace(/[\\/]+$/, '').toLowerCase() === normTarget);
       if (found >= 0) targetIdx = found;
+    } else if (wasSameDir && prevCursor === -1 && isParentDirVisible(side)) {
+      targetIdx = -1;
     } else if (wasSameDir && prevSelectedPath) {
       const found = p.items.findIndex(i => i.full_path === prevSelectedPath);
       targetIdx = found >= 0 ? found : Math.min(Math.max(0, prevCursor), p.items.length - 1);
     }
-    p.cursorIndex = targetIdx;
-    p.anchorIndex = targetIdx;
-    p.selected.add(p.items[targetIdx].full_path);
+    if (targetIdx === -1) {
+      p.cursorIndex = -1;
+      p.anchorIndex = -1;
+    } else {
+      p.cursorIndex = targetIdx;
+      p.anchorIndex = targetIdx;
+      p.selected.add(p.items[targetIdx].full_path);
+    }
   } else {
     p.cursorIndex = -1;
     p.anchorIndex = -1;
@@ -3269,16 +3298,91 @@ function renderFileList(side) {
 
   // Parent directory [..] entry if not at root
   const hasParent = tab.path.startsWith('archive://') || (tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/')));
-  if (hasParent && mode === 'Details' && s.show_parent_dir_entry !== false) {
+  const showParent = hasParent && s.show_parent_dir_entry !== false;
+  const isParentSelected = p.cursorIndex === -1;
+  const invertCursor = !!s.invert_cursor;
+
+  if (showParent && mode === 'Details') {
     const upRow = document.createElement('div');
-    upRow.className = 'file-row is-folder';
-    upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name" style="font-weight:600;color:var(--fg-dim)">${esc(t('pane.parent_dir'))}</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
-    upRow.ondblclick = () => navUp(side);
+    upRow.className = 'file-row is-folder is-parent-dir'
+      + (isParentSelected ? ' selected' : '')
+      + (invertCursor ? ' invert-cursor' : '');
+    upRow.dataset.parent = '1';
+    upRow.dataset.idx = '-1';
+    upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name">${esc(t('pane.parent_dir'))}</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
+    upRow.onclick = (e) => {
+      e.stopPropagation();
+      clearQuickSearch(side);
+      setActiveSide(side);
+      document.getElementById('list-' + side)?.focus({ preventScroll: true });
+      p.cursorIndex = -1;
+      p.anchorIndex = -1;
+      p.selected.clear();
+      renderFileList(side);
+      updateDockInspector(null);
+      if (STATE.settings.single_click_open) {
+        navUp(side);
+      }
+    };
+    upRow.ondblclick = (e) => {
+      e.stopPropagation();
+      navUp(side);
+    };
+    upRow.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearQuickSearch(side);
+      setActiveSide(side);
+      p.cursorIndex = -1;
+      p.anchorIndex = -1;
+      p.selected.clear();
+      renderFileList(side);
+      showContextMenuAt(e, [
+        { label: '↩ ' + (t('pane.parent_dir') || 'Übergeordneter Ordner'), kbd: 'Enter', run: () => navUp(side) }
+      ]);
+    };
     host.appendChild(upRow);
+  } else if (showParent && mode !== 'Details') {
+    const upCard = document.createElement('div');
+    upCard.className = 'file-card is-folder is-parent-dir' + (isParentSelected ? ' selected' : '');
+    upCard.dataset.parent = '1';
+    upCard.dataset.idx = '-1';
+    upCard.innerHTML = `<div style="font-size:${mode==='SmallIcons'||mode==='List'?'16px':'28px'}">↩</div><div class="card-name">[..]</div><div class="card-sub">&lt;UP&gt;</div>`;
+    upCard.onclick = (e) => {
+      e.stopPropagation();
+      clearQuickSearch(side);
+      setActiveSide(side);
+      document.getElementById('list-' + side)?.focus({ preventScroll: true });
+      p.cursorIndex = -1;
+      p.anchorIndex = -1;
+      p.selected.clear();
+      renderFileList(side);
+      updateDockInspector(null);
+      if (STATE.settings.single_click_open) {
+        navUp(side);
+      }
+    };
+    upCard.ondblclick = (e) => {
+      e.stopPropagation();
+      navUp(side);
+    };
+    upCard.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearQuickSearch(side);
+      setActiveSide(side);
+      p.cursorIndex = -1;
+      p.anchorIndex = -1;
+      p.selected.clear();
+      renderFileList(side);
+      showContextMenuAt(e, [
+        { label: '↩ ' + (t('pane.parent_dir') || 'Übergeordneter Ordner'), kbd: 'Enter', run: () => navUp(side) }
+      ]);
+    };
+    host.appendChild(upCard);
   }
 
   const showSizeBars = s.show_size_proportion_bars !== false;
-  const invertCursor = !!s.invert_cursor;
 
   p.items.forEach((item, idx) => {
     const isSel = p.selected.has(item.full_path);
@@ -3343,6 +3447,8 @@ function renderFileList(side) {
       if (p.cursorIndex === 0) host.scrollTop = 0;
       else selEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
+  } else if (p.cursorIndex === -1 && showParent) {
+    host.scrollTop = 0;
   }
 }
 
@@ -3497,7 +3603,8 @@ function getActionPaths(side = STATE.activeSide) {
 
 function getSelectedSingleItem(side = STATE.activeSide) {
   const p = STATE.panes[side];
-  if (typeof p.cursorIndex === 'number' && p.cursorIndex >= 0 && p.cursorIndex < p.items.length) {
+  if (p && p.cursorIndex === -1 && isParentDirVisible(side)) return null;
+  if (typeof p?.cursorIndex === 'number' && p.cursorIndex >= 0 && p.cursorIndex < p.items.length) {
     const cur = p.items[p.cursorIndex];
     if (cur && (p.selected.has(cur.full_path) || p.selected.size === 0)) return cur;
   }
@@ -3509,17 +3616,35 @@ let _dockNavTimer = null;
 function navigatePaneByKey(side, key, shiftKey = false) {
   const p = STATE.panes[side];
   const items = p.items || [];
-  if (!items.length) return false;
-
   const host = document.getElementById('list-' + side);
   const mode = getTab(side).viewMode || 'Details';
+  const hasParentRow = isParentDirVisible(side);
 
-  let curIdx = typeof p.cursorIndex === 'number' && p.cursorIndex >= 0 && p.cursorIndex < items.length
+  if (!items.length && !hasParentRow) return false;
+
+  if (!items.length && hasParentRow) {
+    p.cursorIndex = -1;
+    p.anchorIndex = -1;
+    p.selected.clear();
+    if (host) {
+      host.querySelectorAll('.selected').forEach(el => {
+        if (!el.dataset.parent) el.classList.remove('selected');
+      });
+      const parentEl = host.querySelector('[data-parent="1"]');
+      if (parentEl) parentEl.classList.add('selected');
+      host.scrollTop = 0;
+      host.focus({ preventScroll: true });
+    }
+    updateDockInspector(null);
+    return true;
+  }
+
+  let curIdx = typeof p.cursorIndex === 'number'
     ? p.cursorIndex
-    : -1;
-  if (curIdx < 0) {
+    : -2;
+  if (curIdx < -1) {
     const firstSel = Array.from(p.selected)[0];
-    curIdx = firstSel ? items.findIndex(i => i.full_path === firstSel) : -1;
+    curIdx = firstSel ? items.findIndex(i => i.full_path === firstSel) : -2;
   }
 
   let cols = 1;
@@ -3542,21 +3667,61 @@ function navigatePaneByKey(side, key, shiftKey = false) {
   const pageStep = visibleRows * cols;
 
   let nextIdx = curIdx;
-  if (curIdx < 0) {
-    nextIdx = (key === 'ArrowUp' || key === 'End' || key === 'PageUp') ? items.length - 1 : 0;
+  if (curIdx < -1) {
+    if (key === 'ArrowUp' || key === 'End' || key === 'PageUp') {
+      nextIdx = items.length - 1;
+    } else {
+      nextIdx = (hasParentRow && !shiftKey && key !== 'ArrowDown') ? -1 : 0;
+    }
+  } else if (curIdx === -1) {
+    if (key === 'ArrowDown') {
+      nextIdx = 0;
+    } else if (key === 'ArrowRight') {
+      nextIdx = 0;
+    } else if (key === 'End') {
+      nextIdx = items.length - 1;
+    } else if (key === 'PageDown') {
+      nextIdx = Math.min(items.length - 1, pageStep - 1);
+    } else {
+      nextIdx = -1;
+    }
   } else {
-    if (key === 'ArrowDown') nextIdx = Math.min(items.length - 1, curIdx + cols);
-    else if (key === 'ArrowUp') nextIdx = Math.max(0, curIdx - cols);
-    else if (key === 'ArrowRight') nextIdx = Math.min(items.length - 1, curIdx + 1);
-    else if (key === 'ArrowLeft') nextIdx = Math.max(0, curIdx - 1);
-    else if (key === 'Home') nextIdx = 0;
-    else if (key === 'End') nextIdx = items.length - 1;
-    else if (key === 'PageDown') nextIdx = Math.min(items.length - 1, curIdx + pageStep);
-    else if (key === 'PageUp') nextIdx = Math.max(0, curIdx - pageStep);
+    if (key === 'ArrowDown') {
+      nextIdx = Math.min(items.length - 1, curIdx + cols);
+    } else if (key === 'ArrowUp') {
+      if (curIdx - cols < 0) {
+        nextIdx = (hasParentRow && !shiftKey) ? -1 : 0;
+      } else {
+        nextIdx = curIdx - cols;
+      }
+    } else if (key === 'ArrowRight') {
+      nextIdx = Math.min(items.length - 1, curIdx + 1);
+    } else if (key === 'ArrowLeft') {
+      if (curIdx === 0) {
+        nextIdx = (hasParentRow && !shiftKey) ? -1 : 0;
+      } else {
+        nextIdx = Math.max(0, curIdx - 1);
+      }
+    } else if (key === 'Home') {
+      nextIdx = (hasParentRow && !shiftKey) ? -1 : 0;
+    } else if (key === 'End') {
+      nextIdx = items.length - 1;
+    } else if (key === 'PageDown') {
+      nextIdx = Math.min(items.length - 1, curIdx + pageStep);
+    } else if (key === 'PageUp') {
+      if (curIdx - pageStep < 0) {
+        nextIdx = (hasParentRow && !shiftKey) ? -1 : 0;
+      } else {
+        nextIdx = curIdx - pageStep;
+      }
+    }
   }
 
   p.cursorIndex = nextIdx;
-  if (shiftKey) {
+  if (nextIdx === -1) {
+    p.anchorIndex = -1;
+    p.selected.clear();
+  } else if (shiftKey) {
     if (typeof p.anchorIndex !== 'number' || p.anchorIndex < 0 || p.anchorIndex >= items.length) {
       p.anchorIndex = curIdx >= 0 ? curIdx : nextIdx;
     }
@@ -3574,20 +3739,31 @@ function navigatePaneByKey(side, key, shiftKey = false) {
 
   if (host) {
     host.querySelectorAll('.selected').forEach(el => {
-      if (!p.selected.has(el.dataset.path)) el.classList.remove('selected');
-    });
-    if (shiftKey) {
-      host.querySelectorAll('[data-idx]').forEach(el => {
-        if (p.selected.has(el.dataset.path)) el.classList.add('selected');
-      });
-    }
-    const targetEl = host.querySelector(`[data-idx="${nextIdx}"]`);
-    if (targetEl) {
-      targetEl.classList.add('selected');
-      if (nextIdx === 0) {
-        host.scrollTop = 0;
+      if (nextIdx === -1) {
+        if (!el.dataset.parent) el.classList.remove('selected');
       } else {
-        targetEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (el.dataset.parent || !p.selected.has(el.dataset.path)) el.classList.remove('selected');
+      }
+    });
+
+    if (nextIdx === -1) {
+      const parentEl = host.querySelector('[data-parent="1"]');
+      if (parentEl) parentEl.classList.add('selected');
+      host.scrollTop = 0;
+    } else {
+      if (shiftKey) {
+        host.querySelectorAll('[data-idx]').forEach(el => {
+          if (p.selected.has(el.dataset.path)) el.classList.add('selected');
+        });
+      }
+      const targetEl = host.querySelector(`[data-idx="${nextIdx}"]`);
+      if (targetEl) {
+        targetEl.classList.add('selected');
+        if (nextIdx === 0) {
+          host.scrollTop = 0;
+        } else {
+          targetEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
       }
     }
     host.focus({ preventScroll: true });
@@ -3595,7 +3771,8 @@ function navigatePaneByKey(side, key, shiftKey = false) {
 
   clearTimeout(_dockNavTimer);
   _dockNavTimer = setTimeout(() => {
-    if (items[nextIdx]) updateDockInspector(items[nextIdx]);
+    if (nextIdx >= 0 && items[nextIdx]) updateDockInspector(items[nextIdx]);
+    else updateDockInspector(null);
   }, 35);
   return true;
 }
@@ -8820,6 +8997,11 @@ window.addEventListener('keydown', (e) => {
     } else if (e.key === 'Insert') {
       clearQuickSearch(STATE.activeSide);
       e.preventDefault();
+      const p = STATE.panes[STATE.activeSide];
+      if (p && p.cursorIndex === -1 && isParentDirVisible(STATE.activeSide)) {
+        navigatePaneByKey(STATE.activeSide, 'ArrowDown', false);
+        return;
+      }
       const it = getSelectedSingleItem(STATE.activeSide);
       if (it) {
         toggleMarkItem(STATE.activeSide, it, STATE.panes[STATE.activeSide].cursorIndex || 0);
@@ -8830,6 +9012,13 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       if (_typeAheadBuf.length > 0) {
         jumpToPrefixInPane(STATE.activeSide, ' ');
+        return;
+      }
+      const p = STATE.panes[STATE.activeSide];
+      if (p && p.cursorIndex === -1 && isParentDirVisible(STATE.activeSide)) {
+        if (STATE.settings.space_moves_down_on_mark) {
+          navigatePaneByKey(STATE.activeSide, 'ArrowDown', false);
+        }
         return;
       }
       const it = getSelectedSingleItem(STATE.activeSide);
@@ -8843,6 +9032,11 @@ window.addEventListener('keydown', (e) => {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       clearQuickSearch(STATE.activeSide);
+      const p = STATE.panes[STATE.activeSide];
+      if (p && p.cursorIndex === -1 && isParentDirVisible(STATE.activeSide)) {
+        navUp(STATE.activeSide);
+        return;
+      }
       const it = getSelectedSingleItem(STATE.activeSide);
       if (it) activateItem(STATE.activeSide, it);
       return;
