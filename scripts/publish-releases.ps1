@@ -150,7 +150,9 @@ if ($status) {
     git commit -m "chore(release): bump Rust version to $TagName"
 }
 git tag -f $TagName
+$ErrorActionPreference = "Continue"
 git push origin main
-git push origin $TagName --force
+git push origin ":refs/tags/$TagName"
+git push origin $TagName
 
 Write-Output "=== Rust Multi-OS Release $TagName Triggered on GitHub Actions! ==="
