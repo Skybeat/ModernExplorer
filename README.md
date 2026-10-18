@@ -22,7 +22,7 @@ Every GitHub Release automatically builds and publishes both **native installers
 ## Feature Overview
 
 ### 1. Dual-Pane & Multi-Tab File Management
-- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer Studio — Dual-Pane File Manager v1.9.6 (Rust Edition)`).
+- **Versioned Title Bar**: Displays the current application version directly in the main title bar (`ModernExplorer Studio — Dual-Pane File Manager v1.9.7 (Rust Edition)`).
 - **Dual-Pane & Single-Pane Mode (`F12` / `Tab`)**: Instant switching between left and right file panels with a customizable active-panel border color and thickness.
 - **Smart Dual-Pane Folder Sync Jump**: Configurable option (`sync_jump_to_other_pane_folder`) that automatically switches to the opposite pane when opening a folder that is already open in a tab of the other pane.
 - **Per-Pane Drive Bar (Single-Line or Multi-Line)**: Displays all mounted drives (`Fixed`, `Removable`, `Network`, `CD-ROM`, `RAM`) with live free-space and capacity bars, tooltips, and optional automatic multi-line wrapping (`multiline_drive_bar`).
@@ -98,8 +98,16 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 - **Complete Localization Across All Windows**: Main Window, Menus, Toolbars, Column Headers, Right Inspector Dock, Settings, Storage Analyzer (`Treemap`), Quick Viewer (`F3`), Editor (`F4`), Context Menus, and all Power Tool dialogs dynamically update in the selected UI language.
 - **Localized Feature Tooltips**: Toolbar buttons, feature buttons, panel controls, and function keys (`F1`–`F12`) provide localized explanations that can be toggled at any time in **Settings → Appearance & Design → Tooltips**.
 
-### 6. Live Customization, Interactive Color Picker & In-Place Self-Updater
-- **Appearance, Interactive Color Picker, Treemap Colors & Font Scaling**: Switch live between Dark, Light, and System themes, customize all **10 color settings** (**Active Panel Border**, **Selection Border**, **Marked Item Text**, and all **7 Storage Analyzer Treemap category colors**) using quick presets, `#RRGGBB` hex codes, or the interactive color picker with one-click default reset. Adjust font sizes individually per UI area and per Child Window or via a single Global Font Size setting.
+### 6. Total Commander Color Customization, Comprehensive Preferences & In-Place Self-Updater
+- **Total Commander Style Color Customization & 1-Click Presets (`Settings → Colors & Highlighting`)**:
+  - **1-Click Color Presets**: Instantly switch between **Modern Studio (Default)**, **Total Commander Classic (White/Blue)**, **Norton Commander (DOS Blue/Cyan/Yellow)**, **TC Dark Commander**, **Retro Matrix Terminal**, and **Solarized Commander**, with an interactive **Live File List Color Preview** table.
+  - **File List Backgrounds, Zebra Stripes, Grid Lines & Inverted Cursor**: Customize Primary & Alternating (Zebra) row backgrounds, table grid lines, full-row **Inverted Focus Cursor** (`invert_cursor`), Active Panel border color/thickness, Marked Item (`Space` / `Insert`) text & background colors, and distinct text colors for **Folders**, **Hidden/System files**, and **Read-Only files**.
+  - **Rule-Based Colors by File Type & File Age (`FileTypeColorRule`)**: Define prioritized color rules by wildcard mask (e.g. `*.exe;*.bat;*.ps1`, `*.zip;*.7z`, `*.rs;*.toml`) and optional maximum modification age in hours (e.g. `≤ 24h` for *Modified Today*) with custom text color and bold styling.
+  - **Storage Analyzer Treemap Colors & Granular Font Scaling**: Customize all 7 Treemap category colors and adjust font sizes individually per UI area and per Child Window or via a single Global Font Size setting (plus `75%–160%` UI Zoom).
+- **Comprehensive File List, Ergonomics & External Tool Settings**:
+  - **UI Bar Visibility**: Toggle Drive Bar, Multi-line Drive Bar, Favorites Bar, Left Tool Rail, Breadcrumb Bar, F1–F12 Function Key Bar, Status Bar, Startup Directory Tree, Proportional Size Bars, and Tooltips.
+  - **Sorting & Formatting**: **Natural Number Sorting** (`file2.txt` before `file10.txt`), case-sensitive sorting, folders-first sorting, configurable size display (`Dynamic`, `Exact Bytes`, `KB`, `MB`), configurable date/time format (`DD.MM.YYYY`, `ISO-8601`, `US`, with/without seconds), and toggleable `[..]` parent directory entry.
+  - **Total Commander Ergonomics & External Tools**: `SpaceMovesDown` option when marking with Spacebar, automatic folder size calculation on Spacebar mark, double-click empty space to navigate up, middle-click folder to open in new tab, overwrite confirmation, configurable external `F4` Editor, external Diff Tool (`Ctrl+Shift+U`), custom `F9` Terminal command (`%P`), Power-Tool defaults, and 1-click **Settings JSON Export / Import**.
 - **Native Self-Replace In-Place Updater (`GitHubUpdateService`)**: Checks GitHub Releases automatically on startup (or manually in the Update dialog), downloads the matching portable release package for the current OS and CPU architecture, replaces the executable directly in-place (with automatic UAC elevation fallback on Windows when installed under `C:\Program Files`), and restarts the application automatically without requiring an external installer wizard.
 
 ---
@@ -111,7 +119,7 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 | `F1` | Show Keyboard Shortcuts Reference |
 | `F2` | Inline Rename (single item) or Batch Rename (`Ctrl+M`) |
 | `F3` | Open Quick Viewer & Interactive Hex-Editor |
-| `F4` | Open Internal Text & Hex Editor |
+| `F4` | Open Internal Text & Hex Editor (or configured External Editor) |
 | `F5` | Copy selected items to opposite pane |
 | `F6` | Move selected items to opposite pane |
 | `F7` / `Shift+F7` | New File (`F7`) / New Folder (`Shift+F7`) |
@@ -135,7 +143,7 @@ All feature dialogs open as freely resizable, draggable, and maximizable child w
 | `Ctrl+Alt+K` | Open Symlink, Hardlink & Directory Junction Manager |
 | `A–Z` / `0–9` | Type-Ahead Quick Search (jump to folder/file, repeat single key to cycle matches) |
 | `Backspace` | Edit Type-Ahead Quick Search query (or navigate to parent directory when not searching) |
-| `Space` / `Insert` | Mark / unmark item (`Insert` also advances selection down) |
+| `Space` / `Insert` | Mark / unmark item (`Insert` and optional `Space` also advance selection down) |
 | `Ctrl+M` | Open Multi-Rename Tool (Batch Rename) |
 | `Ctrl+Shift+U` | Open Visual Side-by-Side File Diff Viewer |
 | `Ctrl+Shift+K` | Open Checksum Generator & Verifier (`SHA-256`, `SHA-512`, `MD5`, `CRC32`) |
@@ -172,4 +180,5 @@ cargo build --manifest-path rust/Cargo.toml --release
 ```
 
 ### Automated Multi-OS GitHub Releases
-Pushing a semantic version tag (`v*`, e.g. `v1.9.6`) or running `scripts/publish-releases.ps1 -Version "1.9.6"` triggers the GitHub Actions workflow (`.github/workflows/release.yml`), which compiles and publishes all Rust portable packages and native installers for Windows (`x64` & `ARM64`), Linux (`x64` & `ARM64`), and macOS (`x64` & `ARM64`).
+Pushing a semantic version tag (`v*`, e.g. `v1.9.7`) or running `scripts/publish-releases.ps1 -Version "1.9.7"` triggers the GitHub Actions workflow (`.github/workflows/release.yml`), which compiles and publishes all Rust portable packages and native installers for Windows (`x64` & `ARM64`), Linux (`x64` & `ARM64`), and macOS (`x64` & `ARM64`).
+

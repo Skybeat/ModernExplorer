@@ -97,10 +97,27 @@ foreach ($cf in $cargoFiles) {
 
 $tauriConf = "rust/modern-explorer-app/tauri.conf.json"
 if (Test-Path $tauriConf) {
-    $content = Get-Content $tauriConf -Raw
+    $content = Get-Content $tauriConf -Raw -Encoding UTF8
     $updated = [regex]::Replace($content, '"version":\s*"[^"]+"', "`"version`": `"$Version`"")
+    $updated = [regex]::Replace($updated, 'Dual-Pane File Manager v\d+\.\d+\.\d+', "Dual-Pane File Manager v$Version")
     if ($updated -ne $content) {
-        Set-Content -Path $tauriConf -Value $updated -Encoding UTF8 -NoNewline
+        [System.IO.File]::WriteAllText((Resolve-Path $tauriConf).Path, $updated, (New-Object System.Text.UTF8Encoding($false)))
+    }
+}
+
+$indexHtml = "rust/modern-explorer-app/ui/index.html"
+if (Test-Path $indexHtml) {
+    $content = Get-Content $indexHtml -Raw -Encoding UTF8
+    $updated = [regex]::Replace($content, 'v\d+\.\d+\.\d+ \(Rust Edition\)', "v$Version (Rust Edition)")
+    $updated = [regex]::Replace($updated, 'v\d+\.\d+\.\d+ \(Rust Studio\)', "v$Version (Rust Studio)")
+    $updated = [regex]::Replace($updated, 'Installierte Version: v\d+\.\d+\.\d+', "Installierte Version: v$Version")
+    $updated = [regex]::Replace($updated, 'id="aboutInstalledVer">v\d+\.\d+\.\d+<', "id=`"aboutInstalledVer`">v$Version<")
+    $updated = [regex]::Replace($updated, 'id="aboutLatestVer">v\d+\.\d+\.\d+<', "id=`"aboutLatestVer`">v$Version<")
+    $updated = [regex]::Replace($updated, 'aktuelle Version v\d+\.\d+\.\d+\.', "aktuelle Version v$Version.")
+    $updated = [regex]::Replace($updated, "version:\s*'\d+\.\d+\.\d+'", "version: '$Version'")
+    $updated = [regex]::Replace($updated, "data\.version\s*\|\|\s*'\d+\.\d+\.\d+'", "data.version || '$Version'")
+    if ($updated -ne $content) {
+        [System.IO.File]::WriteAllText((Resolve-Path $indexHtml).Path, $updated, (New-Object System.Text.UTF8Encoding($false)))
     }
 }
 
@@ -127,7 +144,7 @@ cargo test --manifest-path rust/Cargo.toml
 if ($LASTEXITCODE -ne 0) { throw "Rust unit tests failed with exit code $LASTEXITCODE" }
 
 Write-Output "=== 3. Committing Version Bump & Pushing Tag $TagName to Trigger Multi-OS Rust Release ==="
-git add rust/ installers/rust/
+git add rust/ installers/rust/ .github/workflows/release.yml README.md scripts/publish-releases.ps1
 $status = git status --porcelain
 if ($status) {
     git commit -m "chore(release): bump Rust version to $TagName"
