@@ -8,9 +8,10 @@ use modern_explorer_core::{
         WorkspaceProfile, WorkspaceProfileService,
     },
     filesystem::{
-        format_bytes, sort_entries_with_options, DeepSearchCriteria, DeepSearchService,
-        DirectoryEnumerator, DriveItem, DuplicateFinderService, DuplicateScanProgress,
-        DuplicateScanResult, FileCreationService, FileEntry, SortColumn, SortDirection,
+        format_bytes, format_bytes_custom, sort_entries_advanced,
+        DeepSearchCriteria, DeepSearchService, DirectoryEnumerator, DriveItem,
+        DuplicateFinderService, DuplicateScanProgress, DuplicateScanResult, FileCreationService,
+        FileEntry, SortColumn, SortDirection,
     },
     localization::LanguageCode,
     operations::{
@@ -62,6 +63,7 @@ pub struct FileItemDto {
     pub is_hidden: bool,
     pub is_readonly: bool,
     pub modified_text: String,
+    pub age_hours: u32,
     pub tag_color_hex: Option<String>,
     pub tag_label: Option<String>,
     pub tag_note: Option<String>,
@@ -135,10 +137,13 @@ impl BackendState {
             "save_session" => self.rpc_save_session(params),
             "reset_color" => self.rpc_reset_color(params),
             "reset_treemap_colors" => self.rpc_reset_treemap_colors(),
+            "reset_filetype_colors" => self.rpc_reset_filetype_colors(),
             "reset_font_sizes" => self.rpc_reset_font_sizes(),
             "reset_window_bounds" => self.rpc_reset_window_bounds(),
             "update_window_bounds" => self.rpc_update_window_bounds(params),
             "reset_all_settings" => self.rpc_reset_all_settings(),
+            "open_config_dir" => self.rpc_open_config_dir(),
+            "launch_external_tool" => self.rpc_launch_external_tool(params),
             "calc_folder_size" => self.rpc_calc_folder_size(params),
             "autocomplete_path" => self.rpc_autocomplete_path(params),
             "open_terminal" => self.rpc_open_terminal(params),
@@ -333,7 +338,9 @@ impl BackendState {
             };
             let clean_path = canonical.to_string_lossy().to_string();
             self.frecency_store.record_visit(&clean_path);
-            self.fs_watcher.update_watch(side, &clean_path);
+            if self.settings.enable_live_fs_watcher {
+                self.fs_watcher.update_watch(side, &clean_path);
+            }
             let entries = DirectoryEnumerator::list_directory(
                 &canonical,
                 self.settings.show_hidden_files,
@@ -362,11 +369,13 @@ impl BackendState {
         } else {
             SortDirection::Descending
         };
-        sort_entries_with_options(
+        sort_entries_advanced(
             &mut entries,
             sort_col,
             sort_dir,
             self.settings.sort_folders_first,
+            self.settings.natural_number_sorting,
+            self.settings.case_sensitive_sorting,
         );
 
         let total_unfiltered = entries.len();
@@ -384,6 +393,15 @@ impl BackendState {
             .max(1);
 
         let show_exts = self.settings.show_file_extensions;
+        let size_fmt_mode = self.settings.size_display_format.as_str();
+        let date_fmt_str = match self.settings.date_time_format.as_str() {
+            "de_sec" => "%d.%m.%Y %H:%M:%S",
+            "iso" => "%Y-%m-%d %H:%M",
+            "iso_sec" => "%Y-%m-%d %H:%M:%S",
+            "us" => "%m/%d/%Y %I:%M %p",
+            _ => "%d.%m.%Y %H:%M",
+        };
+        let now_local = chrono::Local::now();
         let mut total_bytes = 0u64;
         let items: Vec<FileItemDto> = filtered
             .into_iter()
@@ -455,6 +473,21 @@ impl BackendState {
                     None
                 };
 
+                let size_text = if e.is_directory {
+                    if let Some(tree_bytes) = e.allocated_tree_size {
+                        format_bytes_custom(tree_bytes, size_fmt_mode)
+                    } else {
+                        "<DIR>".to_string()
+                    }
+                } else {
+                    format_bytes_custom(e.size_bytes, size_fmt_mode)
+                };
+
+                let age_hours = now_local
+                    .signed_duration_since(e.modified)
+                    .num_hours()
+                    .max(0) as u32;
+
                 FileItemDto {
                     full_path: e.full_path.clone(),
                     display_name,
@@ -463,12 +496,13 @@ impl BackendState {
                     type_text,
                     size_bytes: e.size_bytes,
                     effective_size: eff,
-                    size_text: e.display_size(),
+                    size_text,
                     size_bar_percent: pct,
                     is_directory: e.is_directory,
                     is_hidden: e.is_hidden,
                     is_readonly: e.is_readonly,
-                    modified_text: e.modified.format("%d.%m.%Y %H:%M").to_string(),
+                    modified_text: e.modified.format(date_fmt_str).to_string(),
+                    age_hours,
                     tag_color_hex: tag_hex,
                     tag_label: tag_lbl,
                     tag_note,
@@ -795,7 +829,17 @@ impl BackendState {
         let target = match target_str {
             "ActivePanelBorder" => ColorSettingTarget::ActivePanelBorder,
             "SelectionBorder" => ColorSettingTarget::SelectionBorder,
+            "SelectionBackground" => ColorSettingTarget::SelectionBackground,
+            "SelectionText" => ColorSettingTarget::SelectionText,
             "MarkedItemText" => ColorSettingTarget::MarkedItemText,
+            "MarkedItemBackground" => ColorSettingTarget::MarkedItemBackground,
+            "FileListBackground" => ColorSettingTarget::FileListBackground,
+            "FileListAltBackground" => ColorSettingTarget::FileListAltBackground,
+            "FileListText" => ColorSettingTarget::FileListText,
+            "FolderText" => ColorSettingTarget::FolderText,
+            "HiddenItemText" => ColorSettingTarget::HiddenItemText,
+            "ReadonlyItemText" => ColorSettingTarget::ReadonlyItemText,
+            "GridLine" => ColorSettingTarget::GridLine,
             "TreemapVideoMedia" => ColorSettingTarget::TreemapVideoMedia,
             "TreemapArchiveImage" => ColorSettingTarget::TreemapArchiveImage,
             "TreemapVirtualDiskSystem" => ColorSettingTarget::TreemapVirtualDiskSystem,
@@ -811,6 +855,12 @@ impl BackendState {
 
     fn rpc_reset_treemap_colors(&mut self) -> Value {
         self.settings.reset_treemap_colors_to_default();
+        SettingsStore::save(&self.settings);
+        json!({ "ok": true, "settings": self.settings })
+    }
+
+    fn rpc_reset_filetype_colors(&mut self) -> Value {
+        self.settings.reset_filetype_colors_to_default();
         SettingsStore::save(&self.settings);
         json!({ "ok": true, "settings": self.settings })
     }
@@ -854,6 +904,32 @@ impl BackendState {
         self.settings = AppSettings::default();
         SettingsStore::save(&self.settings);
         json!({ "ok": true, "settings": self.settings })
+    }
+
+    fn rpc_open_config_dir(&self) -> Value {
+        let dir = SettingsStore::config_dir();
+        let _ = open::that(&dir);
+        json!({ "ok": true, "path": dir.to_string_lossy() })
+    }
+
+    fn rpc_launch_external_tool(&self, params: &Value) -> Value {
+        let tool_cmd = params.get("tool").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let args: Vec<String> = params
+            .get("args")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if tool_cmd.is_empty() {
+            return json!({ "error": "Kein externes Programm konfiguriert." });
+        }
+        match std::process::Command::new(tool_cmd).args(&args).spawn() {
+            Ok(_) => json!({ "ok": true }),
+            Err(e) => json!({ "error": format!("Fehler beim Starten von '{}': {}", tool_cmd, e) }),
+        }
     }
 
     fn rpc_calc_folder_size(&self, params: &Value) -> Value {
@@ -913,6 +989,25 @@ impl BackendState {
 
     fn rpc_open_terminal(&self, params: &Value) -> Value {
         let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
+        let custom_cmd = self.settings.custom_terminal_command.trim();
+        if !custom_cmd.is_empty() {
+            let expanded = custom_cmd.replace("%P", dir);
+            #[cfg(target_os = "windows")]
+            {
+                let _ = modern_explorer_core::features::hidden_command("cmd")
+                    .args(["/C", "start", "", &expanded])
+                    .current_dir(dir)
+                    .spawn();
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = std::process::Command::new("sh")
+                    .args(["-c", &expanded])
+                    .current_dir(dir)
+                    .spawn();
+            }
+            return json!({ "ok": true });
+        }
         #[cfg(target_os = "windows")]
         {
             // Explicitly open an external interactive PowerShell window via cmd /C start
@@ -959,7 +1054,8 @@ impl BackendState {
                 "text": "Ordner oder kein Dateielement ausgewählt.",
             });
         }
-        let text = FileContentService::read_text_preview(path, 128 * 1024).unwrap_or_default();
+        let max_bytes = (self.settings.quick_viewer_max_kb as usize).clamp(16, 16384) * 1024;
+        let text = FileContentService::read_text_preview(path, max_bytes).unwrap_or_default();
         let hex = FileContentService::format_hex_dump(path, 4096).unwrap_or_default();
         let csv_rows = FileContentService::parse_csv_rows(&text, 100);
         let media = MetadataAndAttributeService::inspect_media_metadata(path);

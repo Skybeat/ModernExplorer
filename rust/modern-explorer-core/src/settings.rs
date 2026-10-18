@@ -8,7 +8,17 @@ use std::path::Path;
 pub enum ColorSettingTarget {
     ActivePanelBorder,
     SelectionBorder,
+    SelectionBackground,
+    SelectionText,
     MarkedItemText,
+    MarkedItemBackground,
+    FileListBackground,
+    FileListAltBackground,
+    FileListText,
+    FolderText,
+    HiddenItemText,
+    ReadonlyItemText,
+    GridLine,
     TreemapVideoMedia,
     TreemapArchiveImage,
     TreemapVirtualDiskSystem,
@@ -23,7 +33,17 @@ impl ColorSettingTarget {
         match self {
             ColorSettingTarget::ActivePanelBorder => "#0078D4",
             ColorSettingTarget::SelectionBorder => "#60CDFF",
+            ColorSettingTarget::SelectionBackground => "#1E3A5F",
+            ColorSettingTarget::SelectionText => "#FFFFFF",
             ColorSettingTarget::MarkedItemText => "#FFB900",
+            ColorSettingTarget::MarkedItemBackground => "#332800",
+            ColorSettingTarget::FileListBackground => "#151821",
+            ColorSettingTarget::FileListAltBackground => "#191D28",
+            ColorSettingTarget::FileListText => "#E6E9F2",
+            ColorSettingTarget::FolderText => "#FCD34D",
+            ColorSettingTarget::HiddenItemText => "#64748B",
+            ColorSettingTarget::ReadonlyItemText => "#38BDF8",
+            ColorSettingTarget::GridLine => "#252A3A",
             ColorSettingTarget::TreemapVideoMedia => "#E11D48",
             ColorSettingTarget::TreemapArchiveImage => "#D97706",
             ColorSettingTarget::TreemapVirtualDiskSystem => "#7C3AED",
@@ -33,6 +53,101 @@ impl ColorSettingTarget {
             ColorSettingTarget::TreemapOtherTemp => "#475569",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileTypeColorRule {
+    pub id: String,
+    pub name: String,
+    pub pattern: String,
+    #[serde(default)]
+    pub max_age_hours: Option<u64>,
+    pub color_hex: String,
+    #[serde(default)]
+    pub bold: bool,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub fn default_filetype_color_rules() -> Vec<FileTypeColorRule> {
+    vec![
+        FileTypeColorRule {
+            id: "ft_recent_24h".to_string(),
+            name: "Heute geändert (< 24 Std.)".to_string(),
+            pattern: "*".to_string(),
+            max_age_hours: Some(24),
+            color_hex: "#4ADE80".to_string(),
+            bold: false,
+            enabled: false,
+        },
+        FileTypeColorRule {
+            id: "ft_exec".to_string(),
+            name: "Ausführbare Programme & Skripte".to_string(),
+            pattern: "*.exe;*.msi;*.bat;*.cmd;*.ps1;*.sh;*.com".to_string(),
+            max_age_hours: None,
+            color_hex: "#34D399".to_string(),
+            bold: true,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_archive".to_string(),
+            name: "Archive & Disk-Images".to_string(),
+            pattern: "*.zip;*.7z;*.rar;*.tar;*.gz;*.tgz;*.zst;*.tzst;*.xz;*.txz;*.iso;*.img;*.cab;*.nupkg".to_string(),
+            max_age_hours: None,
+            color_hex: "#F59E0B".to_string(),
+            bold: false,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_code".to_string(),
+            name: "Quellcode & Konfigurationsdateien".to_string(),
+            pattern: "*.rs;*.cs;*.ts;*.tsx;*.js;*.jsx;*.py;*.go;*.c;*.cpp;*.h;*.json;*.toml;*.yaml;*.yml;*.xml;*.html;*.css;*.sql".to_string(),
+            max_age_hours: None,
+            color_hex: "#60A5FA".to_string(),
+            bold: false,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_images".to_string(),
+            name: "Bilder & Grafiken".to_string(),
+            pattern: "*.png;*.jpg;*.jpeg;*.gif;*.webp;*.svg;*.bmp;*.ico;*.tif;*.tiff;*.psd;*.ai".to_string(),
+            max_age_hours: None,
+            color_hex: "#C084FC".to_string(),
+            bold: false,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_media".to_string(),
+            name: "Video & Audio".to_string(),
+            pattern: "*.mp4;*.mkv;*.avi;*.mov;*.webm;*.mp3;*.wav;*.flac;*.ogg;*.m4a".to_string(),
+            max_age_hours: None,
+            color_hex: "#F472B6".to_string(),
+            bold: false,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_docs".to_string(),
+            name: "Dokumente & Office".to_string(),
+            pattern: "*.pdf;*.doc;*.docx;*.xls;*.xlsx;*.ppt;*.pptx;*.md;*.txt;*.rtf;*.csv".to_string(),
+            max_age_hours: None,
+            color_hex: "#38BDF8".to_string(),
+            bold: false,
+            enabled: true,
+        },
+        FileTypeColorRule {
+            id: "ft_temp".to_string(),
+            name: "Temporäre, Backup- & Log-Dateien".to_string(),
+            pattern: "*.tmp;*.bak;*.old;*.orig;*.log;*.swp;~*".to_string(),
+            max_age_hours: None,
+            color_hex: "#94A3B8".to_string(),
+            bold: false,
+            enabled: true,
+        },
+    ]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
@@ -51,6 +166,42 @@ fn default_sync_jump_to_other_pane_folder() -> bool {
     true
 }
 
+fn default_size_display_format() -> String {
+    "dynamic".to_string()
+}
+
+fn default_date_time_format() -> String {
+    "de_short".to_string()
+}
+
+fn default_ui_zoom_percent() -> u32 {
+    100
+}
+
+fn default_fs_watcher_poll_ms() -> u32 {
+    2500
+}
+
+fn default_archive_format() -> String {
+    "zip".to_string()
+}
+
+fn default_checksum_algorithm() -> String {
+    "SHA-256".to_string()
+}
+
+fn default_share_server_port() -> u16 {
+    8787
+}
+
+fn default_quick_viewer_max_kb() -> u32 {
+    512
+}
+
+fn default_duplicates_min_size_kb() -> u32 {
+    1
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
@@ -60,18 +211,44 @@ pub struct AppSettings {
     pub show_drive_bar: bool,
     pub multiline_drive_bar: bool,
     pub show_function_key_bar: bool,
+    pub show_favorites_bar: bool,
+    pub show_left_tool_rail: bool,
+    pub show_breadcrumbs_bar: bool,
+    pub show_status_bar: bool,
+    pub show_tree_sidebar_on_startup: bool,
     pub show_tooltips: bool,
+    pub show_size_proportion_bars: bool,
     pub file_list_row_height: f32,
+    #[serde(default = "default_ui_zoom_percent")]
+    pub ui_zoom_percent: u32,
     pub right_dock_open: bool,
     pub right_dock_tab: String,
     pub right_dock_width: f32,
 
-    // 2. Colors & Highlighting (Active Panel, Selection, Marked Item + 7 Treemap Categories)
+    // 2. Colors & Highlighting (Total Commander Style + File Type Rules + 7 Treemap Categories)
     pub active_panel_border_color_hex: String,
     pub active_panel_border_thickness: f32,
     pub selection_border_color_hex: String,
     pub selection_border_thickness: f32,
+    pub selection_bg_color_hex: String,
+    pub selection_text_color_hex: String,
+    pub invert_cursor: bool,
     pub marked_item_text_color_hex: String,
+    pub marked_item_bg_color_hex: String,
+
+    pub custom_file_list_colors_enabled: bool,
+    pub file_list_bg_color_hex: String,
+    pub enable_zebra_stripes: bool,
+    pub file_list_alt_bg_color_hex: String,
+    pub show_grid_lines: bool,
+    pub grid_line_color_hex: String,
+    pub file_list_text_color_hex: String,
+    pub folder_text_color_hex: String,
+    pub hidden_item_text_color_hex: String,
+    pub readonly_item_text_color_hex: String,
+
+    pub enable_filetype_colors: bool,
+    pub filetype_color_rules: Vec<FileTypeColorRule>,
 
     pub treemap_video_media_color_hex: String,
     pub treemap_archive_image_color_hex: String,
@@ -84,16 +261,30 @@ pub struct AppSettings {
     // 3. File List & Behavior
     pub default_view_mode: String,
     pub sort_folders_first: bool,
+    pub natural_number_sorting: bool,
+    pub case_sensitive_sorting: bool,
     pub show_file_extensions: bool,
     pub show_hidden_files: bool,
     pub show_system_files: bool,
+    pub show_parent_dir_entry: bool,
+    #[serde(default = "default_size_display_format")]
+    pub size_display_format: String,
+    #[serde(default = "default_date_time_format")]
+    pub date_time_format: String,
     pub auto_calculate_folder_size_on_mark: bool,
+    pub space_moves_down_on_mark: bool,
+    pub double_click_empty_space_goes_up: bool,
+    pub middle_click_opens_in_new_tab: bool,
     pub confirm_delete: bool,
+    pub confirm_overwrite: bool,
     pub single_click_open: bool,
     #[serde(default = "default_archive_open_action")]
     pub archive_open_action: String,
     #[serde(default = "default_sync_jump_to_other_pane_folder")]
     pub sync_jump_to_other_pane_folder: bool,
+    pub enable_live_fs_watcher: bool,
+    #[serde(default = "default_fs_watcher_poll_ms")]
+    pub fs_watcher_poll_ms: u32,
 
     // 4. Image Hover Preview
     pub enable_image_hover_preview: bool,
@@ -126,7 +317,7 @@ pub struct AppSettings {
     pub archive_dialog_font_size: f32,
     pub about_window_font_size: f32,
 
-    // 6. Session, Updates & Window Bounds
+    // 6. Session, Updates, External Tools & Window Bounds
     pub restore_previous_session: bool,
     pub check_updates_on_startup: bool,
     pub main_window_width: f32,
@@ -139,7 +330,19 @@ pub struct AppSettings {
     pub child_window_width: f32,
     pub child_window_height: f32,
     pub external_editor_path: String,
+    pub external_diff_tool_path: String,
     pub custom_terminal_command: String,
+    #[serde(default = "default_archive_format")]
+    pub default_archive_format: String,
+    #[serde(default = "default_checksum_algorithm")]
+    pub default_checksum_algorithm: String,
+    pub default_transfer_speed_limit_mbps: u32,
+    #[serde(default = "default_share_server_port")]
+    pub default_share_server_port: u16,
+    #[serde(default = "default_quick_viewer_max_kb")]
+    pub quick_viewer_max_kb: u32,
+    #[serde(default = "default_duplicates_min_size_kb")]
+    pub duplicates_min_size_kb: u32,
 
     pub dialog_sizes: HashMap<String, WindowBounds>,
 }
@@ -152,8 +355,15 @@ impl Default for AppSettings {
             show_drive_bar: true,
             multiline_drive_bar: true,
             show_function_key_bar: true,
+            show_favorites_bar: true,
+            show_left_tool_rail: true,
+            show_breadcrumbs_bar: true,
+            show_status_bar: true,
+            show_tree_sidebar_on_startup: false,
             show_tooltips: true,
+            show_size_proportion_bars: true,
             file_list_row_height: 26.0,
+            ui_zoom_percent: 100,
             right_dock_open: true,
             right_dock_tab: "preview".to_string(),
             right_dock_width: 320.0,
@@ -162,7 +372,25 @@ impl Default for AppSettings {
             active_panel_border_thickness: 2.0,
             selection_border_color_hex: ColorSettingTarget::SelectionBorder.default_hex().to_string(),
             selection_border_thickness: 1.5,
+            selection_bg_color_hex: ColorSettingTarget::SelectionBackground.default_hex().to_string(),
+            selection_text_color_hex: ColorSettingTarget::SelectionText.default_hex().to_string(),
+            invert_cursor: false,
             marked_item_text_color_hex: ColorSettingTarget::MarkedItemText.default_hex().to_string(),
+            marked_item_bg_color_hex: ColorSettingTarget::MarkedItemBackground.default_hex().to_string(),
+
+            custom_file_list_colors_enabled: false,
+            file_list_bg_color_hex: ColorSettingTarget::FileListBackground.default_hex().to_string(),
+            enable_zebra_stripes: false,
+            file_list_alt_bg_color_hex: ColorSettingTarget::FileListAltBackground.default_hex().to_string(),
+            show_grid_lines: false,
+            grid_line_color_hex: ColorSettingTarget::GridLine.default_hex().to_string(),
+            file_list_text_color_hex: ColorSettingTarget::FileListText.default_hex().to_string(),
+            folder_text_color_hex: ColorSettingTarget::FolderText.default_hex().to_string(),
+            hidden_item_text_color_hex: ColorSettingTarget::HiddenItemText.default_hex().to_string(),
+            readonly_item_text_color_hex: ColorSettingTarget::ReadonlyItemText.default_hex().to_string(),
+
+            enable_filetype_colors: true,
+            filetype_color_rules: default_filetype_color_rules(),
 
             treemap_video_media_color_hex: ColorSettingTarget::TreemapVideoMedia.default_hex().to_string(),
             treemap_archive_image_color_hex: ColorSettingTarget::TreemapArchiveImage.default_hex().to_string(),
@@ -174,14 +402,25 @@ impl Default for AppSettings {
 
             default_view_mode: "Details".to_string(),
             sort_folders_first: true,
+            natural_number_sorting: true,
+            case_sensitive_sorting: false,
             show_file_extensions: true,
             show_hidden_files: false,
             show_system_files: false,
+            show_parent_dir_entry: true,
+            size_display_format: "dynamic".to_string(),
+            date_time_format: "de_short".to_string(),
             auto_calculate_folder_size_on_mark: true,
+            space_moves_down_on_mark: false,
+            double_click_empty_space_goes_up: true,
+            middle_click_opens_in_new_tab: true,
             confirm_delete: true,
+            confirm_overwrite: false,
             single_click_open: false,
             archive_open_action: "archive_browser".to_string(),
             sync_jump_to_other_pane_folder: true,
+            enable_live_fs_watcher: true,
+            fs_watcher_poll_ms: 2500,
 
             enable_image_hover_preview: true,
             image_hover_preview_size: 320.0,
@@ -223,7 +462,14 @@ impl Default for AppSettings {
             child_window_width: 960.0,
             child_window_height: 680.0,
             external_editor_path: String::new(),
+            external_diff_tool_path: String::new(),
             custom_terminal_command: String::new(),
+            default_archive_format: "zip".to_string(),
+            default_checksum_algorithm: "SHA-256".to_string(),
+            default_transfer_speed_limit_mbps: 0,
+            default_share_server_port: 8787,
+            quick_viewer_max_kb: 512,
+            duplicates_min_size_kb: 1,
 
             dialog_sizes: HashMap::new(),
         }
@@ -235,7 +481,17 @@ impl AppSettings {
         match target {
             ColorSettingTarget::ActivePanelBorder => &self.active_panel_border_color_hex,
             ColorSettingTarget::SelectionBorder => &self.selection_border_color_hex,
+            ColorSettingTarget::SelectionBackground => &self.selection_bg_color_hex,
+            ColorSettingTarget::SelectionText => &self.selection_text_color_hex,
             ColorSettingTarget::MarkedItemText => &self.marked_item_text_color_hex,
+            ColorSettingTarget::MarkedItemBackground => &self.marked_item_bg_color_hex,
+            ColorSettingTarget::FileListBackground => &self.file_list_bg_color_hex,
+            ColorSettingTarget::FileListAltBackground => &self.file_list_alt_bg_color_hex,
+            ColorSettingTarget::FileListText => &self.file_list_text_color_hex,
+            ColorSettingTarget::FolderText => &self.folder_text_color_hex,
+            ColorSettingTarget::HiddenItemText => &self.hidden_item_text_color_hex,
+            ColorSettingTarget::ReadonlyItemText => &self.readonly_item_text_color_hex,
+            ColorSettingTarget::GridLine => &self.grid_line_color_hex,
             ColorSettingTarget::TreemapVideoMedia => &self.treemap_video_media_color_hex,
             ColorSettingTarget::TreemapArchiveImage => &self.treemap_archive_image_color_hex,
             ColorSettingTarget::TreemapVirtualDiskSystem => &self.treemap_virtual_disk_system_color_hex,
@@ -251,7 +507,17 @@ impl AppSettings {
         match target {
             ColorSettingTarget::ActivePanelBorder => self.active_panel_border_color_hex = normalized,
             ColorSettingTarget::SelectionBorder => self.selection_border_color_hex = normalized,
+            ColorSettingTarget::SelectionBackground => self.selection_bg_color_hex = normalized,
+            ColorSettingTarget::SelectionText => self.selection_text_color_hex = normalized,
             ColorSettingTarget::MarkedItemText => self.marked_item_text_color_hex = normalized,
+            ColorSettingTarget::MarkedItemBackground => self.marked_item_bg_color_hex = normalized,
+            ColorSettingTarget::FileListBackground => self.file_list_bg_color_hex = normalized,
+            ColorSettingTarget::FileListAltBackground => self.file_list_alt_bg_color_hex = normalized,
+            ColorSettingTarget::FileListText => self.file_list_text_color_hex = normalized,
+            ColorSettingTarget::FolderText => self.folder_text_color_hex = normalized,
+            ColorSettingTarget::HiddenItemText => self.hidden_item_text_color_hex = normalized,
+            ColorSettingTarget::ReadonlyItemText => self.readonly_item_text_color_hex = normalized,
+            ColorSettingTarget::GridLine => self.grid_line_color_hex = normalized,
             ColorSettingTarget::TreemapVideoMedia => self.treemap_video_media_color_hex = normalized,
             ColorSettingTarget::TreemapArchiveImage => self.treemap_archive_image_color_hex = normalized,
             ColorSettingTarget::TreemapVirtualDiskSystem => self.treemap_virtual_disk_system_color_hex = normalized,
@@ -264,6 +530,10 @@ impl AppSettings {
 
     pub fn reset_color_to_default(&mut self, target: ColorSettingTarget) {
         self.set_color_hex(target, target.default_hex().to_string());
+    }
+
+    pub fn reset_filetype_colors_to_default(&mut self) {
+        self.filetype_color_rules = default_filetype_color_rules();
     }
 
     pub fn reset_treemap_colors_to_default(&mut self) {
@@ -376,6 +646,13 @@ impl AppSettings {
 pub struct SettingsStore;
 
 impl SettingsStore {
+    pub fn config_dir() -> std::path::PathBuf {
+        AppPaths::settings_file()
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(std::env::temp_dir)
+    }
+
     pub fn load() -> AppSettings {
         Self::load_from(&AppPaths::settings_file())
     }
@@ -406,6 +683,23 @@ impl SettingsStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_total_commander_colors_and_new_settings_roundtrip() {
+        let mut settings = AppSettings::default();
+        assert!(settings.enable_filetype_colors);
+        assert!(!settings.filetype_color_rules.is_empty());
+        assert!(settings.natural_number_sorting);
+        assert_eq!(settings.size_display_format, "dynamic");
+        assert_eq!(settings.date_time_format, "de_short");
+
+        settings.custom_file_list_colors_enabled = true;
+        settings.file_list_bg_color_hex = "#000080".to_string();
+        settings.invert_cursor = true;
+        settings.space_moves_down_on_mark = true;
+        settings.reset_color_to_default(ColorSettingTarget::FileListBackground);
+        assert_eq!(settings.file_list_bg_color_hex, "#151821");
+    }
 
     #[test]
     fn test_dialog_bounds_persistence_roundtrip() {

@@ -103,7 +103,17 @@
     --active-pane-border-w: 2px;
     --sel-border-color: #60CDFF;
     --sel-border-w: 1.5px;
+    --sel-bg-color: rgba(110, 168, 254, 0.14);
+    --sel-text-color: #FFFFFF;
     --marked-color: #FFB900;
+    --marked-bg-color: transparent;
+    --fl-bg: transparent;
+    --fl-alt-bg: rgba(255, 255, 255, 0.03);
+    --fl-text: var(--fg);
+    --fl-folder-text: var(--fg);
+    --fl-hidden-text: #8892A6;
+    --fl-readonly-text: #F59E0B;
+    --fl-grid-color: #252A3A;
     --row-height: 26px;
 
     --fs-filelist: 13px;
@@ -442,20 +452,58 @@
     flex: 1; overflow-y: auto; overflow-x: hidden; outline: none;
     padding: 2px; position: relative; font-size: var(--fs-filelist);
   }
+  .file-list.custom-fl-colors {
+    background: var(--fl-bg);
+    color: var(--fl-text);
+  }
   .file-row {
     display: grid; grid-template-columns: 26px 1fr 115px 128px 100px;
     align-items: center; padding: 0 8px; height: var(--row-height);
     border-radius: 4px; border: 1px solid transparent; cursor: default;
-    color: var(--fg);
+    color: var(--fl-text);
+  }
+  .file-list.zebra .file-row:nth-child(even) {
+    background: var(--fl-alt-bg);
+  }
+  .file-list.grid-lines .file-row {
+    border-radius: 0;
+    border-bottom: 1px solid var(--fl-grid-color);
+  }
+  .file-list.grid-lines .file-row > div {
+    border-right: 1px solid var(--fl-grid-color);
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .file-list.grid-lines .file-row > div:last-child {
+    border-right: none;
+  }
+  .file-list.grid-lines .file-row > .f-size-cell {
+    justify-content: flex-end;
   }
   .file-row:hover { background: var(--bg-hover); }
+  .file-row.is-folder .f-name { color: var(--fl-folder-text); }
+  .file-row.is-readonly .f-name { color: var(--fl-readonly-text); }
+  .file-row.is-hidden { opacity: 0.78; }
+  .file-row.is-hidden .f-name { color: var(--fl-hidden-text); }
+  .file-row.marked {
+    background: var(--marked-bg-color);
+  }
+  .file-row.marked .f-name { color: var(--marked-color) !important; font-weight: 600; }
   .file-row.selected {
-    background: var(--accent-soft);
-    border-color: var(--sel-border-color);
+    background: var(--sel-bg-color) !important;
+    border-color: var(--sel-border-color) !important;
     border-width: var(--sel-border-w);
   }
-  .file-row.marked .f-name { color: var(--marked-color); font-weight: 600; }
-  .file-row.is-hidden { opacity: 0.62; }
+  .file-row.invert-cursor.selected {
+    color: var(--sel-text-color) !important;
+  }
+  .file-row.invert-cursor.selected:not(.marked) .f-name,
+  .file-row.invert-cursor.selected .f-size-cell,
+  .file-row.invert-cursor.selected .f-mod,
+  .file-row.invert-cursor.selected .f-type {
+    color: var(--sel-text-color) !important;
+  }
   .f-check {
     width: 15px; height: 15px; border-radius: 3px; border: 1px solid var(--border-strong);
     display: inline-flex; align-items: center; justify-content: center;
@@ -1186,9 +1234,9 @@
 
 <!-- TOAST NOTIFICATION -->
 <div class="toast" id="toast"></div>
-<!-- ==================== STUDIO SETTINGS MODAL (.prefs with all 6 .NET Categories + Shortcuts) ==================== -->
+<!-- ==================== STUDIO SETTINGS MODAL (.prefs with Total Commander Colors & Full Settings) ==================== -->
 <div class="modal-bg" id="modalSettings" onclick="if(event.target===this)closeModal('modalSettings')">
-  <div class="modal xl" data-default-w="980" data-default-h="680" style="width:980px;height:680px;">
+  <div class="modal xl" data-default-w="1040" data-default-h="720" style="width:1040px;height:720px;">
     <div class="modal-head">
       <span>⚙ Einstellungen — ModernExplorer Studio</span>
       <button class="ibtn" onclick="closeModal('modalSettings')">✕</button>
@@ -1196,8 +1244,9 @@
     <div class="prefs">
       <div class="prefs-nav" id="prefsNav">
         <div class="prefs-nav-item active" data-cat="Appearance" onclick="switchSettingsCat('Appearance')">🎨 Darstellung &amp; Design</div>
-        <div class="prefs-nav-item" data-cat="Colors" onclick="switchSettingsCat('Colors')">🖌️ Farben &amp; Hervorhebung</div>
+        <div class="prefs-nav-item" data-cat="Colors" onclick="switchSettingsCat('Colors')">🖌️ Farben &amp; Total Commander</div>
         <div class="prefs-nav-item" data-cat="Behavior" onclick="switchSettingsCat('Behavior')">📁 Dateiliste &amp; Verhalten</div>
+        <div class="prefs-nav-item" data-cat="Tools" onclick="switchSettingsCat('Tools')">🛠️ Werkzeuge &amp; Programme</div>
         <div class="prefs-nav-item" data-cat="Preview" onclick="switchSettingsCat('Preview')">🖼️ Bildvorschau</div>
         <div class="prefs-nav-item" data-cat="Fonts" onclick="switchSettingsCat('Fonts')">🔤 Schriftgrößen</div>
         <div class="prefs-nav-item" data-cat="WindowSizes" onclick="switchSettingsCat('WindowSizes')">📐 Fenstergrößen</div>
@@ -1207,7 +1256,7 @@
 
       <!-- 1. APPEARANCE & DESIGN -->
       <div class="prefs-pane active" id="pcat-Appearance">
-        <div class="prefs-section-title">🌐 Sprache / Language</div>
+        <div class="prefs-section-title">🌐 Sprache &amp; UI-Skalierung</div>
         <div class="prefs-card">
           <div class="prefs-row">
             <div>
@@ -1218,9 +1267,20 @@
               <select class="select" id="set-language" onchange="updateSetting('language', this.value)"></select>
             </div>
           </div>
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Oberflächen-Skalierung (UI-Zoom)</div>
+              <div class="pr-sub">Skaliert die gesamte Anwendung von 75 % bis 160 % — Standard: 100 %</div>
+            </div>
+            <div class="pr-ctl">
+              <input type="range" min="75" max="160" step="5" id="rng-ui_zoom_percent" oninput="updateSetting('ui_zoom_percent', parseInt(this.value, 10))">
+              <span id="lbl-ui_zoom_percent" style="min-width:48px;text-align:right;font-family:var(--font-mono)">100 %</span>
+              <button class="btn" style="padding:3px 8px;font-size:11px;" onclick="updateSetting('ui_zoom_percent', 100)">100%</button>
+            </div>
+          </div>
         </div>
 
-        <div class="prefs-section-title">🎨 Studio Farbschema (Theme)</div>
+        <div class="prefs-section-title">🎨 Studio Farbschema (Basis-Theme)</div>
         <div class="prefs-card">
           <div class="theme-grid">
             <div class="theme-card" data-t="dark" onclick="updateSetting('theme','dark')">
@@ -1242,7 +1302,7 @@
           </div>
         </div>
 
-        <div class="prefs-section-title">🛠 Werkzeugleisten &amp; Zeilenabstand</div>
+        <div class="prefs-section-title">🛠 Sichtbare Werkzeugleisten, Seitenleisten &amp; Zeilenabstand</div>
         <div class="prefs-card">
           <div class="prefs-row">
             <div><div class="pr-label">Laufwerksleiste über den Panels anzeigen</div><div class="pr-sub">Zeigt Laufwerke inkl. freiem Speicherplatz und Belegungsbalken</div></div>
@@ -1253,8 +1313,32 @@
             <div class="pr-ctl"><div class="switch" id="sw-multiline_drive_bar" onclick="toggleBoolSetting('multiline_drive_bar')"></div></div>
           </div>
           <div class="prefs-row">
-            <div><div class="pr-label">Funktionsleiste (F1–F12) am unteren Fensterrand anzeigen</div><div class="pr-sub">Schnellzugriff auf F1–F12 Kommandos</div></div>
+            <div><div class="pr-label">Favoriten- &amp; Schnellstart-Skriptleiste anzeigen</div><div class="pr-sub">Zeigt angeheftete Ordner-Favoriten (★) und benutzerdefinierte Skript-Buttons (⚡) unter der Optionsleiste</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_favorites_bar" onclick="toggleBoolSetting('show_favorites_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Linke vertikale Werkzeug-Rail anzeigen</div><div class="pr-sub">Vertikale Schnellzugriffsleiste am linken Fensterrand für F3/F4 und Power-Tools</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_left_tool_rail" onclick="toggleBoolSetting('show_left_tool_rail')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Breadcrumb-Pfadnavigation &amp; Git-Branch-Badge über der Dateiliste anzeigen</div><div class="pr-sub">Klickbare Ordnerpfad-Segmente und schneller Git-Repository-Status</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_breadcrumbs_bar" onclick="toggleBoolSetting('show_breadcrumbs_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Funktionsleiste (F1–F12) am unteren Fensterrand anzeigen</div><div class="pr-sub">Klassische Commander-Tastenleiste für F1–F12 Kommandos</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-show_function_key_bar" onclick="toggleBoolSetting('show_function_key_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Statusleiste am unteren Fensterrand anzeigen</div><div class="pr-sub">Zeigt Bereitschaftsstatus, Undo-Info, aktives Theme, Zoom und Version</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_status_bar" onclick="toggleBoolSetting('show_status_bar')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Verzeichnisbaum-Seitenleiste (Alt+F10) beim Programmstart öffnen</div><div class="pr-sub">Öffnet automatisch den einklappbaren Ordnerbaum auf der linken Seite</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_tree_sidebar_on_startup" onclick="toggleBoolSetting('show_tree_sidebar_on_startup')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Proportionale Größenbalken in der Größenspalte einblenden</div><div class="pr-sub">Hinterlegt die Dateigröße mit einem relativen Füllbalken zur schnellen Größenerkennung</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_size_proportion_bars" onclick="toggleBoolSetting('show_size_proportion_bars')"></div></div>
           </div>
           <div class="prefs-row">
             <div><div class="pr-label">Tooltips mit Funktionsbeschreibungen bei Buttons anzeigen</div><div class="pr-sub">Hilfetexte beim Überfahren von Symbolen einblenden</div></div>
@@ -1270,16 +1354,89 @@
         </div>
       </div>
 
-      <!-- 2. COLORS & HIGHLIGHTING -->
+      <!-- 2. COLORS & HIGHLIGHTING (Total Commander Style) -->
       <div class="prefs-pane" id="pcat-Colors">
-        <div class="prefs-section-title">1. Rahmenfarbe des aktiven Explorer-Panels</div>
+        <div class="prefs-section-title">⚡ 1-Klick Farbschemata (Total Commander / Norton Commander / Studio) &amp; Live-Vorschau</div>
+        <div class="prefs-card">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            <button class="btn" onclick="applyTotalCommanderColorPreset('studio_dark')">🌙 Modern Studio (Standard)</button>
+            <button class="btn" onclick="applyTotalCommanderColorPreset('tc_classic')">💙 Total Commander Klassik (Weiß/Blau)</button>
+            <button class="btn" onclick="applyTotalCommanderColorPreset('norton_commander')">📟 Norton Commander (DOS Blau/Cyan/Gelb)</button>
+            <button class="btn" onclick="applyTotalCommanderColorPreset('tc_dark_pro')">🖤 TC Dark Commander</button>
+            <button class="btn" onclick="applyTotalCommanderColorPreset('matrix_retro')">🟢 Retro Matrix Terminal</button>
+            <button class="btn" onclick="applyTotalCommanderColorPreset('solarized_cmd')">☀️ Solarized Commander</button>
+          </div>
+          <div id="tcColorLivePreviewHost"></div>
+        </div>
+
+        <div class="prefs-section-title">1. Aktives Panel, Fokus-Cursor (Balken) &amp; Markierung (Leertaste / Einfg)</div>
         <div class="prefs-card" id="colorCardActivePanel"></div>
-
-        <div class="prefs-section-title">2. Umrandungsfarbe des ausgewählten Elements</div>
         <div class="prefs-card" id="colorCardSelection"></div>
-
-        <div class="prefs-section-title">3. Textfarbe für markierte Elemente (✓ mit Leertaste / Einfg)</div>
         <div class="prefs-card" id="colorCardMarked"></div>
+
+        <div class="prefs-section-title">2. Dateilisten-Hintergrund, Zebra-Streifen, Gitternetzlinien &amp; Elementfarben (Total Commander Stil)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Eigene Dateilisten-Hintergrund- &amp; Textfarben aktivieren</div>
+              <div class="pr-sub">Überschreibt die Standardfarben des Studio-Themes für die Dateiliste wie im Total Commander</div>
+            </div>
+            <div class="pr-ctl"><div class="switch" id="sw-custom_file_list_colors_enabled" onclick="toggleBoolSetting('custom_file_list_colors_enabled')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Alternierende Zeilenhintergrundfarbe (Zebra-Streifen) aktivieren</div>
+              <div class="pr-sub">Färbt jede zweite Zeile in der Dateiliste mit „Hintergrundfarbe 2“ für bessere Lesbarkeit</div>
+            </div>
+            <div class="pr-ctl"><div class="switch" id="sw-enable_zebra_stripes" onclick="toggleBoolSetting('enable_zebra_stripes')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Gitternetzlinien (Tabellenraster) in der Dateiliste anzeigen</div>
+              <div class="pr-sub">Zeichnet horizontale und vertikale Trennlinien zwischen Zeilen und Spalten</div>
+            </div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_grid_lines" onclick="toggleBoolSetting('show_grid_lines')"></div></div>
+          </div>
+          <div id="colorCardFileListColors"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px 0;">
+          <div class="prefs-section-title" style="margin:0;">3. Farben nach Dateityp &amp; Dateialter definieren (Total Commander „Farben nach Dateityp“)</div>
+          <button class="btn" onclick="resetFileTypeColorRules()">↺ Standard-Dateityp-Farbregeln wiederherstellen</button>
+        </div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Farben nach Dateityp &amp; Alter in der Dateiliste aktivieren</div>
+              <div class="pr-sub">Hebt Dateien automatisch anhand von Dateiendungen/Masken (z. B. <code>*.exe</code>, <code>*.zip</code>) oder Änderungsalter (z. B. <code>&lt; 24h</code>) farbig hervor</div>
+            </div>
+            <div class="pr-ctl"><div class="switch" id="sw-enable_filetype_colors" onclick="toggleBoolSetting('enable_filetype_colors')"></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr 1.6fr 110px 44px 86px auto auto;gap:6px;align-items:center;margin:10px 0;padding:8px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;">
+            <input class="input" id="ftc-name" placeholder="Bezeichnung (z.B. Skripte)">
+            <input class="input" id="ftc-pattern" placeholder="Maske (z.B. *.exe;*.bat oder *)" style="font-family:var(--font-mono)">
+            <input class="input" id="ftc-age" type="number" min="0" value="0" placeholder="Max. Std (0=alle)" title="Max. Alter in Stunden (0 = beliebig, 24 = heute geändert)">
+            <input type="color" id="ftc-picker" value="#34D399" style="width:36px;height:28px;border:none;background:transparent;cursor:pointer;" oninput="document.getElementById('ftc-hex').value=this.value.toUpperCase()">
+            <input class="input" id="ftc-hex" value="#34D399" style="font-family:var(--font-mono);font-size:11.5px;" oninput="if(/^#[0-9A-Fa-f]{6}$/.test(this.value))document.getElementById('ftc-picker').value=this.value">
+            <label style="font-size:11.5px;display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="ftc-bold"> Fett</label>
+            <button class="btn primary" onclick="saveFileTypeColorRuleFromForm()">+ Regel speichern</button>
+          </div>
+          <div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:6px;">
+            <table class="data-tbl">
+              <thead>
+                <tr>
+                  <th style="width:45px;">Aktiv</th>
+                  <th>Bezeichnung / Vorschau</th>
+                  <th>Dateimaske</th>
+                  <th>Max. Alter</th>
+                  <th>Farbe</th>
+                  <th style="width:145px;">Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyFileTypeColorRules"></tbody>
+            </table>
+          </div>
+        </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px 0;">
           <div class="prefs-section-title" style="margin:0;">4. Treemap-Kategoriefarben (Speicherplatz-Analysator)</div>
@@ -1290,7 +1447,7 @@
 
       <!-- 3. FILE LIST & BEHAVIOR -->
       <div class="prefs-pane" id="pcat-Behavior">
-        <div class="prefs-section-title">📁 Darstellung &amp; Sortierung in der Dateiliste</div>
+        <div class="prefs-section-title">📁 Darstellung, Formatierung &amp; Sortierung in der Dateiliste</div>
         <div class="prefs-card">
           <div class="prefs-row">
             <div><div class="pr-label">Standard-Ansichtsmodus für neue Tabs</div><div class="pr-sub">Wird beim Öffnen neuer Tabs verwendet</div></div>
@@ -1308,8 +1465,43 @@
             </div>
           </div>
           <div class="prefs-row">
+            <div><div class="pr-label">Größenanzeige-Format in der Dateiliste</div><div class="pr-sub">Dynamisch (B/KB/MB/GB) oder feste Einheit wie im Total Commander</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-size_display_format" onchange="updateSetting('size_display_format', this.value)">
+                <option value="dynamic">Dynamisch (B / KB / MB / GB / TB)</option>
+                <option value="bytes">Exakte Bytes mit Tausenderpunkt (1.234.567 B)</option>
+                <option value="kb">Immer Kilobytes (KB)</option>
+                <option value="mb">Immer Megabytes (MB)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Datums- &amp; Uhrzeitformat in der Dateiliste</div><div class="pr-sub">Anzeigeformat der Spalte „Geändert“</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-date_time_format" onchange="updateSetting('date_time_format', this.value)">
+                <option value="de_short">DD.MM.YYYY HH:mm (Standard)</option>
+                <option value="de_sec">DD.MM.YYYY HH:mm:ss (mit Sekunden)</option>
+                <option value="iso">YYYY-MM-DD HH:mm (ISO-8601)</option>
+                <option value="iso_sec">YYYY-MM-DD HH:mm:ss (ISO-8601 mit Sekunden)</option>
+                <option value="us">MM/DD/YYYY hh:mm AM/PM (US)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
             <div><div class="pr-label">Ordner immer vor Dateien sortieren</div><div class="pr-sub">Hält Verzeichnisse unabhängig von der Sortierspalte oben</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-sort_folders_first" onclick="toggleBoolSetting('sort_folders_first')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Natürliche Zahlensortierung (Natural Sort)</div><div class="pr-sub">Sortiert Ziffernfolgen logisch nach Zahlenwert (z. B. <code>Datei2.txt</code> vor <code>Datei10.txt</code>)</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-natural_number_sorting" onclick="toggleBoolSetting('natural_number_sorting')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Groß-/Kleinschreibung bei der Sortierung unterscheiden</div><div class="pr-sub">Sortiert Großbuchstaben vor Kleinbuchstaben (Case-Sensitive)</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-case_sensitive_sorting" onclick="toggleBoolSetting('case_sensitive_sorting')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Übergeordneten Ordner <code>[..]</code> am Anfang der Dateiliste anzeigen</div><div class="pr-sub">Klassischer Total-Commander-Eintrag zum schnellen Wechsel in das Elternverzeichnis</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_parent_dir_entry" onclick="toggleBoolSetting('show_parent_dir_entry')"></div></div>
           </div>
           <div class="prefs-row">
             <div><div class="pr-label">Dateiendungen in der Namensspalte anzeigen</div><div class="pr-sub">Wenn deaktiviert, wird die Endung nur in der Typ-Spalte gezeigt</div></div>
@@ -1323,20 +1515,40 @@
             <div><div class="pr-label">Systemdateien anzeigen</div><div class="pr-sub">Geschützte Betriebssystemdateien einblenden</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-show_system_files" onclick="toggleBoolSetting('show_system_files')"></div></div>
           </div>
+        </div>
+
+        <div class="prefs-section-title">⌨️ Tastatur-, Maus- &amp; Dateioperationen (Total Commander Ergonomie)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Beim Markieren mit Leertaste Cursor automatisch eine Zeile nach unten bewegen</div><div class="pr-sub">Entspricht der Total-Commander-Option <code>SpaceMovesDown=1</code> (wie bei der Einfg-Taste)</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-space_moves_down_on_mark" onclick="toggleBoolSetting('space_moves_down_on_mark')"></div></div>
+          </div>
           <div class="prefs-row">
             <div><div class="pr-label">Ordnergröße beim Markieren mit Leertaste automatisch berechnen</div><div class="pr-sub">Berechnet sofort die rekursive Größe des markierten Ordners</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-auto_calculate_folder_size_on_mark" onclick="toggleBoolSetting('auto_calculate_folder_size_on_mark')"></div></div>
           </div>
           <div class="prefs-row">
-            <div><div class="pr-label">Bestätigungsdialog beim Löschen (F8 / Entf) anzeigen</div><div class="pr-sub">Schützt vor versehentlichem Löschen von Dateien</div></div>
-            <div class="pr-ctl"><div class="switch" id="sw-confirm_delete" onclick="toggleBoolSetting('confirm_delete')"></div></div>
+            <div><div class="pr-label">Doppelklick auf freien Bereich der Dateiliste wechselt in übergeordneten Ordner</div><div class="pr-sub">Schnelle Navigation eine Ebene nach oben per Doppelklick auf leeren Listenplatz</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-double_click_empty_space_goes_up" onclick="toggleBoolSetting('double_click_empty_space_goes_up')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Mittelklick (Mausrad-Klick) auf Ordner öffnet diesen in einem neuen Tab</div><div class="pr-sub">Öffnet Ordner oder Archive per mittlerer Maustaste direkt als neuen Reiter</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-middle_click_opens_in_new_tab" onclick="toggleBoolSetting('middle_click_opens_in_new_tab')"></div></div>
           </div>
           <div class="prefs-row">
             <div><div class="pr-label">Einfachklick zum Öffnen von Ordnern und Dateien</div><div class="pr-sub">Wenn deaktiviert, öffnet Doppelklick (Standard)</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-single_click_open" onclick="toggleBoolSetting('single_click_open')"></div></div>
           </div>
           <div class="prefs-row">
-            <div><div class="pr-label">Verhalten beim Doppelklick auf Archive (.zip, .tar.gz usw.)</div><div class="pr-sub">Wahl zwischen Archiv-Browser Dialog oder direkt im Explorer als Ordner öffnen</div></div>
+            <div><div class="pr-label">Bestätigungsdialog beim Löschen (F8 / Entf) anzeigen</div><div class="pr-sub">Schützt vor versehentlichem Löschen von Dateien</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-confirm_delete" onclick="toggleBoolSetting('confirm_delete')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Bestätigungsdialog beim Überschreiben vorhandener Dateien anzeigen</div><div class="pr-sub">Fragt beim Kopieren/Verschieben nach, falls Zieldateien bereits existieren</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-confirm_overwrite" onclick="toggleBoolSetting('confirm_overwrite')"></div></div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Verhalten beim Doppelklick auf Archive (.zip, .7z, .tar.gz usw.)</div><div class="pr-sub">Wahl zwischen Archiv-Browser Dialog oder direkt im Explorer als Ordner öffnen</div></div>
             <div class="pr-ctl">
               <select class="select" id="set-archive_open_action" onchange="updateSetting('archive_open_action', this.value)">
                 <option value="archive_browser">Archivbrowser (Dialog zum Entpacken &amp; Packen)</option>
@@ -1348,10 +1560,101 @@
             <div><div class="pr-label">Automatischer Ordnersprung zum aktiven Tab des anderen Explorers</div><div class="pr-sub">Springt beim Anklicken eines Ordners direkt in denselben Unterordner, wenn dieser im anderen Explorer bereits geöffnet ist</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-sync_jump_to_other_pane_folder" onclick="toggleBoolSetting('sync_jump_to_other_pane_folder')"></div></div>
           </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Live-Dateisystem-Überwachung (Auto-Refresh bei externen Dateiänderungen)</div><div class="pr-sub">Aktualisiert das aktive Panel automatisch, wenn Dateien extern erstellt, geändert oder gelöscht werden</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-enable_live_fs_watcher" onclick="toggleBoolSetting('enable_live_fs_watcher')"></div></div>
+          </div>
         </div>
       </div>
 
-      <!-- 4. IMAGE HOVER PREVIEW -->
+      <!-- 4. EXTERNAL TOOLS & POWER-TOOL DEFAULTS -->
+      <div class="prefs-pane" id="pcat-Tools">
+        <div class="prefs-section-title">🖥️ Externe Programme (Editor F4, Diff-Tool &amp; Terminal F9)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div style="flex:1;">
+              <div class="pr-label">Externer Editor für <code>F4</code> (optional)</div>
+              <div class="pr-sub">Pfad oder Befehl (z. B. <code>code</code>, <code>notepad++.exe</code>). Leer lassen, um den integrierten Studio Text-/Code-/Hex-Editor zu nutzen.</div>
+            </div>
+            <div class="pr-ctl">
+              <input class="input" id="set-external_editor_path" style="width:280px;font-family:var(--font-mono);" placeholder="Leer = Interner F4-Editor" onchange="updateSetting('external_editor_path', this.value.trim())">
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div style="flex:1;">
+              <div class="pr-label">Externes Vergleichsprogramm (Diff-Tool für <code>Strg+Shift+U</code>, optional)</div>
+              <div class="pr-sub">Pfad oder Befehl (z. B. <code>WinMergeU.exe</code>, <code>bcompare.exe</code>). Leer lassen für integrierten Side-by-Side Diff-Viewer.</div>
+            </div>
+            <div class="pr-ctl">
+              <input class="input" id="set-external_diff_tool_path" style="width:280px;font-family:var(--font-mono);" placeholder="Leer = Interner Diff-Viewer" onchange="updateSetting('external_diff_tool_path', this.value.trim())">
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div style="flex:1;">
+              <div class="pr-label">Benutzerdefinierter Terminal-Befehl für <code>F9</code> (optional)</div>
+              <div class="pr-sub">Platzhalter <code>%P</code> für aktuellen Ordner (z. B. <code>wt.exe -d "%P"</code>). Leer lassen für Standard-PowerShell.</div>
+            </div>
+            <div class="pr-ctl">
+              <input class="input" id="set-custom_terminal_command" style="width:280px;font-family:var(--font-mono);" placeholder="Leer = System-PowerShell" onchange="updateSetting('custom_terminal_command', this.value.trim())">
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">⚡ Standardwerte für integrierte Power-Tools</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Archivformat beim Packen (Alt+F5)</div><div class="pr-sub">Vorausgewähltes Format im Archiv-Manager</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-default_archive_format" onchange="updateSetting('default_archive_format', this.value)">
+                <option value="zip">.zip (Standard ZIP-Archiv)</option>
+                <option value="7z">.7z (7-Zip LZMA2)</option>
+                <option value="tar.gz">.tar.gz (GZip Tarball)</option>
+                <option value="tar.zst">.tar.zst (Zstandard Tarball)</option>
+                <option value="tar.xz">.tar.xz (XZ Tarball)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Prüfsummen-Algorithmus (Strg+Shift+K)</div><div class="pr-sub">Bevorzugtes Hash-Format für Prüfsummen und Manifest-Export</div></div>
+            <div class="pr-ctl">
+              <select class="select" id="set-default_checksum_algorithm" onchange="updateSetting('default_checksum_algorithm', this.value)">
+                <option value="SHA256">SHA-256 (Kryptografischer Standard)</option>
+                <option value="MD5">MD5 (Kompatibilität)</option>
+                <option value="CRC32">CRC32 (Schnellprüfung)</option>
+              </select>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Speed-Limit für Transfer-Warteschlange (MB/s)</div><div class="pr-sub">0 = Unbegrenzte maximale Übertragungsgeschwindigkeit</div></div>
+            <div class="pr-ctl">
+              <input class="input" type="number" min="0" max="10000" id="set-default_transfer_speed_limit_mbps" style="width:90px;text-align:right;font-family:var(--font-mono);" onchange="updateSetting('default_transfer_speed_limit_mbps', Math.max(0, parseInt(this.value, 10) || 0))">
+              <span style="font-size:12px;color:var(--fg-dim);">MB/s</span>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Port für lokalen HTTP/QR-Code-Teilen-Server (Strg+Alt+S)</div><div class="pr-sub">Portnummer für den Ad-hoc LAN-Dateiserver (Standard: 8787)</div></div>
+            <div class="pr-ctl">
+              <input class="input" type="number" min="1024" max="65535" id="set-default_share_server_port" style="width:90px;text-align:right;font-family:var(--font-mono);" onchange="updateSetting('default_share_server_port', Math.min(65535, Math.max(1024, parseInt(this.value, 10) || 8787)))">
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Maximale Text-Ladegröße für Quick Viewer (F3) &amp; Inspector</div><div class="pr-sub">16 KB bis 4096 KB — verhindert Verzögerungen bei riesigen Logdateien (Standard: 128 KB)</div></div>
+            <div class="pr-ctl">
+              <input class="input" type="number" min="16" max="4096" step="16" id="set-quick_viewer_max_kb" style="width:90px;text-align:right;font-family:var(--font-mono);" onchange="updateSetting('quick_viewer_max_kb', Math.min(4096, Math.max(16, parseInt(this.value, 10) || 128)))">
+              <span style="font-size:12px;color:var(--fg-dim);">KB</span>
+            </div>
+          </div>
+          <div class="prefs-row">
+            <div><div class="pr-label">Standard-Mindestdateigröße für Duplikat-Finder (Strg+Shift+D)</div><div class="pr-sub">Dateien unterhalb dieser Größe werden beim Duplikat-Scan übersprungen (Standard: 1 KB)</div></div>
+            <div class="pr-ctl">
+              <input class="input" type="number" min="0" max="1048576" id="set-duplicates_min_size_kb" style="width:90px;text-align:right;font-family:var(--font-mono);" onchange="updateSetting('duplicates_min_size_kb', Math.max(0, parseInt(this.value, 10) || 0))">
+              <span style="font-size:12px;color:var(--fg-dim);">KB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. IMAGE HOVER PREVIEW -->
       <div class="prefs-pane" id="pcat-Preview">
         <div class="prefs-section-title">🖼️ Bildvorschau beim Überfahren mit der Maus (Hover-Preview)</div>
         <div class="prefs-card">
@@ -1372,7 +1675,7 @@
         </div>
       </div>
 
-      <!-- 5. FONT SIZES -->
+      <!-- 6. FONT SIZES -->
       <div class="prefs-pane" id="pcat-Fonts">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div class="prefs-section-title" style="margin:0;">🔤 Globale Schriftgröße</div>
@@ -1399,7 +1702,7 @@
         <div class="prefs-card" id="fontChildWindowsList"></div>
       </div>
 
-      <!-- 6. WINDOW SIZES & BOUNDS (Full .NET Parity) -->
+      <!-- 7. WINDOW SIZES & BOUNDS -->
       <div class="prefs-pane" id="pcat-WindowSizes">
         <div class="prefs-section-title">📐 Gespeicherte Fenstergrößen</div>
         <div class="prefs-card">
@@ -1446,7 +1749,7 @@
         </div>
       </div>
 
-      <!-- 7. SESSION & UPDATES -->
+      <!-- 8. SESSION, CONFIG BACKUP & UPDATES -->
       <div class="prefs-pane" id="pcat-Session">
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
@@ -1466,6 +1769,21 @@
             <div class="pr-ctl">
               <div class="switch" id="sw-restore_previous_session" onclick="toggleBoolSetting('restore_previous_session')"></div>
               <button class="btn" onclick="saveCurrentSessionNow(true)">💾 Aktuelle Session jetzt sofort speichern</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prefs-section-title">📦 Konfigurationsdateien &amp; Einstellungs-Backup (Export / Import)</div>
+        <div class="prefs-card">
+          <div class="prefs-row">
+            <div>
+              <div class="pr-label">Lokales Konfigurationsverzeichnis &amp; JSON- Sicherung</div>
+              <div class="pr-sub">Öffnet den AppData-Ordner mit <code>settings.json</code> oder sichert/lädt alle Einstellungen als JSON</div>
+            </div>
+            <div class="pr-ctl">
+              <button class="btn" onclick="rpc('open_config_dir')">📂 Konfigurationsordner öffnen</button>
+              <button class="btn" onclick="exportSettingsJson()">📤 JSON kopieren</button>
+              <button class="btn" onclick="importSettingsJsonPrompt()">📥 JSON importieren</button>
             </div>
           </div>
         </div>
@@ -1495,7 +1813,7 @@
         </div>
       </div>
 
-      <!-- 7. SHORTCUTS REFERENCE -->
+      <!-- 9. SHORTCUTS REFERENCE -->
       <div class="prefs-pane" id="pcat-Shortcuts">
         <div class="prefs-section-title">⌨️ Tastenkombinationen &amp; Kurzbefehle</div>
         <input class="input" style="width:100%;margin-bottom:10px;" placeholder="Tastenkürzel oder Befehl filtern…" oninput="renderShortcutsTable(this.value)">
@@ -2341,18 +2659,104 @@ function applyLocalizationToDom() {
 }
 
 /* ==================== APPLY SETTINGS TO CSS & DOM ==================== */
+function hexToRgba(hex, alpha) {
+  const c = String(hex || '').replace('#', '').trim();
+  if (c.length === 8) {
+    const r = parseInt(c.slice(0, 2), 16) || 0;
+    const g = parseInt(c.slice(2, 4), 16) || 0;
+    const b = parseInt(c.slice(4, 6), 16) || 0;
+    const a = (parseInt(c.slice(6, 8), 16) || 0) / 255;
+    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`;
+  }
+  if (c.length === 6) {
+    const r = parseInt(c.slice(0, 2), 16) || 0;
+    const g = parseInt(c.slice(2, 4), 16) || 0;
+    const b = parseInt(c.slice(4, 6), 16) || 0;
+    return alpha !== undefined ? `rgba(${r}, ${g}, ${b}, ${alpha})` : `#${c}`;
+  }
+  return hex || 'transparent';
+}
+
+function matchFileTypeColorRule(item) {
+  const s = STATE.settings || {};
+  if (s.enable_filetype_colors === false) return null;
+  if (item.is_directory) return null;
+  const rules = Array.isArray(s.filetype_color_rules) ? s.filetype_color_rules : [];
+  const nameLower = String(item.name || '').toLowerCase();
+  const extLower = String(item.extension || '').toLowerCase();
+  const ageH = typeof item.age_hours === 'number' ? item.age_hours : 999999;
+
+  for (const r of rules) {
+    if (!r || r.enabled === false) continue;
+    if (r.max_age_hours && r.max_age_hours > 0 && ageH > r.max_age_hours) {
+      continue;
+    }
+    const rawPat = String(r.pattern || '*').trim().toLowerCase();
+    if (!rawPat || rawPat === '*' || rawPat === '*.*') {
+      return { color: r.color_hex || '#E6E9F2', bold: !!r.bold, name: r.name };
+    }
+    const parts = rawPat.split(/[;,]+/).map(p => p.trim()).filter(Boolean);
+    let matched = false;
+    for (const p of parts) {
+      if (p === '*' || p === '*.*') { matched = true; break; }
+      if (p.startsWith('*.') && !p.slice(2).includes('*')) {
+        const targetExt = p.slice(1); // e.g. ".exe"
+        if (extLower === targetExt || nameLower.endsWith(targetExt)) { matched = true; break; }
+      } else {
+        const rxStr = '^' + p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
+        try {
+          if (new RegExp(rxStr, 'i').test(nameLower)) { matched = true; break; }
+        } catch (_) {}
+      }
+    }
+    if (matched) {
+      return { color: r.color_hex || '#E6E9F2', bold: !!r.bold, name: r.name };
+    }
+  }
+  return null;
+}
+
 function applySettingsToDom() {
   const s = STATE.settings;
   const theme = s.theme || 'dark';
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('statusThemeName').textContent = theme;
 
+  const zoomPct = Math.min(160, Math.max(75, s.ui_zoom_percent || 100));
+  STATE.zoom = zoomPct;
+  document.body.style.zoom = (zoomPct / 100);
+  const stZoom = document.getElementById('statusZoom');
+  if (stZoom) stZoom.textContent = zoomPct + '%';
+
   const r = document.documentElement.style;
   r.setProperty('--active-pane-border', s.active_panel_border_color_hex || '#0078D4');
   r.setProperty('--active-pane-border-w', (s.active_panel_border_thickness ?? 2) + 'px');
   r.setProperty('--sel-border-color', s.selection_border_color_hex || '#60CDFF');
   r.setProperty('--sel-border-w', (s.selection_border_thickness ?? 1.5) + 'px');
+  if (s.invert_cursor) {
+    r.setProperty('--sel-bg-color', hexToRgba(s.selection_bg_color_hex || '#2563EB'));
+  } else {
+    const rawSelBg = s.selection_bg_color_hex || '#1E3A5F';
+    r.setProperty('--sel-bg-color', s.custom_file_list_colors_enabled ? hexToRgba(rawSelBg) : hexToRgba(rawSelBg, 0.35));
+  }
+  r.setProperty('--sel-text-color', s.selection_text_color_hex || '#FFFFFF');
   r.setProperty('--marked-color', s.marked_item_text_color_hex || '#FFB900');
+  const markBg = s.marked_item_bg_color_hex || '#00000000';
+  r.setProperty('--marked-bg-color', (markBg === '#00000000' || markBg.toLowerCase() === 'transparent') ? 'transparent' : hexToRgba(markBg));
+
+  if (s.custom_file_list_colors_enabled) {
+    r.setProperty('--fl-bg', s.file_list_bg_color_hex || '#151821');
+    r.setProperty('--fl-alt-bg', s.file_list_alt_bg_color_hex || '#191D28');
+    r.setProperty('--fl-text', s.file_list_text_color_hex || '#E6E9F2');
+  } else {
+    r.setProperty('--fl-bg', 'transparent');
+    r.setProperty('--fl-alt-bg', s.enable_zebra_stripes ? hexToRgba(s.file_list_alt_bg_color_hex || '#191D28', 0.45) : 'transparent');
+    r.setProperty('--fl-text', 'var(--fg)');
+  }
+  r.setProperty('--fl-folder-text', s.folder_text_color_hex || (s.custom_file_list_colors_enabled ? (s.file_list_text_color_hex || '#E6E9F2') : 'var(--fg)'));
+  r.setProperty('--fl-hidden-text', s.hidden_item_text_color_hex || '#8892A6');
+  r.setProperty('--fl-readonly-text', s.readonly_item_text_color_hex || '#F59E0B');
+  r.setProperty('--fl-grid-color', s.grid_line_color_hex || '#252A3A');
   r.setProperty('--row-height', (s.file_list_row_height ?? 26) + 'px');
 
   const g = s.use_global_font_size ? (s.global_font_size || 13) : null;
@@ -2371,7 +2775,17 @@ function applySettingsToDom() {
   const multilineDrives = s.multiline_drive_bar !== false;
   document.getElementById('drives-left').classList.toggle('multiline', multilineDrives);
   document.getElementById('drives-right').classList.toggle('multiline', multilineDrives);
+
+  const favBar = document.getElementById('favBar');
+  if (favBar) favBar.style.display = s.show_favorites_bar !== false ? 'flex' : 'none';
+  const leftRail = document.querySelector('.main > .tools');
+  if (leftRail) leftRail.style.display = s.show_left_tool_rail !== false ? 'flex' : 'none';
+  document.querySelectorAll('.crumb-bar').forEach(cb => {
+    cb.style.display = s.show_breadcrumbs_bar !== false ? 'flex' : 'none';
+  });
   document.getElementById('fnKeyBar').classList.toggle('hidden', s.show_function_key_bar === false);
+  const statusBar = document.querySelector('.app > .status');
+  if (statusBar) statusBar.style.display = s.show_status_bar !== false ? 'flex' : 'none';
 
   applyLocalizationToDom();
 }
@@ -2419,6 +2833,21 @@ async function initApp() {
   syncBasketBadge(STATE.basketCount);
   initSyncScrollListeners();
   startLiveFsWatcherLoop();
+
+  ['left', 'right'].forEach(side => {
+    const host = document.getElementById('list-' + side);
+    if (host) {
+      host.addEventListener('dblclick', (e) => {
+        if (e.target === host && STATE.settings.double_click_empty_space_goes_up !== false) {
+          navUp(side);
+        }
+      });
+    }
+  });
+
+  if (STATE.settings.show_tree_sidebar_on_startup) {
+    toggleDirTreeSidebar(true);
+  }
 
   const cwd = data.cwd || '.';
   const defView = STATE.settings.default_view_mode || 'Details';
@@ -2713,7 +3142,8 @@ async function loadPane(side, recordHistory = false, selectPathOnLoad = null) {
     show_tree_sizes: tab.treeSizes,
     filter,
     sort_col: tab.sortCol,
-    sort_asc: tab.sortAsc
+    sort_asc: tab.sortAsc,
+    side
   });
   if (!data || data.error) return;
 
@@ -2810,59 +3240,78 @@ function renderBreadcrumbs(side, crumbs, gitBadge) {
 function renderFileList(side) {
   const p = STATE.panes[side];
   const tab = getTab(side);
+  const s = STATE.settings || {};
   const mode = tab.viewMode || 'Details';
   const host = document.getElementById('list-' + side);
-  host.className = 'file-list mode-' + mode;
+  const flClasses = ['file-list', 'mode-' + mode];
+  if (s.custom_file_list_colors_enabled) flClasses.push('custom-fl-colors');
+  if (s.enable_zebra_stripes && mode === 'Details') flClasses.push('zebra');
+  if (s.show_grid_lines && mode === 'Details') flClasses.push('grid-lines');
+  host.className = flClasses.join(' ');
   document.getElementById('colhead-' + side).style.display = mode === 'Details' ? 'grid' : 'none';
   host.innerHTML = '';
 
   // Parent directory [..] entry if not at root
   const hasParent = tab.path.startsWith('archive://') || (tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/')));
-  if (hasParent && mode === 'Details') {
+  if (hasParent && mode === 'Details' && s.show_parent_dir_entry !== false) {
     const upRow = document.createElement('div');
-    upRow.className = 'file-row';
+    upRow.className = 'file-row is-folder';
     upRow.innerHTML = `<div></div><div class="f-name-wrap"><span class="f-ico">↩</span><span class="f-name" style="font-weight:600;color:var(--fg-dim)">${esc(t('pane.parent_dir'))}</span></div><div class="f-size-cell">&lt;UP&gt;</div><div></div><div></div>`;
     upRow.ondblclick = () => navUp(side);
     host.appendChild(upRow);
   }
 
+  const showSizeBars = s.show_size_proportion_bars !== false;
+  const invertCursor = !!s.invert_cursor;
+
   p.items.forEach((item, idx) => {
     const isSel = p.selected.has(item.full_path);
     const isMark = p.marked.has(item.full_path);
+    const ftRule = matchFileTypeColorRule(item);
 
     if (mode !== 'Details') {
       const card = document.createElement('div');
       card.className = 'file-card' + (isSel ? ' selected' : '') + (isMark ? ' marked' : '');
       card.dataset.path = item.full_path;
       card.dataset.idx = String(idx);
+      const nameStyle = (!isMark && ftRule) ? `style="color:${esc(ftRule.color)};${ftRule.bold ? 'font-weight:700;' : ''}"` : '';
       const showThumb = isImageExt(item.extension) && ['MediumIcons','LargeIcons','ExtraLargeIcons','Tiles'].includes(mode);
       card.innerHTML = showThumb
-        ? `<img class="thumb-img" src="${filePreviewUrl(item.full_path)}" loading="lazy"><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
-        : `<div style="font-size:${mode==='SmallIcons'||mode==='List'?'16px':'28px'}">${fileIcon(item)}</div><div class="card-name">${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`;
+        ? `<img class="thumb-img" src="${filePreviewUrl(item.full_path)}" loading="lazy"><div class="card-name" ${nameStyle}>${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
+        : `<div style="font-size:${mode==='SmallIcons'||mode==='List'?'16px':'28px'}">${fileIcon(item)}</div><div class="card-name" ${nameStyle}>${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`;
       bindItemEvents(card, side, item, idx);
       host.appendChild(card);
       return;
     }
 
     const row = document.createElement('div');
-    row.className = 'file-row' + (isSel ? ' selected' : '') + (isMark ? ' marked' : '') + (item.is_hidden ? ' is-hidden' : '');
+    row.className = 'file-row'
+      + (isSel ? ' selected' : '')
+      + (isMark ? ' marked' : '')
+      + (item.is_directory ? ' is-folder' : '')
+      + (item.is_readonly ? ' is-readonly' : '')
+      + (item.is_hidden ? ' is-hidden' : '')
+      + (invertCursor ? ' invert-cursor' : '');
     row.dataset.path = item.full_path;
     row.dataset.idx = String(idx);
 
     const tagDot = item.tag_color_hex ? `<span class="f-tag-dot" style="background:${item.tag_color_hex}"></span>` : '';
     const tagBadge = item.tag_label ? `<span class="f-tag-badge">${esc(item.tag_label)}</span>` : '';
     const linkBadge = item.link_target ? `<span class="f-tag-badge" style="color:var(--accent)" title="Link-Ziel: ${esc(item.link_target)}">⛓ → ${esc(item.link_target)}</span>` : '';
+    const nameInlineStyle = (!isMark && !item.is_directory && ftRule)
+      ? `style="color:${esc(ftRule.color)};${ftRule.bold ? 'font-weight:700;' : ''}"`
+      : '';
 
     row.innerHTML = `
       <div><span class="f-check" data-chk="1">${isMark ? '✓' : ''}</span></div>
       <div class="f-name-wrap">
         <span class="f-ico">${fileIcon(item)}</span>
         ${tagDot}
-        <span class="f-name">${esc(item.display_name)}</span>
+        <span class="f-name" ${nameInlineStyle}>${esc(item.display_name)}</span>
         ${tagBadge}${linkBadge}
       </div>
       <div class="f-size-cell">
-        ${item.size_bar_percent > 0 ? `<div class="f-size-bar" style="width:${item.size_bar_percent}%"></div>` : ''}
+        ${showSizeBars && item.size_bar_percent > 0 ? `<div class="f-size-bar" style="width:${item.size_bar_percent}%"></div>` : ''}
         <span class="f-size-txt" id="sz-${side}-${idx}">${esc(item.size_text)}</span>
       </div>
       <div class="f-mod">${esc(item.modified_text)}</div>
@@ -2931,7 +3380,7 @@ function bindItemEvents(el, side, item, idx) {
     }
   };
   el.onauxclick = (e) => {
-    if (e.button === 1) {
+    if (e.button === 1 && STATE.settings.middle_click_opens_in_new_tab !== false) {
       e.stopPropagation();
       e.preventDefault();
       if (item.is_directory) {
@@ -3591,6 +4040,16 @@ async function copyOrMoveActive(isMove) {
   const paths = getActionPaths(srcSide);
   if (!paths.length) { toast('Bitte zuerst Dateien auswählen oder markieren.'); return; }
   const destDir = getTab(dstSide).path;
+  if (STATE.settings.confirm_overwrite !== false) {
+    const dstNames = new Set((STATE.panes[dstSide]?.items || []).map(x => String(x.name || '').toLowerCase()));
+    const conflicts = paths.filter(p => {
+      const base = p.split(/[\\/]/).pop() || '';
+      return dstNames.has(base.toLowerCase());
+    });
+    if (conflicts.length > 0) {
+      if (!confirm(`${conflicts.length} Element(e) existieren bereits im Zielordner. Möchten Sie diese überschreiben?`)) return;
+    }
+  }
   const res = await rpc('copy_or_move', { is_move: isMove, paths, dest_dir: destDir });
   if (res && res.ok) {
     STATE.canUndo = !!res.can_undo;
@@ -3889,11 +4348,24 @@ function openExternalTerminal() {
   rpc('open_terminal', { dir: getTab(STATE.activeSide).path });
   toast('PowerShell-Terminal gestartet.');
 }
-/* ==================== STUDIO SETTINGS CONTROLLER (All 6 .NET Categories + Shortcuts) ==================== */
+/* ==================== STUDIO SETTINGS CONTROLLER (Total Commander Colors + All Categories + Shortcuts) ==================== */
 const COLOR_TARGETS = [
   { key: 'active_panel_border_color_hex', target: 'ActivePanelBorder', title: 'Rahmenfarbe des aktiven Panels', presets: ['#0078D4','#6EA8FE','#10B981','#F59E0B','#EC4899','#8B5CF6'], hasWidth: 'active_panel_border_thickness' },
-  { key: 'selection_border_color_hex', target: 'SelectionBorder', title: 'Umrandungsfarbe des ausgewählten Elements', presets: ['#60CDFF','#38BDF8','#34D399','#FBBF24','#F472B6','#A78BFA'] },
-  { key: 'marked_item_text_color_hex', target: 'MarkedItemText', title: 'Textfarbe für markierte Elemente (✓ Leertaste / Einfg)', presets: ['#FFB900','#F59E0B','#4FD18B','#60CDFF','#F472B6','#EF4444'] }
+  { key: 'selection_border_color_hex', target: 'SelectionBorder', title: 'Umrandungsfarbe des Fokus-Cursors (Auswahlbalken)', presets: ['#60CDFF','#38BDF8','#34D399','#FBBF24','#F472B6','#A78BFA'] },
+  { key: 'selection_bg_color_hex', target: 'SelectionBackground', title: 'Hintergrundfarbe des Fokus-Cursors (Balkenfarbe)', presets: ['#1E3A5F','#000080','#008080','#2563EB','#0F766E','#4C1D95'] },
+  { key: 'selection_text_color_hex', target: 'SelectionText', title: 'Textfarbe auf dem Fokus-Cursor (bei invertiertem Cursor)', presets: ['#FFFFFF','#FFFF00','#000000','#60CDFF','#4ADE80'] },
+  { key: 'marked_item_text_color_hex', target: 'MarkedItemText', title: 'Textfarbe für markierte Elemente (✓ Leertaste / Einfg)', presets: ['#FFB900','#FF0000','#FFFF00','#4FD18B','#60CDFF','#F472B6'] },
+  { key: 'marked_item_bg_color_hex', target: 'MarkedItemBackground', title: 'Hintergrundfarbe für markierte Elemente (✓)', presets: ['#2D2310','#3B1818','#143326','#172554','#000050'] }
+];
+
+const FILE_LIST_COLOR_TARGETS = [
+  { key: 'file_list_bg_color_hex', target: 'FileListBackground', title: 'Hintergrundfarbe 1 (Dateiliste Primär)', presets: ['#151821','#FFFFFF','#000080','#0D1117','#002B36','#051005'] },
+  { key: 'file_list_alt_bg_color_hex', target: 'FileListAltBackground', title: 'Hintergrundfarbe 2 (Zebra-Streifen / Jede 2. Zeile)', presets: ['#191D28','#F4F6FA','#00006B','#161B22','#073642','#0A190A'] },
+  { key: 'file_list_text_color_hex', target: 'FileListText', title: 'Standard-Textfarbe (Normale Dateien)', presets: ['#E6E9F2','#111827','#00FFFF','#839496','#4ADE80','#F8FAFC'] },
+  { key: 'folder_text_color_hex', target: 'FolderText', title: 'Textfarbe für Ordner / Verzeichnisse', presets: ['#F8FAFC','#0F172A','#FFFFFF','#FFFF55','#FDE047','#93C5FD'] },
+  { key: 'hidden_item_text_color_hex', target: 'HiddenItemText', title: 'Textfarbe für versteckte & System-Dateien', presets: ['#8892A6','#64748B','#55FFFF','#586E75','#94A3B8'] },
+  { key: 'readonly_item_text_color_hex', target: 'ReadonlyItemText', title: 'Textfarbe für schreibgeschützte Dateien (Read-Only)', presets: ['#F59E0B','#475569','#38BDF8','#A78BFA','#FBBF24'] },
+  { key: 'grid_line_color_hex', target: 'GridLine', title: 'Farbe der Gitternetzlinien (Tabellenraster)', presets: ['#252A3A','#CBD5E1','#0055AA','#30363D','#094652','#143814'] }
 ];
 
 const TREEMAP_COLOR_TARGETS = [
@@ -3930,6 +4402,8 @@ const CHILD_FONT_FIELDS = [
   { key: 'about_window_font_size', label: 'ℹ️ Über ModernExplorer & Hilfe-Fenster', min: 8, max: 24 }
 ];
 
+let _editingFileTypeRuleIdx = null;
+
 function openSettingsModal(cat = 'Appearance') {
   populateSettingsUi();
   switchSettingsCat(cat);
@@ -3949,44 +4423,80 @@ function populateSettingsUi() {
   const s = STATE.settings;
   // Languages
   const langSel = document.getElementById('set-language');
-  langSel.innerHTML = STATE.languages.map(l => `<option value="${esc(l.code)}">${esc(l.label)}</option>`).join('');
-  langSel.value = s.language || 'system';
+  if (langSel) {
+    langSel.innerHTML = STATE.languages.map(l => `<option value="${esc(l.code)}">${esc(l.label)}</option>`).join('');
+    langSel.value = s.language || 'system';
+  }
+
+  // UI Zoom
+  const zoomPct = Math.min(160, Math.max(75, s.ui_zoom_percent || 100));
+  const rngZoom = document.getElementById('rng-ui_zoom_percent');
+  const lblZoom = document.getElementById('lbl-ui_zoom_percent');
+  if (rngZoom) rngZoom.value = zoomPct;
+  if (lblZoom) lblZoom.textContent = zoomPct + ' %';
 
   // Theme cards
   document.querySelectorAll('.theme-card').forEach(tc => {
     tc.classList.toggle('active', tc.dataset.t === (s.theme || 'dark'));
   });
 
-  // Switches
+  // All boolean switches
   const boolKeys = [
-    'show_drive_bar','multiline_drive_bar','show_function_key_bar','show_tooltips',
-    'sort_folders_first','show_file_extensions','show_hidden_files','show_system_files',
-    'auto_calculate_folder_size_on_mark','confirm_delete','single_click_open',
-    'sync_jump_to_other_pane_folder',
+    'show_drive_bar','multiline_drive_bar','show_favorites_bar','show_left_tool_rail',
+    'show_breadcrumbs_bar','show_function_key_bar','show_status_bar','show_tree_sidebar_on_startup',
+    'show_size_proportion_bars','show_tooltips',
+    'custom_file_list_colors_enabled','enable_zebra_stripes','show_grid_lines','invert_cursor',
+    'enable_filetype_colors',
+    'sort_folders_first','natural_number_sorting','case_sensitive_sorting','show_parent_dir_entry',
+    'show_file_extensions','show_hidden_files','show_system_files',
+    'space_moves_down_on_mark','auto_calculate_folder_size_on_mark',
+    'double_click_empty_space_goes_up','middle_click_opens_in_new_tab',
+    'single_click_open','confirm_delete','confirm_overwrite',
+    'sync_jump_to_other_pane_folder','enable_live_fs_watcher',
     'enable_image_hover_preview','use_global_font_size',
     'check_updates_on_startup','restore_previous_session'
   ];
   boolKeys.forEach(k => {
     const sw = document.getElementById('sw-' + k);
-    if (sw) sw.classList.toggle('on', s[k] !== false && !!s[k]);
+    if (sw) sw.classList.toggle('on', !!s[k]);
   });
 
   // Sliders & Selects
   const rh = s.file_list_row_height ?? 26;
-  document.getElementById('rng-file_list_row_height').value = rh;
-  document.getElementById('lbl-file_list_row_height').textContent = rh + ' px';
+  const rngRh = document.getElementById('rng-file_list_row_height');
+  const lblRh = document.getElementById('lbl-file_list_row_height');
+  if (rngRh) rngRh.value = rh;
+  if (lblRh) lblRh.textContent = rh + ' px';
 
-  document.getElementById('set-default_view_mode').value = s.default_view_mode || 'Details';
-  const archActSel = document.getElementById('set-archive_open_action');
-  if (archActSel) archActSel.value = s.archive_open_action || 'archive_browser';
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.value = v;
+  };
+  setVal('set-default_view_mode', s.default_view_mode || 'Details');
+  setVal('set-size_display_format', s.size_display_format || 'dynamic');
+  setVal('set-date_time_format', s.date_time_format || 'de_short');
+  setVal('set-archive_open_action', s.archive_open_action || 'archive_browser');
+
+  // Tools & Power-Tools defaults
+  setVal('set-external_editor_path', s.external_editor_path || '');
+  setVal('set-external_diff_tool_path', s.external_diff_tool_path || '');
+  setVal('set-custom_terminal_command', s.custom_terminal_command || '');
+  setVal('set-default_archive_format', s.default_archive_format || 'zip');
+  setVal('set-default_checksum_algorithm', s.default_checksum_algorithm || 'SHA256');
+  setVal('set-default_transfer_speed_limit_mbps', s.default_transfer_speed_limit_mbps ?? 0);
+  setVal('set-default_share_server_port', s.default_share_server_port ?? 8787);
+  setVal('set-quick_viewer_max_kb', s.quick_viewer_max_kb ?? 128);
+  setVal('set-duplicates_min_size_kb', s.duplicates_min_size_kb ?? 1);
 
   const hp = s.image_hover_preview_size ?? 320;
-  document.getElementById('rng-image_hover_preview_size').value = hp;
-  document.getElementById('lbl-image_hover_preview_size').textContent = hp + ' px';
+  setVal('rng-image_hover_preview_size', hp);
+  const lblHp = document.getElementById('lbl-image_hover_preview_size');
+  if (lblHp) lblHp.textContent = hp + ' px';
 
   const gf = s.global_font_size ?? 13;
-  document.getElementById('rng-global_font_size').value = gf;
-  document.getElementById('lbl-global_font_size').textContent = gf + ' px';
+  setVal('rng-global_font_size', gf);
+  const lblGf = document.getElementById('lbl-global_font_size');
+  if (lblGf) lblGf.textContent = gf + ' px';
 
   const wbEl = document.getElementById('lblWindowBoundsInfo');
   if (wbEl) {
@@ -4008,6 +4518,7 @@ function populateSettingsUi() {
 
 function buildColorRowHtml(cfg) {
   const val = STATE.settings[cfg.key] || '#0078D4';
+  const hex7 = (val.startsWith('#') && val.length >= 7) ? val.slice(0, 7) : '#0078D4';
   const swatches = cfg.presets.map(p => `<button class="swatch-btn" style="background:${p}" title="${p}" onclick="updateSetting('${cfg.key}','${p}')"></button>`).join('');
   return `
     <div class="prefs-row">
@@ -4017,27 +4528,390 @@ function buildColorRowHtml(cfg) {
       </div>
       <div class="pr-ctl">
         <div style="display:flex;gap:4px;">${swatches}</div>
-        <input type="color" value="${esc(val.slice(0,7))}" style="width:28px;height:26px;border:none;background:transparent;cursor:pointer;" onchange="updateSetting('${cfg.key}',this.value)">
-        <input class="input" style="width:82px;font-family:var(--font-mono);font-size:11.5px;" value="${esc(val)}" onchange="updateSetting('${cfg.key}',this.value)">
-        <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="resetSingleColor('${cfg.target}')">↺</button>
+        <input type="color" value="${esc(hex7)}" style="width:28px;height:26px;border:none;background:transparent;cursor:pointer;" onchange="updateSetting('${cfg.key}',this.value.toUpperCase())">
+        <input class="input" style="width:86px;font-family:var(--font-mono);font-size:11.5px;" value="${esc(val)}" onchange="updateSetting('${cfg.key}',this.value.trim())">
+        <button class="btn" style="padding:4px 8px;font-size:11px;" title="Auf Standardfarbe zurücksetzen" onclick="resetSingleColor('${cfg.target}')">↺</button>
       </div>
     </div>
   `;
 }
 
 function renderColorsSettings() {
-  document.getElementById('colorCardActivePanel').innerHTML = buildColorRowHtml(COLOR_TARGETS[0]) + `
-    <div class="prefs-row">
-      <div><div class="pr-label">Rahmenstärke des aktiven Panels (px)</div></div>
-      <div class="pr-ctl">
-        <input type="range" min="1" max="5" step="0.5" value="${STATE.settings.active_panel_border_thickness ?? 2}" oninput="updateSetting('active_panel_border_thickness', parseFloat(this.value))">
-        <span style="min-width:36px;text-align:right;font-family:var(--font-mono)">${STATE.settings.active_panel_border_thickness ?? 2} px</span>
+  const apEl = document.getElementById('colorCardActivePanel');
+  if (apEl) {
+    apEl.innerHTML = buildColorRowHtml(COLOR_TARGETS[0]) + `
+      <div class="prefs-row">
+        <div><div class="pr-label">Rahmenstärke des aktiven Panels (px)</div></div>
+        <div class="pr-ctl">
+          <input type="range" min="1" max="5" step="0.5" value="${STATE.settings.active_panel_border_thickness ?? 2}" oninput="updateSetting('active_panel_border_thickness', parseFloat(this.value))">
+          <span style="min-width:36px;text-align:right;font-family:var(--font-mono)">${STATE.settings.active_panel_border_thickness ?? 2} px</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const selEl = document.getElementById('colorCardSelection');
+  if (selEl) {
+    const invOn = STATE.settings.invert_cursor ? 'on' : '';
+    selEl.innerHTML = `
+      <div class="prefs-row">
+        <div>
+          <div class="pr-label">Vollflächigen invertierten Auswahlbalken (Cursor) verwenden</div>
+          <div class="pr-sub">Wie im Total Commander („Invertierter Cursor“): Füllt die ausgewählte Zeile mit der Cursor-Balkenfarbe und der Cursor-Textfarbe</div>
+        </div>
+        <div class="pr-ctl"><div class="switch ${invOn}" id="sw-invert_cursor" onclick="toggleBoolSetting('invert_cursor')"></div></div>
+      </div>
+    ` + buildColorRowHtml(COLOR_TARGETS[1]) + buildColorRowHtml(COLOR_TARGETS[2]) + buildColorRowHtml(COLOR_TARGETS[3]);
+  }
+
+  const mkEl = document.getElementById('colorCardMarked');
+  if (mkEl) {
+    mkEl.innerHTML = buildColorRowHtml(COLOR_TARGETS[4]) + buildColorRowHtml(COLOR_TARGETS[5]);
+  }
+
+  const flEl = document.getElementById('colorCardFileListColors');
+  if (flEl) {
+    flEl.innerHTML = FILE_LIST_COLOR_TARGETS.map(buildColorRowHtml).join('');
+  }
+
+  const tmEl = document.getElementById('colorCardTreemapList');
+  if (tmEl) {
+    tmEl.innerHTML = TREEMAP_COLOR_TARGETS.map(buildColorRowHtml).join('');
+  }
+
+  renderTcColorLivePreview();
+  renderFileTypeColorRulesTable();
+}
+
+function renderTcColorLivePreview() {
+  const host = document.getElementById('tcColorLivePreviewHost');
+  if (!host) return;
+  const s = STATE.settings || {};
+  const customFl = !!s.custom_file_list_colors_enabled;
+  const bg1 = customFl ? (s.file_list_bg_color_hex || '#151821') : 'var(--bg-panel)';
+  const bg2 = (customFl && s.enable_zebra_stripes !== false)
+    ? (s.file_list_alt_bg_color_hex || '#191D28')
+    : (s.enable_zebra_stripes !== false ? 'color-mix(in srgb, var(--bg-panel) 90%, var(--fg) 4%)' : bg1);
+  const fgNorm = customFl ? (s.file_list_text_color_hex || '#E6E9F2') : 'var(--fg)';
+  const fgDir = customFl ? (s.folder_text_color_hex || '#F8FAFC') : 'var(--fg)';
+  const fgHid = customFl ? (s.hidden_item_text_color_hex || '#8892A6') : 'var(--fg-muted)';
+  const gridBorder = s.show_grid_lines ? `1px solid ${s.grid_line_color_hex || '#252A3A'}` : '1px solid transparent';
+  const selBg = s.invert_cursor ? (s.selection_bg_color_hex || '#1E3A5F') : `color-mix(in srgb, ${s.selection_bg_color_hex || '#1E3A5F'} 55%, transparent)`;
+  const selFg = s.invert_cursor ? (s.selection_text_color_hex || '#FFFFFF') : fgNorm;
+  const selBorder = s.selection_border_color_hex || '#60CDFF';
+  const mkFg = s.marked_item_text_color_hex || '#FFB900';
+  const mkBg = `color-mix(in srgb, ${s.marked_item_bg_color_hex || '#2D2310'} 55%, transparent)`;
+
+  const sampleExeRule = matchFileTypeColorRule({ name: 'ModernExplorer.exe', extension: '.exe', is_directory: false, age_hours: 48 });
+  const sampleNewRule = matchFileTypeColorRule({ name: 'heute_geaendert.rs', extension: '.rs', is_directory: false, age_hours: 2 });
+
+  const rows = [
+    { icon: '📁', name: '[..]', size: '<DIR>', date: '18.10.2026 09:30', typ: 'Ordner', bg: bg1, fg: fgDir, bold: true },
+    { icon: '📁', name: 'src', size: '<DIR>', date: '18.10.2026 09:15', typ: 'Ordner', bg: bg2, fg: fgDir, bold: true },
+    { icon: '⚙️', name: 'ModernExplorer.exe', size: '5.42 MB', date: '17.10.2026 14:20', typ: 'EXE-Datei', bg: selBg, fg: selFg, border: `1px solid ${selBorder}`, badge: '◀ Fokus-Cursor' },
+    { icon: '✓ 📦', name: 'release_v1.9.6.zip', size: '12.80 MB', date: '16.10.2026 18:05', typ: 'ZIP-Archiv', bg: mkBg, fg: mkFg, bold: true, badge: '✓ Markiert (Leertaste)' },
+    { icon: '📄', name: 'heute_geaendert.rs', size: '28.4 KB', date: '18.10.2026 09:42', typ: 'RS-Datei', bg: bg1, fg: sampleNewRule?.color || fgNorm, bold: !!sampleNewRule?.bold, badge: sampleNewRule ? `🎨 Regel: ${sampleNewRule.name}` : '' },
+    { icon: '⚙️', name: 'build_release.ps1', size: '4.1 KB', date: '10.10.2026 11:00', typ: 'PS1-Datei', bg: bg2, fg: sampleExeRule?.color || fgNorm, bold: !!sampleExeRule?.bold, badge: sampleExeRule ? `🎨 Regel: ${sampleExeRule.name}` : '' },
+    { icon: '🔒', name: '.gitignore', size: '1.2 KB', date: '01.10.2026 08:00', typ: 'Versteckt', bg: bg1, fg: fgHid, italic: true }
+  ];
+
+  host.innerHTML = `
+    <div style="border:2px solid ${s.active_panel_border_color_hex || '#0078D4'};border-radius:6px;overflow:hidden;font-size:12px;">
+      <div style="padding:4px 10px;background:var(--bg-sunken);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-weight:600;font-size:11px;color:var(--fg-dim);">
+        <span>👁 Live-Vorschau der Dateiliste (Total Commander Farb-Simulation)</span>
+        <span>Aktives Panel (${s.active_panel_border_color_hex || '#0078D4'})</span>
+      </div>
+      <div>
+        ${rows.map(r => `
+          <div style="display:grid;grid-template-columns:1.8fr 90px 125px 1fr;gap:8px;align-items:center;padding:3px 10px;background:${r.bg};color:${r.fg};font-weight:${r.bold ? '700' : '400'};font-style:${r.italic ? 'italic' : 'normal'};border-bottom:${gridBorder};${r.border ? 'outline:' + r.border + ';outline-offset:-1px;' : ''}">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.icon} ${esc(r.name)}</span>
+            <span style="text-align:right;font-family:var(--font-mono);font-size:11px;">${esc(r.size)}</span>
+            <span style="font-family:var(--font-mono);font-size:11px;">${esc(r.date)}</span>
+            <span style="font-size:10.5px;opacity:0.9;">${r.badge ? `<span class="badge">${esc(r.badge)}</span>` : esc(r.typ)}</span>
+          </div>
+        `).join('')}
       </div>
     </div>
   `;
-  document.getElementById('colorCardSelection').innerHTML = buildColorRowHtml(COLOR_TARGETS[1]);
-  document.getElementById('colorCardMarked').innerHTML = buildColorRowHtml(COLOR_TARGETS[2]);
-  document.getElementById('colorCardTreemapList').innerHTML = TREEMAP_COLOR_TARGETS.map(buildColorRowHtml).join('');
+}
+
+async function applyTotalCommanderColorPreset(presetId) {
+  const s = STATE.settings;
+  if (presetId === 'studio_dark') {
+    s.theme = 'dark';
+    s.custom_file_list_colors_enabled = false;
+    s.enable_zebra_stripes = true;
+    s.show_grid_lines = false;
+    s.invert_cursor = false;
+    s.active_panel_border_color_hex = '#0078D4';
+    s.selection_border_color_hex = '#60CDFF';
+    s.selection_bg_color_hex = '#1E3A5F';
+    s.selection_text_color_hex = '#FFFFFF';
+    s.marked_item_text_color_hex = '#FFB900';
+    s.marked_item_bg_color_hex = '#2D2310';
+    s.file_list_bg_color_hex = '#151821';
+    s.file_list_alt_bg_color_hex = '#191D28';
+    s.file_list_text_color_hex = '#E6E9F2';
+    s.folder_text_color_hex = '#F8FAFC';
+    s.hidden_item_text_color_hex = '#8892A6';
+    s.readonly_item_text_color_hex = '#F59E0B';
+    s.grid_line_color_hex = '#252A3A';
+  } else if (presetId === 'tc_classic') {
+    s.theme = 'light';
+    s.custom_file_list_colors_enabled = true;
+    s.enable_zebra_stripes = true;
+    s.show_grid_lines = true;
+    s.invert_cursor = true;
+    s.active_panel_border_color_hex = '#0055CC';
+    s.selection_border_color_hex = '#000080';
+    s.selection_bg_color_hex = '#000080';
+    s.selection_text_color_hex = '#FFFFFF';
+    s.marked_item_text_color_hex = '#FF0000';
+    s.marked_item_bg_color_hex = '#FFF1F2';
+    s.file_list_bg_color_hex = '#FFFFFF';
+    s.file_list_alt_bg_color_hex = '#F0F4FA';
+    s.file_list_text_color_hex = '#000000';
+    s.folder_text_color_hex = '#000000';
+    s.hidden_item_text_color_hex = '#64748B';
+    s.readonly_item_text_color_hex = '#0369A1';
+    s.grid_line_color_hex = '#D1D5DB';
+  } else if (presetId === 'norton_commander') {
+    s.theme = 'dark';
+    s.custom_file_list_colors_enabled = true;
+    s.enable_zebra_stripes = false;
+    s.show_grid_lines = true;
+    s.invert_cursor = true;
+    s.active_panel_border_color_hex = '#00FFFF';
+    s.selection_border_color_hex = '#00FFFF';
+    s.selection_bg_color_hex = '#008080';
+    s.selection_text_color_hex = '#000000';
+    s.marked_item_text_color_hex = '#FFFF00';
+    s.marked_item_bg_color_hex = '#000055';
+    s.file_list_bg_color_hex = '#000080';
+    s.file_list_alt_bg_color_hex = '#000070';
+    s.file_list_text_color_hex = '#00FFFF';
+    s.folder_text_color_hex = '#FFFFFF';
+    s.hidden_item_text_color_hex = '#55AAAA';
+    s.readonly_item_text_color_hex = '#FFFF55';
+    s.grid_line_color_hex = '#00AAAA';
+  } else if (presetId === 'tc_dark_pro') {
+    s.theme = 'dark';
+    s.custom_file_list_colors_enabled = true;
+    s.enable_zebra_stripes = true;
+    s.show_grid_lines = true;
+    s.invert_cursor = true;
+    s.active_panel_border_color_hex = '#38BDF8';
+    s.selection_border_color_hex = '#38BDF8';
+    s.selection_bg_color_hex = '#1D4ED8';
+    s.selection_text_color_hex = '#FFFFFF';
+    s.marked_item_text_color_hex = '#FACC15';
+    s.marked_item_bg_color_hex = '#312E18';
+    s.file_list_bg_color_hex = '#14171F';
+    s.file_list_alt_bg_color_hex = '#1B202B';
+    s.file_list_text_color_hex = '#E2E8F0';
+    s.folder_text_color_hex = '#FDE047';
+    s.hidden_item_text_color_hex = '#64748B';
+    s.readonly_item_text_color_hex = '#93C5FD';
+    s.grid_line_color_hex = '#262D3D';
+  } else if (presetId === 'matrix_retro') {
+    s.theme = 'dark';
+    s.custom_file_list_colors_enabled = true;
+    s.enable_zebra_stripes = true;
+    s.show_grid_lines = true;
+    s.invert_cursor = true;
+    s.active_panel_border_color_hex = '#22C55E';
+    s.selection_border_color_hex = '#4ADE80';
+    s.selection_bg_color_hex = '#15803D';
+    s.selection_text_color_hex = '#000000';
+    s.marked_item_text_color_hex = '#A3E635';
+    s.marked_item_bg_color_hex = '#0F291A';
+    s.file_list_bg_color_hex = '#050E07';
+    s.file_list_alt_bg_color_hex = '#0A190E';
+    s.file_list_text_color_hex = '#4ADE80';
+    s.folder_text_color_hex = '#86EFAC';
+    s.hidden_item_text_color_hex = '#166534';
+    s.readonly_item_text_color_hex = '#34D399';
+    s.grid_line_color_hex = '#14381E';
+  } else if (presetId === 'solarized_cmd') {
+    s.theme = 'dark';
+    s.custom_file_list_colors_enabled = true;
+    s.enable_zebra_stripes = true;
+    s.show_grid_lines = false;
+    s.invert_cursor = true;
+    s.active_panel_border_color_hex = '#268BD2';
+    s.selection_border_color_hex = '#2AA198';
+    s.selection_bg_color_hex = '#073642';
+    s.selection_text_color_hex = '#EEE8D5';
+    s.marked_item_text_color_hex = '#B58900';
+    s.marked_item_bg_color_hex = '#003847';
+    s.file_list_bg_color_hex = '#002B36';
+    s.file_list_alt_bg_color_hex = '#04313D';
+    s.file_list_text_color_hex = '#93A1A1';
+    s.folder_text_color_hex = '#EEE8D5';
+    s.hidden_item_text_color_hex = '#586E75';
+    s.readonly_item_text_color_hex = '#6C71C4';
+    s.grid_line_color_hex = '#073642';
+  }
+  applySettingsToDom();
+  const res = await rpc('save_settings', { settings: s });
+  if (res && res.settings) STATE.settings = res.settings;
+  populateSettingsUi();
+  loadPane('left');
+  loadPane('right');
+  toast('Farb-Preset angewendet!');
+}
+
+function renderFileTypeColorRulesTable() {
+  const tbody = document.getElementById('tbodyFileTypeColorRules');
+  if (!tbody) return;
+  const rules = STATE.settings.filetype_color_rules || [];
+  tbody.innerHTML = rules.map((r, idx) => {
+    const ageLabel = r.max_age_hours && r.max_age_hours > 0
+      ? (r.max_age_hours <= 48 ? `≤ ${r.max_age_hours} Std.` : `≤ ${Math.round(r.max_age_hours / 24)} Tage`)
+      : 'Alle';
+    return `
+      <tr>
+        <td style="text-align:center;">
+          <input type="checkbox" ${r.enabled !== false ? 'checked' : ''} onchange="toggleFileTypeRule(${idx}, this.checked)">
+        </td>
+        <td>
+          <span style="color:${esc(r.color_hex)};font-weight:${r.bold ? '700' : '500'};">${esc(r.name)}</span>
+        </td>
+        <td><code style="font-family:var(--font-mono);font-size:11px;">${esc(r.pattern)}</code></td>
+        <td><span class="badge">${esc(ageLabel)}</span></td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;">
+            <span style="width:14px;height:14px;border-radius:3px;background:${esc(r.color_hex)};border:1px solid rgba(255,255,255,0.2);display:inline-block;"></span>
+            ${esc(r.color_hex)}
+          </span>
+        </td>
+        <td style="display:flex;gap:4px;">
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Nach oben" onclick="moveFileTypeRule(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Nach unten" onclick="moveFileTypeRule(${idx}, 1)" ${idx === rules.length - 1 ? 'disabled' : ''}>▼</button>
+          <button class="btn" style="padding:2px 6px;font-size:11px;" title="Bearbeiten" onclick="editFileTypeRule(${idx})">✏</button>
+          <button class="btn danger" style="padding:2px 6px;font-size:11px;" title="Löschen" onclick="deleteFileTypeRule(${idx})">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="6" style="color:var(--fg-muted);text-align:center;">Keine Dateityp-Farbregeln definiert.</td></tr>';
+}
+
+async function saveFileTypeColorRuleFromForm() {
+  const nameEl = document.getElementById('ftc-name');
+  const patEl = document.getElementById('ftc-pattern');
+  const ageEl = document.getElementById('ftc-age');
+  const hexEl = document.getElementById('ftc-hex');
+  const boldEl = document.getElementById('ftc-bold');
+  const name = (nameEl?.value || '').trim() || 'Eigene Regel';
+  const pattern = (patEl?.value || '').trim() || '*.*';
+  const maxAge = parseInt(ageEl?.value || '0', 10) || 0;
+  let colorHex = (hexEl?.value || '#34D399').trim().toUpperCase();
+  if (!colorHex.startsWith('#')) colorHex = '#' + colorHex;
+
+  if (!Array.isArray(STATE.settings.filetype_color_rules)) {
+    STATE.settings.filetype_color_rules = [];
+  }
+  const existingRule = (_editingFileTypeRuleIdx !== null && _editingFileTypeRuleIdx >= 0)
+    ? STATE.settings.filetype_color_rules[_editingFileTypeRuleIdx]
+    : null;
+  const ruleObj = {
+    id: existingRule?.id || ('ft_custom_' + Date.now()),
+    name,
+    pattern,
+    color_hex: colorHex,
+    bold: !!boldEl?.checked,
+    max_age_hours: maxAge > 0 ? maxAge : null,
+    enabled: existingRule ? existingRule.enabled !== false : true
+  };
+  if (existingRule) {
+    STATE.settings.filetype_color_rules[_editingFileTypeRuleIdx] = ruleObj;
+    _editingFileTypeRuleIdx = null;
+  } else {
+    STATE.settings.filetype_color_rules.unshift(ruleObj);
+  }
+  if (nameEl) nameEl.value = '';
+  if (patEl) patEl.value = '';
+  if (ageEl) ageEl.value = '0';
+  if (boldEl) boldEl.checked = false;
+
+  await updateSetting('filetype_color_rules', STATE.settings.filetype_color_rules);
+  toast('Dateityp-Farbregel gespeichert.');
+}
+
+async function toggleFileTypeRule(idx, enabled) {
+  const rules = STATE.settings.filetype_color_rules || [];
+  if (!rules[idx]) return;
+  rules[idx].enabled = !!enabled;
+  await updateSetting('filetype_color_rules', rules);
+}
+
+async function moveFileTypeRule(idx, delta) {
+  const rules = STATE.settings.filetype_color_rules || [];
+  const target = idx + delta;
+  if (target < 0 || target >= rules.length) return;
+  const tmp = rules[idx];
+  rules[idx] = rules[target];
+  rules[target] = tmp;
+  await updateSetting('filetype_color_rules', rules);
+}
+
+function editFileTypeRule(idx) {
+  const rules = STATE.settings.filetype_color_rules || [];
+  const r = rules[idx];
+  if (!r) return;
+  _editingFileTypeRuleIdx = idx;
+  document.getElementById('ftc-name').value = r.name || '';
+  document.getElementById('ftc-pattern').value = r.pattern || '';
+  document.getElementById('ftc-age').value = r.max_age_hours || 0;
+  document.getElementById('ftc-hex').value = r.color_hex || '#34D399';
+  document.getElementById('ftc-picker').value = (r.color_hex || '#34D399').slice(0, 7);
+  document.getElementById('ftc-bold').checked = !!r.bold;
+}
+
+async function deleteFileTypeRule(idx) {
+  const rules = STATE.settings.filetype_color_rules || [];
+  if (!rules[idx]) return;
+  rules.splice(idx, 1);
+  _editingFileTypeRuleIdx = null;
+  await updateSetting('filetype_color_rules', rules);
+}
+
+async function resetFileTypeColorRules() {
+  const res = await rpc('reset_filetype_colors');
+  if (res && res.settings) {
+    STATE.settings = res.settings;
+    applySettingsToDom();
+    populateSettingsUi();
+    renderFileList('left');
+    renderFileList('right');
+    toast('Standard-Dateityp-Farbregeln wiederhergestellt.');
+  }
+}
+
+function exportSettingsJson() {
+  const jsonStr = JSON.stringify(STATE.settings, null, 2);
+  copyText(jsonStr);
+  toast('Alle Einstellungen als JSON in die Zwischenablage kopiert!');
+}
+
+async function importSettingsJsonPrompt() {
+  const raw = prompt('Fügen Sie hier das gesicherte Einstellungs-JSON ein:');
+  if (!raw || !raw.trim()) return;
+  try {
+    const parsed = JSON.parse(raw);
+    const merged = Object.assign({}, STATE.settings, parsed);
+    const res = await rpc('save_settings', { settings: merged });
+    if (res && res.settings) {
+      STATE.settings = res.settings;
+      applySettingsToDom();
+      populateSettingsUi();
+      loadPane('left');
+      loadPane('right');
+      toast('Einstellungen erfolgreich aus JSON importiert!');
+    }
+  } catch (err) {
+    toast('Ungültiges JSON-Format: ' + err.message);
+  }
 }
 
 function renderFontsSettings() {
@@ -4065,10 +4939,29 @@ async function updateSetting(key, val) {
   const res = await rpc('save_settings', { settings: STATE.settings });
   if (res && res.settings) STATE.settings = res.settings;
   populateSettingsUi();
-  if (['show_hidden_files','show_file_extensions','sort_folders_first','language'].includes(key)) {
+
+  const reloadBackendKeys = [
+    'show_hidden_files','show_system_files','show_file_extensions',
+    'sort_folders_first','natural_number_sorting','case_sensitive_sorting',
+    'size_display_format','date_time_format','language'
+  ];
+  const rerenderListKeys = [
+    'show_parent_dir_entry','show_size_proportion_bars',
+    'custom_file_list_colors_enabled','enable_zebra_stripes','show_grid_lines',
+    'invert_cursor','enable_filetype_colors','filetype_color_rules',
+    'file_list_bg_color_hex','file_list_alt_bg_color_hex',
+    'file_list_text_color_hex','folder_text_color_hex','hidden_item_text_color_hex',
+    'readonly_item_text_color_hex','grid_line_color_hex',
+    'selection_border_color_hex','selection_bg_color_hex','selection_text_color_hex',
+    'marked_item_text_color_hex','marked_item_bg_color_hex'
+  ];
+  if (reloadBackendKeys.includes(key)) {
     loadPane('left');
     loadPane('right');
     updateDockInspector(getSelectedSingleItem());
+  } else if (rerenderListKeys.includes(key)) {
+    renderFileList('left');
+    renderFileList('right');
   }
 }
 
@@ -4082,6 +4975,8 @@ async function resetSingleColor(target) {
     STATE.settings = res.settings;
     applySettingsToDom();
     populateSettingsUi();
+    renderFileList('left');
+    renderFileList('right');
     toast('Farbe auf Standard zurückgesetzt.');
   }
 }
@@ -4515,9 +5410,18 @@ function runCommandById(id) {
 }
 
 /* ==================== F3 VIEWER / F4 EDITOR / HEX-EDITOR ==================== */
-async function openViewerModal(editable) {
+async function openViewerModal(editable, forceInternal = false) {
   const item = getSelectedSingleItem();
   if (!item || item.is_directory) { toast('Bitte eine Datei für F3/F4 auswählen.'); return; }
+  if (editable && !forceInternal && STATE.settings.external_editor_path && STATE.settings.external_editor_path.trim()) {
+    const extEd = STATE.settings.external_editor_path.trim();
+    const lres = await rpc('launch_external_tool', { tool: extEd, args: [item.full_path] });
+    if (lres && lres.ok) {
+      toast(`Externer Editor gestartet (${extEd}): ${item.name}`);
+      return;
+    }
+    toast(`Externer Editor konnte nicht gestartet werden (${lres?.error || extEd}) – öffne internen F4-Editor.`);
+  }
   STATE.viewerPath = item.full_path;
   STATE.hexPatches = {};
   const res = await rpc('quick_preview', { path: item.full_path });
@@ -4775,11 +5679,20 @@ async function openDiffModal() {
   const rItem = getSelectedSingleItem('right');
   const lp = lItem && !lItem.is_directory ? lItem.full_path : '';
   const rp = rItem && !rItem.is_directory ? rItem.full_path : '';
+  const extDiff = (STATE.settings.external_diff_tool_path || '').trim();
+  if (extDiff && lp && rp) {
+    const lres = await rpc('launch_external_tool', { tool: extDiff, args: [lp, rp] });
+    if (lres && lres.ok) {
+      toast(`Externes Diff-Tool gestartet (${extDiff})`);
+      return;
+    }
+  }
   showToolModal('⚖ Visueller Side-by-Side Datei-Diff-Viewer (Strg+Shift+U)', `
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
+    <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;margin-bottom:10px;flex-shrink:0;">
       <input class="input" id="diff-left" value="${esc(lp)}" placeholder="Linke Datei…">
       <input class="input" id="diff-right" value="${esc(rp)}" placeholder="Rechte Datei…">
       <button class="btn primary" onclick="runDiffCompare()">Vergleichen</button>
+      ${extDiff ? `<button class="btn" onclick="launchExternalDiffFromModal()">🚀 Extern (${esc(extDiff)})</button>` : '<span></span>'}
     </div>
     <div id="diff-summary" style="margin-bottom:8px;font-weight:600;flex-shrink:0;"></div>
     <div style="flex:1;min-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:11.5px;">
@@ -4787,6 +5700,16 @@ async function openDiffModal() {
     </div>
   `, null, 'tool:Diff');
   if (lp && rp) runDiffCompare();
+}
+
+async function launchExternalDiffFromModal() {
+  const extDiff = (STATE.settings.external_diff_tool_path || '').trim();
+  const lp = document.getElementById('diff-left')?.value.trim() || '';
+  const rp = document.getElementById('diff-right')?.value.trim() || '';
+  if (!extDiff || !lp || !rp) return;
+  const lres = await rpc('launch_external_tool', { tool: extDiff, args: [lp, rp] });
+  if (lres && lres.ok) toast(`Externes Diff-Tool gestartet (${extDiff})`);
+  else toast(lres?.error || 'Fehler beim Starten des externen Diff-Tools');
 }
 
 async function runDiffCompare() {
@@ -4910,6 +5833,7 @@ function openDuplicatesModal(customDir) {
 
   const dir = customDir || getTab(STATE.activeSide).path;
   DUP_STATE.activeDir = dir;
+  const defMinKb = STATE.settings.duplicates_min_size_kb ?? 1;
 
   const bodyHtml = `
     <!-- Top Controls Row -->
@@ -4917,7 +5841,7 @@ function openDuplicatesModal(customDir) {
       <input class="input" id="dup-dir" value="${esc(dir)}" style="flex:1;min-width:240px;font-family:var(--font-mono);font-size:12px;" placeholder="Zu scannendes Verzeichnis..." onkeydown="if(event.key==='Enter')startDuplicatesScan()">
       <div style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fg-dim);">
         <span>Min. Größe:</span>
-        <input class="input" type="number" id="dup-min-kb" value="1" min="0" style="width:65px;text-align:right;" title="Minimale Dateigröße in Kilobytes">
+        <input class="input" type="number" id="dup-min-kb" value="${defMinKb}" min="0" style="width:65px;text-align:right;" title="Minimale Dateigröße in Kilobytes">
         <span>KB</span>
       </div>
       <button class="btn primary" id="dup-scan-btn" onclick="startDuplicatesScan()">🧹 Scan starten</button>
@@ -6091,20 +7015,27 @@ async function openChecksumsModal() {
   const paths = getActionPaths();
   if (!paths.length) { toast('Bitte mindestens eine Datei auswählen.'); return; }
   const res = await rpc('checksums', { sub: 'compute', paths });
+  const defAlg = (STATE.settings.default_checksum_algorithm || 'SHA256').toUpperCase();
+  const entries = res.entries || [];
+  const manifestText = defAlg === 'MD5'
+    ? entries.map(e => `${e.md5}  ${e.file_name}`).join('\n')
+    : (defAlg === 'CRC32'
+        ? entries.map(e => `${e.file_name} ${e.crc32}`).join('\n')
+        : (res.sha256_manifest || ''));
   showToolModal('🔐 Prüfsummen-Generator & Manifest-Verifizierer (SHA-256, SHA-512, MD5, CRC32)', `
     <div style="flex:1;min-height:150px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">
-      <table class="data-tbl"><thead><tr><th>Datei</th><th>SHA-256</th><th>MD5</th><th>CRC32</th></tr></thead><tbody>
-        ${(res.entries || []).map(e => `<tr>
+      <table class="data-tbl"><thead><tr><th>Datei</th><th>SHA-256 ${defAlg==='SHA256'?'★':''}</th><th>MD5 ${defAlg==='MD5'?'★':''}</th><th>CRC32 ${defAlg==='CRC32'?'★':''}</th></tr></thead><tbody>
+        ${entries.map(e => `<tr>
           <td><strong>${esc(e.file_name)}</strong></td>
-          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.sha256)}</td>
-          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.md5)}</td>
-          <td style="font-family:var(--font-mono);font-size:11px;">${esc(e.crc32)}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;${defAlg==='SHA256'?'color:var(--accent);font-weight:700;':''}">${esc(e.sha256)}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;${defAlg==='MD5'?'color:var(--accent);font-weight:700;':''}">${esc(e.md5)}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;${defAlg==='CRC32'?'color:var(--accent);font-weight:700;':''}">${esc(e.crc32)}</td>
         </tr>`).join('')}
       </tbody></table>
     </div>
     <div style="display:flex;flex-direction:column;flex:1;min-height:120px;">
-      <label style="font-weight:600;flex-shrink:0;">Generiertes .sha256 / .sfv Manifest:</label>
-      <textarea class="textarea" style="width:100%;flex:1;min-height:100px;font-family:var(--font-mono);margin-top:4px;resize:none;">${esc(res.sha256_manifest || '')}</textarea>
+      <label style="font-weight:600;flex-shrink:0;">Generiertes Manifest (${esc(defAlg)}):</label>
+      <textarea class="textarea" style="width:100%;flex:1;min-height:100px;font-family:var(--font-mono);margin-top:4px;resize:none;">${esc(manifestText)}</textarea>
     </div>
   `, null, 'tool:Checksums');
 }
@@ -6243,7 +7174,9 @@ async function refreshSmartExport() {
 async function openArchiveModal(archivePath) {
   const paths = getActionPaths();
   const dir = getTab(STATE.activeSide).path;
-  const defaultDest = dir.replace(/[\\/]+$/,'') + '\\bundle.zip';
+  const rawDefFmt = (STATE.settings.default_archive_format || 'zip').replace(/^\.+/, '');
+  const defExt = '.' + rawDefFmt;
+  const defaultDest = dir.replace(/[\\/]+$/,'') + '\\bundle' + defExt;
   let entriesHtml = '';
   if (archivePath) {
     const lres = await rpc('archive', { sub: 'list', archive_path: archivePath });
@@ -6264,11 +7197,11 @@ async function openArchiveModal(archivePath) {
       <div style="margin-bottom:6px;">Ausgewählte Elemente (${paths.length}) in neues Archiv packen:</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <select class="select" id="arch-fmt" onchange="onArchiveFormatChange(this.value)">
-          <option value=".zip">.zip (Deflate)</option>
-          <option value=".7z">.7z (LZMA2)</option>
-          <option value=".tar.gz">.tar.gz (GZip)</option>
-          <option value=".tar.zst">.tar.zst (Zstandard)</option>
-          <option value=".tar.xz">.tar.xz (XZ / LZMA)</option>
+          <option value=".zip" ${defExt==='.zip'?'selected':''}>.zip (Deflate)</option>
+          <option value=".7z" ${defExt==='.7z'?'selected':''}>.7z (LZMA2)</option>
+          <option value=".tar.gz" ${defExt==='.tar.gz'?'selected':''}>.tar.gz (GZip)</option>
+          <option value=".tar.zst" ${defExt==='.tar.zst'?'selected':''}>.tar.zst (Zstandard)</option>
+          <option value=".tar.xz" ${defExt==='.tar.xz'?'selected':''}>.tar.xz (XZ / LZMA)</option>
         </select>
         <input class="input" id="arch-dest" value="${esc(defaultDest)}" style="flex:1">
         <button class="btn primary" onclick="packNewArchive()">📦 Jetzt packen</button>
@@ -6662,6 +7595,10 @@ async function applySelectionEngineRule(mode) {
 /* Feature 2: Transfer Queue & Job Manager (Ctrl+Shift+Q) */
 let _tqTimer = null;
 async function openTransferQueueModal(autoEnqueue = false) {
+  const defLimit = STATE.settings.default_transfer_speed_limit_mbps ?? 0;
+  if (defLimit > 0) {
+    await rpc('transfer_queue', { sub: 'speed_limit', kbps: defLimit * 1024 });
+  }
   if (autoEnqueue) {
     const sources = getActionPaths();
     const otherSide = STATE.activeSide === 'left' ? 'right' : 'left';
@@ -6675,7 +7612,7 @@ async function openTransferQueueModal(autoEnqueue = false) {
     <div class="prefs-card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
       <span>Aktuelle Auswahl in Queue einreihen:</span>
       <select class="select" id="tq-kind"><option value="Copy">Kopieren (Copy)</option><option value="Move">Verschieben (Move)</option></select>
-      <label>Speed-Limit (MB/s, 0=Max): <input class="input" id="tq-limit" type="number" value="0" style="width:65px" onchange="rpc('transfer_queue',{sub:'speed_limit',kbps:(parseInt(this.value,10)||0)*1024})"></label>
+      <label>Speed-Limit (MB/s, 0=Max): <input class="input" id="tq-limit" type="number" value="${defLimit}" style="width:65px" onchange="rpc('transfer_queue',{sub:'speed_limit',kbps:(parseInt(this.value,10)||0)*1024})"></label>
       <button class="btn primary" onclick="enqueueCurrentSelectionToQueue()">+ Zur Queue hinzufügen</button>
       <button class="btn" onclick="clearFinishedQueueJobs()">🧹 Fertige leeren</button>
     </div>
@@ -7248,10 +8185,11 @@ async function openShareServerModal() {
   const dir = getTab(STATE.activeSide).path;
   const isRun = !!(st.running || st.is_running);
   const sharedRoot = st.shared_root || st.shared_dir || dir;
+  const defPort = (isRun && st.port) ? st.port : (STATE.settings.default_share_server_port || 8787);
   showToolModal('📡 Ad-hoc Lokaler HTTP-Teilen-Server mit QR-Code (Strg+Alt+S)', `
     <div class="prefs-card" style="display:flex;gap:8px;align-items:center;">
       <input class="input" id="sh-dir" value="${esc(isRun ? sharedRoot : dir)}" style="flex:1">
-      <input class="input" id="sh-port" type="number" value="${st.port || 8787}" style="width:90px">
+      <input class="input" id="sh-port" type="number" value="${defPort}" style="width:90px">
       <button class="btn primary" onclick="startLocalShareServer()">▶ Server starten</button>
       <button class="btn danger" onclick="stopLocalShareServer()">⏹ Stoppen</button>
     </div>
@@ -7282,7 +8220,7 @@ function renderShareServerStatus(st) {
 
 async function startLocalShareServer() {
   const dir = document.getElementById('sh-dir').value;
-  const port = parseInt(document.getElementById('sh-port').value, 10) || 8787;
+  const port = parseInt(document.getElementById('sh-port').value, 10) || (STATE.settings.default_share_server_port || 8787);
   const st = await rpc('share_server', { sub: 'start', dir, port });
   renderShareServerStatus(st);
   toast('Lokaler HTTP-Teilen-Server gestartet: ' + (st.url || ''));
@@ -7648,7 +8586,10 @@ function copyText(txt) {
 function adjustZoom(delta) {
   STATE.zoom = Math.min(160, Math.max(75, STATE.zoom + delta));
   document.body.style.zoom = (STATE.zoom / 100);
-  document.getElementById('statusZoom').textContent = STATE.zoom + '%';
+  const stZ = document.getElementById('statusZoom');
+  if (stZ) stZ.textContent = STATE.zoom + '%';
+  STATE.settings.ui_zoom_percent = STATE.zoom;
+  rpc('save_settings', { settings: STATE.settings });
 }
 
 function initSplitter() {
@@ -7857,7 +8798,12 @@ window.addEventListener('keydown', (e) => {
         return;
       }
       const it = getSelectedSingleItem(STATE.activeSide);
-      if (it) toggleMarkItem(STATE.activeSide, it, STATE.panes[STATE.activeSide].cursorIndex || 0);
+      if (it) {
+        toggleMarkItem(STATE.activeSide, it, STATE.panes[STATE.activeSide].cursorIndex || 0);
+        if (STATE.settings.space_moves_down_on_mark) {
+          navigatePaneByKey(STATE.activeSide, 'ArrowDown', false);
+        }
+      }
       return;
     } else if (e.key === 'Enter') {
       e.preventDefault();

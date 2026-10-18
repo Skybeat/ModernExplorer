@@ -132,6 +132,88 @@ pub fn format_bytes(bytes: u64) -> String {
     }
 }
 
+pub fn format_bytes_custom(bytes: u64, mode: &str) -> String {
+    match mode {
+        "bytes" => {
+            let s = bytes.to_string();
+            let mut out = String::with_capacity(s.len() + s.len() / 3 + 2);
+            for (idx, ch) in s.chars().rev().enumerate() {
+                if idx > 0 && idx % 3 == 0 {
+                    out.push('.');
+                }
+                out.push(ch);
+            }
+            let formatted: String = out.chars().rev().collect();
+            format!("{} B", formatted)
+        }
+        "kb" => format!("{:.1} KB", (bytes as f64) / 1024.0),
+        "mb" => format!("{:.2} MB", (bytes as f64) / (1024.0 * 1024.0)),
+        _ => format_bytes(bytes),
+    }
+}
+
+pub fn natural_cmp_str(a: &str, b: &str, case_sensitive: bool) -> std::cmp::Ordering {
+    let mut chars_a = a.chars().peekable();
+    let mut chars_b = b.chars().peekable();
+
+    while let (Some(&ca), Some(&cb)) = (chars_a.peek(), chars_b.peek()) {
+        if ca.is_ascii_digit() && cb.is_ascii_digit() {
+            let mut num_a = 0u64;
+            let mut len_a = 0usize;
+            while let Some(&d) = chars_a.peek() {
+                if let Some(digit) = d.to_digit(10) {
+                    num_a = num_a.saturating_mul(10).saturating_add(digit as u64);
+                    len_a += 1;
+                    chars_a.next();
+                } else {
+                    break;
+                }
+            }
+            let mut num_b = 0u64;
+            let mut len_b = 0usize;
+            while let Some(&d) = chars_b.peek() {
+                if let Some(digit) = d.to_digit(10) {
+                    num_b = num_b.saturating_mul(10).saturating_add(digit as u64);
+                    len_b += 1;
+                    chars_b.next();
+                } else {
+                    break;
+                }
+            }
+            match num_a.cmp(&num_b) {
+                std::cmp::Ordering::Equal => {
+                    if len_a != len_b {
+                        return len_a.cmp(&len_b);
+                    }
+                }
+                ord => return ord,
+            }
+        } else {
+            chars_a.next();
+            chars_b.next();
+            let cmp_ord = if case_sensitive {
+                ca.cmp(&cb)
+            } else {
+                ca.to_lowercase().cmp(cb.to_lowercase())
+            };
+            if cmp_ord != std::cmp::Ordering::Equal {
+                return cmp_ord;
+            }
+        }
+    }
+    chars_a.count().cmp(&chars_b.count())
+}
+
+fn compare_strings(a: &str, b: &str, natural: bool, case_sensitive: bool) -> std::cmp::Ordering {
+    if natural {
+        natural_cmp_str(a, b, case_sensitive)
+    } else if case_sensitive {
+        a.cmp(b)
+    } else {
+        a.to_lowercase().cmp(&b.to_lowercase())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SortColumn {
     Name,
@@ -156,25 +238,33 @@ pub fn sort_entries_with_options(
     direction: SortDirection,
     folders_first: bool,
 ) {
+    sort_entries_advanced(entries, column, direction, folders_first, true, false);
+}
+
+pub fn sort_entries_advanced(
+    entries: &mut [FileEntry],
+    column: SortColumn,
+    direction: SortDirection,
+    folders_first: bool,
+    natural_sorting: bool,
+    case_sensitive: bool,
+) {
     entries.sort_by(|a, b| {
         if folders_first && a.is_directory != b.is_directory {
             return b.is_directory.cmp(&a.is_directory);
         }
         let ord = match column {
-            SortColumn::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            SortColumn::Name => compare_strings(&a.name, &b.name, natural_sorting, case_sensitive),
             SortColumn::Size => a
                 .effective_size()
                 .cmp(&b.effective_size())
-                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+                .then_with(|| compare_strings(&a.name, &b.name, natural_sorting, case_sensitive)),
             SortColumn::Modified => a
                 .modified
                 .cmp(&b.modified)
-                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
-            SortColumn::Extension => a
-                .extension
-                .to_lowercase()
-                .cmp(&b.extension.to_lowercase())
-                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())),
+                .then_with(|| compare_strings(&a.name, &b.name, natural_sorting, case_sensitive)),
+            SortColumn::Extension => compare_strings(&a.extension, &b.extension, natural_sorting, case_sensitive)
+                .then_with(|| compare_strings(&a.name, &b.name, natural_sorting, case_sensitive)),
         };
         match direction {
             SortDirection::Ascending => ord,
