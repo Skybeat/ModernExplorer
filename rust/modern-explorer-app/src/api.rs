@@ -80,6 +80,18 @@ pub struct DuplicatesJobState {
     pub cancel_flag: Arc<AtomicBool>,
 }
 
+#[derive(Clone)]
+pub struct TreemapJobState {
+    pub running: bool,
+    pub scanned_files: usize,
+    pub scanned_folders: usize,
+    pub current_path: String,
+    pub root_path: String,
+    pub result: Option<TreemapNode>,
+    pub error: Option<String>,
+    pub cancel_flag: Arc<AtomicBool>,
+}
+
 pub struct BackendState {
     pub settings: AppSettings,
     pub favorites: FavoritesStore,
@@ -91,6 +103,7 @@ pub struct BackendState {
     pub quick_runner: QuickCommandRunnerService,
     pub cached_treemap: Option<TreemapNode>,
     pub duplicates_job: Arc<Mutex<Option<DuplicatesJobState>>>,
+    pub treemap_job: Arc<Mutex<Option<TreemapJobState>>>,
     pub selection_store: SelectionPresetsStore,
     pub transfer_queue: TransferQueueManager,
     pub frecency_store: FrecencyStore,
@@ -113,6 +126,7 @@ impl BackendState {
             quick_runner: QuickCommandRunnerService::new(),
             cached_treemap: None,
             duplicates_job: Arc::new(Mutex::new(None)),
+            treemap_job: Arc::new(Mutex::new(None)),
             selection_store: SelectionPresetsStore::load(),
             transfer_queue: TransferQueueManager::new(),
             frecency_store: FrecencyStore::load(),
@@ -2228,6 +2242,90 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         let sub = params.get("sub").and_then(|v| v.as_str()).unwrap_or("view");
         let is_de = LanguageCode::from_setting(&self.settings.language) == LanguageCode::De;
 
+        if sub == "start_scan" {
+            let dir = params
+                .get("dir")
+                .and_then(|v| v.as_str())
+                .unwrap_or(".")
+                .to_string();
+
+            if let Ok(mut lock) = self.treemap_job.lock() {
+                if let Some(ref current) = *lock {
+                    if current.running {
+                        current.cancel_flag.store(true, Ordering::SeqCst);
+                    }
+                }
+                let cancel_flag = Arc::new(AtomicBool::new(false));
+                *lock = Some(TreemapJobState {
+                    running: true,
+                    scanned_files: 0,
+                    scanned_folders: 0,
+                    current_path: dir.clone(),
+                    root_path: dir.clone(),
+                    result: None,
+                    error: None,
+                    cancel_flag: Arc::clone(&cancel_flag),
+                });
+
+                let job_ref = Arc::clone(&self.treemap_job);
+                let dir_clone = dir.clone();
+                std::thread::spawn(move || {
+                    let cancel_inner = Arc::clone(&cancel_flag);
+                    let tree = StorageTreemapService::scan_directory_tree_with_progress(
+                        &dir_clone,
+                        6,
+                        cancel_inner,
+                        |files, folders, cur| {
+                            if let Ok(mut lk) = job_ref.lock() {
+                                if let Some(ref mut j) = *lk {
+                                    j.scanned_files = files;
+                                    j.scanned_folders = folders;
+                                    j.current_path = cur.to_string();
+                                }
+                            }
+                        },
+                    );
+                    if let Ok(mut lk) = job_ref.lock() {
+                        if let Some(ref mut j) = *lk {
+                            j.running = false;
+                            if !j.cancel_flag.load(Ordering::Relaxed) {
+                                j.result = Some(tree);
+                            }
+                        }
+                    }
+                });
+            }
+            return json!({ "ok": true, "started": true });
+        }
+
+        if sub == "poll_progress" {
+            if let Ok(lock) = self.treemap_job.lock() {
+                if let Some(ref job) = *lock {
+                    return json!({
+                        "ok": true,
+                        "running": job.running,
+                        "scanned_files": job.scanned_files,
+                        "scanned_folders": job.scanned_folders,
+                        "current_path": job.current_path,
+                        "root_path": job.root_path,
+                        "done": !job.running && job.result.is_some(),
+                        "cancelled": job.cancel_flag.load(Ordering::Relaxed),
+                        "error": job.error,
+                    });
+                }
+            }
+            return json!({ "ok": true, "running": false, "no_job": true });
+        }
+
+        if sub == "cancel_scan" {
+            if let Ok(lock) = self.treemap_job.lock() {
+                if let Some(ref job) = *lock {
+                    job.cancel_flag.store(true, Ordering::SeqCst);
+                }
+            }
+            return json!({ "ok": true, "cancelled": true });
+        }
+
         if sub == "list_tree_subdirs" {
             let target = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
             let mut subdirs = Vec::new();
@@ -2285,6 +2383,14 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             }
         }
 
+        if let Ok(mut lock) = self.treemap_job.lock() {
+            if let Some(ref mut job) = *lock {
+                if let Some(res) = job.result.take() {
+                    self.cached_treemap = Some(res);
+                }
+            }
+        }
+
         let dir = params.get("dir").and_then(|v| v.as_str()).unwrap_or(".");
         let rescan = params
             .get("rescan")
@@ -2302,9 +2408,21 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             .get("color_mode")
             .and_then(|v| v.as_str())
             .unwrap_or("Category");
+        let include_folders = params
+            .get("include_folders")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
-        if rescan || self.cached_treemap.is_none() {
+        if rescan {
             self.cached_treemap = Some(StorageTreemapService::scan_directory_tree(dir, 6));
+        }
+
+        if self.cached_treemap.is_none() {
+            return json!({
+                "ok": true,
+                "needs_scan": true,
+                "dir": dir,
+            });
         }
 
         let scanned_root = self.cached_treemap.as_ref().unwrap();
@@ -2377,6 +2495,7 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             2,
             420,
             4.0,
+            include_folders,
         )
         .into_iter()
         .map(|r| {
@@ -2513,6 +2632,7 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             "deleted_count": deleted_count,
             "freed_bytes": freed_bytes,
             "freed_text": format_bytes(freed_bytes),
+            "include_folders": include_folders,
             "md_report": StorageTreemapService::export_storage_report(current_root, true),
             "csv_report": StorageTreemapService::export_storage_report(current_root, false),
         })

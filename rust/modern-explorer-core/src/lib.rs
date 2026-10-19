@@ -191,6 +191,14 @@ mod tests {
         assert_eq!(top.len(), 2);
         let report = StorageTreemapService::export_storage_report(&tree, true);
         assert!(report.contains("dup1.dat"));
+
+        let rects_files_only = StorageTreemapService::build_squarified_treemap_layout(&tree, 800.0, 600.0, 2, 100, 4.0, false);
+        assert_eq!(rects_files_only.len(), 2);
+        assert!(!rects_files_only[0].is_group_container);
+        assert!(!rects_files_only[1].is_group_container);
+
+        let rects_with_folders = StorageTreemapService::build_squarified_treemap_layout(&tree, 800.0, 600.0, 2, 100, 4.0, true);
+        assert!(!rects_with_folders.is_empty());
     }
 
     #[test]

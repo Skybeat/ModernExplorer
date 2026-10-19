@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TreemapFileCategory {
@@ -151,6 +153,23 @@ pub struct StorageTreemapService;
 
 impl StorageTreemapService {
     pub fn scan_directory_tree(root_path: impl AsRef<Path>, max_depth: usize) -> TreemapNode {
+        Self::scan_directory_tree_with_progress(
+            root_path,
+            max_depth,
+            Arc::new(AtomicBool::new(false)),
+            |_, _, _| {},
+        )
+    }
+
+    pub fn scan_directory_tree_with_progress<F>(
+        root_path: impl AsRef<Path>,
+        max_depth: usize,
+        cancel_flag: Arc<AtomicBool>,
+        mut progress_cb: F,
+    ) -> TreemapNode
+    where
+        F: FnMut(usize, usize, &str),
+    {
         let root_ref = root_path.as_ref();
         let canonical_root = fs::canonicalize(root_ref)
             .map(|p| {
@@ -159,10 +178,34 @@ impl StorageTreemapService {
             })
             .unwrap_or_else(|_| root_ref.to_string_lossy().to_string());
         let base_path = Path::new(&canonical_root);
-        Self::scan_node(base_path, base_path, 0, max_depth.max(1))
+        let mut total_files = 0usize;
+        let mut total_folders = 0usize;
+        Self::scan_node(
+            base_path,
+            base_path,
+            0,
+            max_depth.max(1),
+            &cancel_flag,
+            &mut total_files,
+            &mut total_folders,
+            &mut progress_cb,
+        )
     }
 
-    fn scan_node(path: &Path, root_base: &Path, depth: usize, max_depth: usize) -> TreemapNode {
+    #[allow(clippy::too_many_arguments)]
+    fn scan_node<F>(
+        path: &Path,
+        root_base: &Path,
+        depth: usize,
+        max_depth: usize,
+        cancel_flag: &Arc<AtomicBool>,
+        total_files: &mut usize,
+        total_folders: &mut usize,
+        progress_cb: &mut F,
+    ) -> TreemapNode
+    where
+        F: FnMut(usize, usize, &str),
+    {
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -177,6 +220,22 @@ impl StorageTreemapService {
                 if s.is_empty() { ".".to_string() } else { s }
             })
             .unwrap_or_else(|| name.clone());
+
+        if cancel_flag.load(Ordering::Relaxed) {
+            return TreemapNode {
+                name,
+                full_path,
+                relative_path,
+                extension: String::new(),
+                size_bytes: 0,
+                is_directory: true,
+                file_count: 0,
+                folder_count: 0,
+                category: TreemapFileCategory::OtherTemp,
+                modified: Local::now(),
+                children: Vec::new(),
+            };
+        }
 
         let symlink_meta = fs::symlink_metadata(path).ok();
         let is_symlink = symlink_meta
@@ -194,6 +253,10 @@ impl StorageTreemapService {
 
         if !is_dir {
             let size = meta.map(|m| m.len()).unwrap_or(0);
+            *total_files += 1;
+            if *total_files % 64 == 0 {
+                progress_cb(*total_files, *total_folders, &full_path);
+            }
             let raw_ext = path
                 .extension()
                 .map(|e| e.to_string_lossy().to_string())
@@ -218,30 +281,45 @@ impl StorageTreemapService {
             };
         }
 
+        *total_folders += 1;
+        progress_cb(*total_files, *total_folders, &full_path);
+
         let mut children = Vec::new();
         let mut total_size = 0u64;
-        let mut total_files = 0usize;
-        let mut total_folders = 0usize;
+        let mut sub_files = 0usize;
+        let mut sub_folders = 0usize;
 
         if !is_symlink && depth < max_depth {
             if let Ok(rd) = fs::read_dir(path) {
                 for entry in rd.flatten() {
+                    if cancel_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
                     let entry_path = entry.path();
                     if let Ok(ft) = entry.file_type() {
                         if ft.is_symlink() {
                             continue;
                         }
                     }
-                    let child = Self::scan_node(&entry_path, root_base, depth + 1, max_depth);
+                    let child = Self::scan_node(
+                        &entry_path,
+                        root_base,
+                        depth + 1,
+                        max_depth,
+                        cancel_flag,
+                        total_files,
+                        total_folders,
+                        progress_cb,
+                    );
                     if child.is_directory && child.file_count == 0 && child.size_bytes == 0 {
                         continue;
                     }
                     total_size = total_size.saturating_add(child.size_bytes);
                     if child.is_directory {
-                        total_folders += 1 + child.folder_count;
-                        total_files += child.file_count;
+                        sub_folders += 1 + child.folder_count;
+                        sub_files += child.file_count;
                     } else {
-                        total_files += 1;
+                        sub_files += 1;
                     }
                     children.push(child);
                 }
@@ -257,8 +335,8 @@ impl StorageTreemapService {
             extension: String::new(),
             size_bytes: total_size,
             is_directory: true,
-            file_count: total_files,
-            folder_count: total_folders,
+            file_count: sub_files,
+            folder_count: sub_folders,
             category: TreemapFileCategory::OtherTemp,
             modified,
             children,
@@ -295,6 +373,18 @@ impl StorageTreemapService {
         None
     }
 
+    pub fn collect_all_files<'a>(node: &'a TreemapNode, files: &mut Vec<&'a TreemapNode>) {
+        if !node.is_directory {
+            if node.size_bytes > 0 {
+                files.push(node);
+            }
+        } else {
+            for child in &node.children {
+                Self::collect_all_files(child, files);
+            }
+        }
+    }
+
     /// Computes a 2D Squarified Treemap layout (Bruls-Huizing-van Wijk algorithm) with hierarchical Group Containers,
     /// matching .NET's `StorageTreemapService.BuildSquarifiedTreemapLayout`.
     pub fn build_squarified_treemap_layout(
@@ -304,11 +394,48 @@ impl StorageTreemapService {
         max_depth: usize,
         max_tiles: usize,
         min_tile_size: f32,
+        include_folders: bool,
     ) -> Vec<TreemapRect> {
         let mut results = Vec::new();
-        if width <= 4.0 || height <= 4.0 || root_node.size_bytes == 0 || root_node.children.is_empty() {
+        if width <= 4.0 || height <= 4.0 || root_node.size_bytes == 0 {
             return results;
         }
+
+        if !include_folders {
+            let mut all_files = Vec::new();
+            Self::collect_all_files(root_node, &mut all_files);
+            all_files.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+            if all_files.is_empty() {
+                return results;
+            }
+            if all_files.len() > max_tiles {
+                all_files.truncate(max_tiles);
+            }
+            let total_file_bytes: u64 = all_files.iter().map(|f| f.size_bytes).sum();
+            let child_rects = Self::squarify_children(&all_files, 0.0, 0.0, width, height, total_file_bytes);
+            for (child, cx, cy, cw, ch) in child_rects {
+                if cw < min_tile_size || ch < min_tile_size {
+                    continue;
+                }
+                let mut shallow = (*child).clone();
+                shallow.children.clear();
+                results.push(TreemapRect {
+                    x: cx,
+                    y: cy,
+                    width: cw,
+                    height: ch,
+                    depth: 0,
+                    is_group_container: false,
+                    node: shallow,
+                });
+            }
+            return results;
+        }
+
+        if root_node.children.is_empty() {
+            return results;
+        }
+
         let mut leaf_count = 0usize;
         Self::layout_directory(
             root_node,
@@ -565,7 +692,7 @@ impl StorageTreemapService {
         height: f32,
         max_rects: usize,
     ) -> Vec<TreemapRect> {
-        Self::build_squarified_treemap_layout(root, width, height, 2, max_rects.max(60), 4.0)
+        Self::build_squarified_treemap_layout(root, width, height, 2, max_rects.max(60), 4.0, true)
     }
 
     pub fn compute_extension_stats(

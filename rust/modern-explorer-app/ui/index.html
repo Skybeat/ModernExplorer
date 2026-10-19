@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.14 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.15 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -485,10 +485,10 @@
     justify-content: flex-end;
   }
   .file-row:hover { background: var(--bg-hover); }
-  .file-row.is-folder .f-name { color: var(--fl-folder-text); }
-  .file-row.is-readonly .f-name { color: var(--fl-readonly-text); }
+  .file-row.is-folder:not(.is-parent-dir) .f-name { color: var(--fl-folder-text) !important; font-weight: 600; }
+  .file-row.is-readonly:not(.is-folder) .f-name { color: var(--fl-readonly-text); }
+  .file-row.is-hidden:not(.is-folder) .f-name { color: var(--fl-hidden-text); }
   .file-row.is-hidden { opacity: 0.78; }
-  .file-row.is-hidden .f-name { color: var(--fl-hidden-text); }
   .file-row.marked {
     background: var(--marked-bg-color);
   }
@@ -584,6 +584,10 @@
   .file-card.selected { background: var(--accent-soft); border-color: var(--sel-border-color); }
   .file-card .thumb-img { max-width: 100%; max-height: 70%; object-fit: contain; border-radius: 4px; }
   .file-card .card-name { font-size: 11.5px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-card.is-folder:not(.is-parent-dir) .card-name { color: var(--fl-folder-text) !important; font-weight: 600; }
+  .file-card.is-readonly:not(.is-folder) .card-name { color: var(--fl-readonly-text); }
+  .file-card.is-hidden:not(.is-folder) .card-name { color: var(--fl-hidden-text); }
+  .file-card.is-hidden { opacity: 0.78; }
   .file-card .card-sub { font-size: 10px; color: var(--fg-muted); }
 
   /* Pane Footer */
@@ -931,6 +935,11 @@
     background-image: linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%, transparent);
     animation: dupStripes 0.8s linear infinite;
   }
+  @keyframes tmPulse {
+    0% { background-position: 0% 50%; opacity: 0.9; }
+    50% { background-position: 100% 50%; opacity: 1; }
+    100% { background-position: 0% 50%; opacity: 0.9; }
+  }
 </style>
 </head>
 <body>
@@ -1258,7 +1267,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.14 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.15 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1801,7 +1810,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.14</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.15</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1952,7 +1961,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.14</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.14</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.15</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.15</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1961,7 +1970,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.14.
+        ✓ Sie verwenden die aktuelle Version v1.9.15.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2145,7 +2154,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.14',
+  version: '1.9.15',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2853,7 +2862,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.14": "Installed version: v1.9.14",
+  "Installierte Version: v1.9.15": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -3281,8 +3290,37 @@ const I18N_EN = {
   "🖥 PowerShell-Terminal hier öffnen": "🖥 Open PowerShell terminal here",
   "🔍 In diesen Ordner hineinzoomen": "🔍 Zoom into this folder",
   "🎯 Im aktiven Explorer-Tab zeigen": "🎯 Reveal in active Explorer tab",
-  "📂 Ordner als neuen Tab öffnen": "📂 Open folder as new tab",
-  "📋 Pfad in Zwischenablage kopieren": "📋 Copy path to clipboard"
+  "📋 Pfad in Zwischenablage kopieren": "📋 Copy path to clipboard",
+  "tm.title": "Storage Treemap",
+  "tm.footer_hint": "Click a tile for details. Double-click to zoom in. Ctrl+click for multi-selection.",
+  "tm.reveal_in_tab": "Show in Active Tab",
+  "tm.open_as_tab": "Open as New Tab",
+  "tm.delete_sel": "Delete Selected",
+  "tm.delete_confirm": "Really Delete?",
+  "tm.explorer_tree": "Directory Tree",
+  "tm.scan_btn": "Start Scan",
+  "tm.cancel_scan": "Cancel Scan",
+  "tm.zoom_up": "Up One Level",
+  "tm.zoom_root": "Back to Root",
+  "tm.hierarchy_hdr": "Folder Hierarchy",
+  "tm.top100_files": "Top 100 Largest Files",
+  "tm.top100_hdr": "Top 100 Largest Files",
+  "tm.subfolders": "Subfolders",
+  "tm.ext_stats_hdr": "File Extension Stats",
+  "tm.show_all_types": "Show All Types",
+  "tm.map_hdr": "Storage Treemap",
+  "tm.mode_category": "Category Colors",
+  "tm.mode_age": "File Age Heatmap",
+  "tm.export_report": "Export Report",
+  "tm.select_drive_or_folder": "Select Drive or Folder",
+  "tm.scanning": "Scanning directory",
+  "tm.files_in": "files in",
+  "tm.folders": "folders",
+  "tm.include_folders": "Include Folders",
+  "tm.start_scan_hint": "Click 'Start Scan' to begin analysis.",
+  "tm.ready_to_scan": "Ready to Scan",
+  "tm.scanning_active": "Scanning in progress…",
+  "tm.scan_aborted": "Scan cancelled."
 };
 
 const I18N = {
@@ -3331,7 +3369,37 @@ const I18N = {
     'prefs.cat.fonts': '🔤 Schriftgrößen', 'prefs.cat.windows': '📐 Fenstergrößen', 'prefs.cat.session': '💾 Sitzung & Updates',
     'prefs.cat.shortcuts': '⌨️ Tastenkürzel',
     'prefs.done': '✓ Fertig & Schließen',
-    'common.cancel': 'Abbrechen', 'common.close': 'Schließen'
+    'common.cancel': 'Abbrechen', 'common.close': 'Schließen',
+    'tm.title': 'Speicherplatz-Treemap',
+    'tm.footer_hint': 'Klicken Sie auf eine Kachel für Details. Doppelklick zum Hineinzoomen. Strg+Klick für Mehrfachauswahl.',
+    'tm.reveal_in_tab': 'Im aktiven Tab anzeigen',
+    'tm.open_as_tab': 'In neuem Tab öffnen',
+    'tm.delete_sel': 'Ausgewählte löschen',
+    'tm.delete_confirm': 'Wirklich löschen?',
+    'tm.explorer_tree': 'Verzeichnisbaum',
+    'tm.scan_btn': 'Scan starten',
+    'tm.cancel_scan': 'Scan abbrechen',
+    'tm.zoom_up': 'Eine Ebene höher',
+    'tm.zoom_root': 'Zurück zur Wurzel',
+    'tm.hierarchy_hdr': 'Ordner-Hierarchie',
+    'tm.top100_files': 'Top 100 Größte Dateien',
+    'tm.top100_hdr': 'Top 100 Größte Dateien',
+    'tm.subfolders': 'Unterordner',
+    'tm.ext_stats_hdr': 'Dateitypen-Statistik',
+    'tm.show_all_types': 'Alle Typen anzeigen',
+    'tm.map_hdr': 'Speicher-Treemap',
+    'tm.mode_category': 'Kategorie-Farben',
+    'tm.mode_age': 'Datei-Alter Heatmap',
+    'tm.export_report': 'Bericht exportieren',
+    'tm.select_drive_or_folder': 'Laufwerk oder Ordner wählen',
+    'tm.scanning': 'Scanne Verzeichnis',
+    'tm.files_in': 'Dateien in',
+    'tm.folders': 'Ordnern',
+    'tm.include_folders': 'Ordner einbeziehen',
+    'tm.start_scan_hint': 'Klicken Sie auf "Scan starten", um die Analyse zu beginnen.',
+    'tm.ready_to_scan': 'Bereit zur Analyse',
+    'tm.scanning_active': 'Analyse läuft…',
+    'tm.scan_aborted': 'Scan abgebrochen.'
   },
   en: I18N_EN,
   es: Object.assign({}, {
@@ -4071,7 +4139,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.14';
+  STATE.version = data.version || '1.9.15';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -4633,10 +4701,15 @@ function renderFileList(side) {
 
     if (mode !== 'Details') {
       const card = document.createElement('div');
-      card.className = 'file-card' + (isSel ? ' selected' : '') + (isMark ? ' marked' : '');
+      card.className = 'file-card'
+        + (isSel ? ' selected' : '')
+        + (isMark ? ' marked' : '')
+        + (item.is_directory ? ' is-folder' : '')
+        + (item.is_readonly ? ' is-readonly' : '')
+        + (item.is_hidden ? ' is-hidden' : '');
       card.dataset.path = item.full_path;
       card.dataset.idx = String(idx);
-      const nameStyle = (!isMark && ftRule) ? `style="color:${esc(ftRule.color)};${ftRule.bold ? 'font-weight:700;' : ''}"` : '';
+      const nameStyle = (!isMark && !item.is_directory && ftRule) ? `style="color:${esc(ftRule.color)};${ftRule.bold ? 'font-weight:700;' : ''}"` : '';
       const showThumb = isImageExt(item.extension) && ['MediumIcons','LargeIcons','ExtraLargeIcons','Tiles'].includes(mode);
       card.innerHTML = showThumb
         ? `<img class="thumb-img" src="${filePreviewUrl(item.full_path)}" loading="lazy"><div class="card-name" ${nameStyle}>${esc(item.display_name)}</div><div class="card-sub">${esc(item.size_text)}</div>`
@@ -8447,13 +8520,18 @@ async function openTreemapModal(customDir) {
   showToolModal('📊 ' + t('tm.title'), `
     <!-- Top Controls Row -->
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;">
-      <input class="input" id="tm-dir" value="${esc(dir)}" style="flex:1;min-width:220px;font-family:var(--font-mono);"
-        onkeydown="if(event.key==='Enter'){TM_STATE.zoomPath='';renderTreemapView(true);}">
+      <input class="input" id="tm-dir" value="${esc(dir)}" style="flex:1;min-width:200px;font-family:var(--font-mono);"
+        onkeydown="if(event.key==='Enter'){TM_STATE.zoomPath='';tmTriggerScan();}">
       <div class="tm-tree-wrap">
         <button class="btn" id="tm-btn-tree" onclick="tmToggleTreeFlyout(event)">🌳 ${esc(t('tm.explorer_tree'))} ▾</button>
         <div class="tm-tree-flyout" id="tm-tree-flyout" onclick="event.stopPropagation()"></div>
       </div>
-      <button class="btn primary" onclick="TM_STATE.zoomPath='';renderTreemapView(true)">🔍 ${esc(t('tm.scan_btn'))}</button>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;padding:3px 8px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:4px;" title="${esc(t('tm.include_folders'))}">
+        <input type="checkbox" id="tm-chk-folders" onchange="renderTreemapView(false)">
+        <span>📁 ${esc(t('tm.include_folders'))}</span>
+      </label>
+      <button class="btn primary" id="tm-btn-scan" onclick="TM_STATE.zoomPath='';tmTriggerScan()">🔍 ${esc(t('tm.scan_btn'))}</button>
+      <button class="btn danger" id="tm-btn-cancel-scan" style="display:none;" onclick="tmCancelScan()">⏹ ${esc(t('tm.cancel_scan'))}</button>
       <button class="btn" id="tm-btn-up" disabled onclick="tmZoomUp()">⬆ ${esc(t('tm.zoom_up'))}</button>
       <button class="btn" id="tm-btn-root" disabled onclick="tmZoomRoot()">🏠 ${esc(t('tm.zoom_root'))}</button>
     </div>
@@ -8508,7 +8586,7 @@ async function openTreemapModal(customDir) {
   `, footHtml, 'tool:Treemap');
 
   tmInitInternalSplitters();
-  setTimeout(() => renderTreemapView(true), 25);
+  tmShowReadyState();
 }
 
 function tmInitInternalSplitters() {
@@ -8620,7 +8698,163 @@ function tmPickTreeFolder(path) {
   const fly = document.getElementById('tm-tree-flyout');
   if (fly) fly.classList.remove('open');
   TM_STATE.zoomPath = '';
-  renderTreemapView(true);
+  tmTriggerScan();
+}
+
+let _tmPollTimer = null;
+
+function tmShowReadyState() {
+  const dirEl = document.getElementById('tm-dir');
+  const dir = dirEl?.value || TM_STATE.scannedRootPath || '';
+  const statsEl = document.getElementById('tm-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `<span style="color:var(--fg-dim);">📊 ${esc(t('tm.ready_to_scan'))}</span>`;
+  }
+  const zoomLbl = document.getElementById('tm-zoom-lbl');
+  if (zoomLbl) {
+    zoomLbl.textContent = dir ? `📂 ${dir}` : '';
+  }
+  const canvas = document.getElementById('tm-canvas');
+  if (canvas) {
+    canvas.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--fg-dim);text-align:center;padding:20px;">
+        <div style="font-size:38px;">📊</div>
+        <div style="font-weight:700;font-size:15px;color:var(--fg);">${esc(t('tm.title'))}</div>
+        <div style="font-size:12.5px;max-width:440px;line-height:1.4;">${esc(t('tm.start_scan_hint'))}</div>
+        <button class="btn primary" style="padding:6px 18px;font-size:13px;font-weight:600;margin-top:6px;" onclick="TM_STATE.zoomPath='';tmTriggerScan()">
+          🔍 ${esc(t('tm.scan_btn'))}
+        </button>
+      </div>
+    `;
+  }
+  const hList = document.getElementById('tm-hierarchy-list');
+  if (hList) hList.innerHTML = `<div style="padding:16px;text-align:center;font-size:11.5px;color:var(--fg-dim);">${esc(t('tm.start_scan_hint'))}</div>`;
+  const eList = document.getElementById('tm-ext-list');
+  if (eList) eList.innerHTML = `<div style="padding:16px;text-align:center;font-size:11.5px;color:var(--fg-dim);">${esc(t('tm.start_scan_hint'))}</div>`;
+}
+
+function tmResetScanButtons() {
+  const btnScan = document.getElementById('tm-btn-scan');
+  const btnCancel = document.getElementById('tm-btn-cancel-scan');
+  if (btnScan) btnScan.style.display = 'inline-flex';
+  if (btnCancel) btnCancel.style.display = 'none';
+}
+
+async function tmTriggerScan() {
+  const dirEl = document.getElementById('tm-dir');
+  if (!dirEl) return;
+  const dir = dirEl.value.trim();
+  if (!dir) return;
+
+  TM_STATE.scannedRootPath = dir;
+  TM_STATE.zoomPath = '';
+  TM_STATE.parentPath = '';
+  TM_STATE.isZoomed = false;
+  TM_STATE.selectedPaths.clear();
+
+  if (_tmPollTimer) {
+    clearInterval(_tmPollTimer);
+    _tmPollTimer = null;
+  }
+
+  const btnScan = document.getElementById('tm-btn-scan');
+  const btnCancel = document.getElementById('tm-btn-cancel-scan');
+  if (btnScan) btnScan.style.display = 'none';
+  if (btnCancel) btnCancel.style.display = 'inline-flex';
+
+  const statsEl = document.getElementById('tm-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `<span style="color:var(--accent);">⏳ ${esc(t('tm.scanning_active'))}</span>`;
+  }
+  const zoomLbl = document.getElementById('tm-zoom-lbl');
+  if (zoomLbl) zoomLbl.textContent = `📂 ${dir}`;
+
+  // Render responsive progress bar inside canvas
+  const canvas = document.getElementById('tm-canvas');
+  if (canvas) {
+    canvas.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:24px;text-align:center;">
+        <div style="font-size:32px;">⏳</div>
+        <div style="font-weight:700;font-size:14px;color:var(--fg);">${esc(t('tm.scanning'))} <span style="font-family:var(--font-mono);color:var(--accent);">${esc(dir)}</span></div>
+        <div style="width:100%;max-width:500px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+          <div id="tm-progress-bar" style="height:14px;background:linear-gradient(90deg, #0284C7, #10B981, #0284C7);background-size:200% 100%;border-radius:6px;width:100%;animation:tmPulse 1.6s infinite ease-in-out;"></div>
+        </div>
+        <div id="tm-progress-counts" style="font-size:12.5px;font-weight:600;color:var(--fg);min-height:20px;">
+          📁 0 ${esc(t('tm.folders'))} • 📄 0 ${esc(t('tm.files_in'))}
+        </div>
+        <div id="tm-progress-path" style="font-size:11px;font-family:var(--font-mono);color:var(--fg-dim);max-width:92%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:18px;">
+          ${esc(dir)}
+        </div>
+        <button class="btn danger" style="padding:4px 14px;font-size:12px;margin-top:6px;" onclick="tmCancelScan()">
+          ⏹ ${esc(t('tm.cancel_scan'))}
+        </button>
+      </div>
+    `;
+  }
+
+  const hList = document.getElementById('tm-hierarchy-list');
+  if (hList) hList.innerHTML = `<div style="padding:16px;text-align:center;font-size:11.5px;color:var(--fg-dim);">⏳ ${esc(t('tm.scanning_active'))}</div>`;
+  const eList = document.getElementById('tm-ext-list');
+  if (eList) eList.innerHTML = `<div style="padding:16px;text-align:center;font-size:11.5px;color:var(--fg-dim);">⏳ ${esc(t('tm.scanning_active'))}</div>`;
+
+  // Start background scan (non-blocking)
+  const res = await rpc('treemap', { sub: 'start_scan', dir });
+  if (!res || res.error) {
+    toast(res?.error || 'Treemap-Fehler beim Starten');
+    tmResetScanButtons();
+    return;
+  }
+
+  // Poll progress every 120ms
+  _tmPollTimer = setInterval(async () => {
+    try {
+      const poll = await rpc('treemap', { sub: 'poll_progress' });
+      if (!poll || !poll.ok) return;
+
+      if (poll.cancelled) {
+        clearInterval(_tmPollTimer);
+        _tmPollTimer = null;
+        tmResetScanButtons();
+        toast(t('tm.scan_aborted'));
+        tmShowReadyState();
+        return;
+      }
+
+      if (poll.done) {
+        clearInterval(_tmPollTimer);
+        _tmPollTimer = null;
+        tmResetScanButtons();
+        await renderTreemapView(false);
+        return;
+      }
+
+      // Live update progress text & counters
+      const countsEl = document.getElementById('tm-progress-counts');
+      if (countsEl) {
+        countsEl.textContent = `📁 ${(poll.scanned_folders || 0).toLocaleString()} ${t('tm.folders')} • 📄 ${(poll.scanned_files || 0).toLocaleString()} ${t('tm.files_in')}`;
+      }
+      const pathEl = document.getElementById('tm-progress-path');
+      if (pathEl && poll.current_path) {
+        pathEl.textContent = poll.current_path;
+        pathEl.title = poll.current_path;
+      }
+      const stEl = document.getElementById('tm-stats');
+      if (stEl) {
+        stEl.textContent = `⏳ ${t('tm.scanning_active')} ${(poll.scanned_files || 0).toLocaleString()} ${t('tm.files_in')} ${(poll.scanned_folders || 0).toLocaleString()} ${t('tm.folders')}…`;
+      }
+    } catch (_) {}
+  }, 120);
+}
+
+async function tmCancelScan() {
+  if (_tmPollTimer) {
+    clearInterval(_tmPollTimer);
+    _tmPollTimer = null;
+  }
+  await rpc('treemap', { sub: 'cancel_scan' });
+  tmResetScanButtons();
+  toast(t('tm.scan_aborted'));
+  tmShowReadyState();
 }
 
 function tmToggleColorMode() {
@@ -8681,27 +8915,32 @@ function tmZoomRoot() {
 }
 
 async function renderTreemapView(rescan) {
+  if (rescan) {
+    await tmTriggerScan();
+    return;
+  }
   const dirEl = document.getElementById('tm-dir');
   const host = document.getElementById('tm-canvas');
   if (!dirEl || !host) return;
   const dir = dirEl.value.trim();
-  if (rescan) {
-    TM_STATE.scannedRootPath = dir;
-    const st = document.getElementById('tm-stats');
-    if (st) st.textContent = `⏳ ${t('tm.scanning')} ${dir} …`;
-  }
   const w = Math.max(320, Math.round(host.clientWidth || 980));
   const h = Math.max(180, Math.round(host.clientHeight || 300));
+  const includeFolders = !!document.getElementById('tm-chk-folders')?.checked;
   const res = await rpc('treemap', {
     dir: TM_STATE.scannedRootPath || dir,
     zoom_path: TM_STATE.zoomPath,
-    rescan: !!rescan,
+    rescan: false,
     width: w,
     height: h,
-    color_mode: TM_STATE.colorMode
+    color_mode: TM_STATE.colorMode,
+    include_folders: includeFolders
   });
   if (!res || res.error) {
     toast(res?.error || 'Treemap-Fehler');
+    return;
+  }
+  if (res.needs_scan) {
+    tmShowReadyState();
     return;
   }
 
@@ -10665,6 +10904,11 @@ function closeModal(id) {
   const modal = bg.querySelector('.modal');
   if (modal && bg.classList.contains('open')) {
     persistModalBounds(modal);
+  }
+  if (id === 'modalTool' && typeof _tmPollTimer !== 'undefined' && _tmPollTimer) {
+    clearInterval(_tmPollTimer);
+    _tmPollTimer = null;
+    rpc('treemap', { sub: 'cancel_scan' }).catch(() => {});
   }
   bg.classList.remove('open');
 }
