@@ -371,16 +371,16 @@ mod tests {
 
         // 1. Settings defaults and serialization
         let def = AppSettings::default();
-        assert_eq!(def.archive_open_action, "archive_browser");
+        assert_eq!(def.archive_open_action, "open_in_explorer");
         assert!(def.sync_jump_to_other_pane_folder);
 
         let json_str = serde_json::to_string(&def).unwrap();
         let parsed: AppSettings = serde_json::from_str(&json_str).unwrap();
-        assert_eq!(parsed.archive_open_action, "archive_browser");
+        assert_eq!(parsed.archive_open_action, "open_in_explorer");
         assert!(parsed.sync_jump_to_other_pane_folder);
 
         let from_empty: AppSettings = serde_json::from_str("{}").unwrap();
-        assert_eq!(from_empty.archive_open_action, "archive_browser");
+        assert_eq!(from_empty.archive_open_action, "open_in_explorer");
         assert!(from_empty.sync_jump_to_other_pane_folder);
 
         // 2. Virtual archive path helpers
@@ -437,6 +437,29 @@ mod tests {
         assert!(extracted.is_file());
         let text = fs::read_to_string(&extracted).unwrap();
         assert_eq!(text, "Hello Virtual Archive!");
+
+        // 4. Virtual archive selective extraction (F5 copy/unpack into destination folder)
+        let out_dir = dir.path().join("extracted_target");
+        fs::create_dir_all(&out_dir).unwrap();
+
+        // 4a. Extract single file
+        let count1 = ArchiveService::extract_virtual_entries(&zip_path, &["hello.txt".to_string()], &out_dir).unwrap();
+        assert_eq!(count1, 1);
+        assert_eq!(fs::read_to_string(out_dir.join("hello.txt")).unwrap(), "Hello Virtual Archive!");
+
+        // 4b. Extract directory containing nested files
+        let count2 = ArchiveService::extract_virtual_entries(&zip_path, &["folder".to_string()], &out_dir).unwrap();
+        assert!(count2 >= 1);
+        assert!(out_dir.join("folder").join("inner.rs").is_file());
+        assert_eq!(fs::read_to_string(out_dir.join("folder").join("inner.rs")).unwrap(), "fn main() {}");
+
+        // 4c. Extract nested file directly
+        let out_dir2 = dir.path().join("nested_target");
+        fs::create_dir_all(&out_dir2).unwrap();
+        let count3 = ArchiveService::extract_virtual_entries(&zip_path, &["folder/inner.rs".to_string()], &out_dir2).unwrap();
+        assert_eq!(count3, 1);
+        assert!(out_dir2.join("inner.rs").is_file());
+        assert_eq!(fs::read_to_string(out_dir2.join("inner.rs")).unwrap(), "fn main() {}");
     }
 
     #[test]

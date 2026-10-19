@@ -663,12 +663,19 @@ impl BackendState {
             .get("is_move")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
-        let dest_dir = PathBuf::from(
-            params
-                .get("dest_dir")
-                .and_then(|v| v.as_str())
-                .unwrap_or("."),
-        );
+        let dest_dir_str = params
+            .get("dest_dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".");
+
+        if ArchiveService::is_virtual_archive_path(dest_dir_str) {
+            return json!({
+                "ok": false,
+                "error": "Kopieren in ein virtuelles Archiv wird aktuell noch nicht unterstützt."
+            });
+        }
+
+        let dest_dir = PathBuf::from(dest_dir_str);
         let paths: Vec<String> = params
             .get("paths")
             .and_then(|v| v.as_array())
@@ -680,7 +687,51 @@ impl BackendState {
             .unwrap_or_default();
 
         let mut count = 0usize;
-        for src_str in paths {
+        let mut virtual_archive_groups: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        let mut normal_paths: Vec<String> = Vec::new();
+
+        for p in paths {
+            if ArchiveService::is_virtual_archive_path(&p) {
+                if let Some((arch_file, inner_path)) = ArchiveService::parse_virtual_archive_path(&p) {
+                    virtual_archive_groups
+                        .entry(arch_file)
+                        .or_default()
+                        .push(inner_path);
+                }
+            } else {
+                normal_paths.push(p);
+            }
+        }
+
+        // Process virtual archive paths (extracting to dest_dir)
+        for (arch_file, inners) in virtual_archive_groups {
+            let arch_path = Path::new(&arch_file);
+            match ArchiveService::extract_virtual_entries(arch_path, &inners, &dest_dir) {
+                Ok(extracted_count) => {
+                    count += extracted_count;
+                    let display_name = arch_path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| arch_file.clone());
+                    self.undo_service.record(
+                        format!("Aus Archiv entpackt ({display_name}): {extracted_count} Element(e)"),
+                        UndoAction::Copied {
+                            copied_path: dest_dir.to_string_lossy().to_string(),
+                        },
+                    );
+                }
+                Err(err) => {
+                    return json!({
+                        "ok": false,
+                        "error": format!("Fehler beim Entpacken aus dem Archiv: {err}")
+                    });
+                }
+            }
+        }
+
+        // Process normal filesystem paths
+        for src_str in normal_paths {
             let src = Path::new(&src_str);
             if is_move {
                 if let Ok(Some(moved)) =

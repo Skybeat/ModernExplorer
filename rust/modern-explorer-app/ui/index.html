@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.15 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.16 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1267,7 +1267,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.15 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.16 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1810,7 +1810,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.15</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.16</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1961,7 +1961,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.15</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.15</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.16</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.16</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1970,7 +1970,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.15.
+        ✓ Sie verwenden die aktuelle Version v1.9.16.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2154,7 +2154,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.15',
+  version: '1.9.16',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2862,7 +2862,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.15": "Installed version: v1.9.14",
+  "Installierte Version: v1.9.16": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -4139,7 +4139,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.15';
+  STATE.version = data.version || '1.9.16';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -4823,7 +4823,7 @@ function bindItemEvents(el, side, item, idx) {
       if (item.is_directory) {
         addTab(side, item.full_path);
       } else if (isArchiveFileName(item.name)) {
-        if ((STATE.settings.archive_open_action || 'archive_browser') === 'open_in_explorer') {
+        if ((STATE.settings.archive_open_action || 'open_in_explorer') === 'open_in_explorer') {
           addTab(side, 'archive://' + item.full_path);
         } else {
           openArchiveModal(item.full_path);
@@ -4898,7 +4898,7 @@ function activateItem(side, item) {
   } else if (String(item.name || '').toLowerCase().endsWith('.vault')) {
     openFileVaultModal();
   } else if (isArchiveFileName(item.name)) {
-    const action = STATE.settings.archive_open_action || 'archive_browser';
+    const action = STATE.settings.archive_open_action || 'open_in_explorer';
     if (action === 'open_in_explorer') {
       navigateTo(side, 'archive://' + item.full_path);
     } else {
@@ -4913,6 +4913,10 @@ function getActionPaths(side = STATE.activeSide) {
   const p = STATE.panes[side];
   if (p.marked.size > 0) return Array.from(p.marked);
   if (p.selected.size > 0) return Array.from(p.selected);
+  if (typeof p?.cursorIndex === 'number' && p.cursorIndex >= 0 && p.cursorIndex < p.items.length) {
+    const cur = p.items[p.cursorIndex];
+    if (cur?.full_path) return [cur.full_path];
+  }
   return [];
 }
 
@@ -5553,10 +5557,21 @@ async function copyOrMoveActive(isMove) {
   const paths = getActionPaths(srcSide);
   if (!paths.length) { toast('Bitte zuerst Dateien auswählen oder markieren.'); return; }
   const destDir = getTab(dstSide).path;
+  if (destDir.startsWith('archive://')) {
+    toast('Kopieren in ein virtuelles Archiv wird aktuell noch nicht unterstützt.');
+    return;
+  }
+  const isArchiveSrc = paths.some(p => p.startsWith('archive://'));
   if (STATE.settings.confirm_overwrite !== false) {
     const dstNames = new Set((STATE.panes[dstSide]?.items || []).map(x => String(x.name || '').toLowerCase()));
     const conflicts = paths.filter(p => {
-      const base = p.split(/[\\/]/).pop() || '';
+      let base = p;
+      if (base.startsWith('archive://')) {
+        const payload = base.slice('archive://'.length);
+        const pipeIdx = payload.indexOf('|');
+        base = pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : payload;
+      }
+      base = base.split(/[\\/]/).filter(Boolean).pop() || '';
       return dstNames.has(base.toLowerCase());
     });
     if (conflicts.length > 0) {
@@ -5570,7 +5585,10 @@ async function copyOrMoveActive(isMove) {
     updateUndoStatus();
     await loadPane('left');
     await loadPane('right');
-    toast(`${res.count} Element(e) ${isMove ? 'verschoben' : 'kopiert'}.`);
+    const actionWord = isArchiveSrc ? 'entpackt' : (isMove ? 'verschoben' : 'kopiert');
+    toast(`${res.count} Element(e) ${actionWord}.`);
+  } else if (res?.error) {
+    toast('Fehler: ' + res.error);
   }
 }
 
@@ -6007,7 +6025,7 @@ function populateSettingsUi() {
   setVal('set-default_view_mode', s.default_view_mode || 'Details');
   setVal('set-size_display_format', s.size_display_format || 'dynamic');
   setVal('set-date_time_format', s.date_time_format || 'de_short');
-  setVal('set-archive_open_action', s.archive_open_action || 'archive_browser');
+  setVal('set-archive_open_action', s.archive_open_action || 'open_in_explorer');
 
   // Tools & Power-Tools defaults
   setVal('set-external_editor_path', s.external_editor_path || '');

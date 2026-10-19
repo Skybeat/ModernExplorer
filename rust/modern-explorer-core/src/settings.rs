@@ -159,7 +159,7 @@ pub struct WindowBounds {
 }
 
 fn default_archive_open_action() -> String {
-    "archive_browser".to_string()
+    "open_in_explorer".to_string()
 }
 
 fn default_sync_jump_to_other_pane_folder() -> bool {
@@ -434,7 +434,7 @@ impl Default for AppSettings {
             confirm_delete: true,
             confirm_overwrite: false,
             single_click_open: false,
-            archive_open_action: "archive_browser".to_string(),
+            archive_open_action: "open_in_explorer".to_string(),
             sync_jump_to_other_pane_folder: true,
             enable_live_fs_watcher: true,
             fs_watcher_poll_ms: 2500,

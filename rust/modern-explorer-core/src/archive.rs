@@ -720,4 +720,223 @@ impl ArchiveService {
             inner_path
         ))
     }
+
+    pub fn match_archive_entry_target(
+        raw_entry_path: &str,
+        _is_dir: bool,
+        inner_paths: &[String],
+        destination_dir: &Path,
+    ) -> Option<PathBuf> {
+        let entry_norm = raw_entry_path.replace('\\', "/");
+        let entry_trimmed = entry_norm.trim_matches('/');
+        if entry_trimmed.is_empty() {
+            return None;
+        }
+        let entry_lower = entry_trimmed.to_ascii_lowercase();
+
+        for item in inner_paths {
+            let item_norm = item.replace('\\', "/");
+            let item_trimmed = item_norm.trim_matches('/');
+            let item_lower = item_trimmed.to_ascii_lowercase();
+
+            if item_trimmed.is_empty() {
+                let safe_rel: PathBuf = Path::new(entry_trimmed)
+                    .components()
+                    .filter(|c| matches!(c, std::path::Component::Normal(_)))
+                    .collect();
+                return Some(destination_dir.join(safe_rel));
+            }
+
+            if entry_lower == item_lower {
+                let name = Path::new(entry_trimmed)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| entry_trimmed.to_string());
+                return Some(destination_dir.join(name));
+            }
+
+            let prefix = format!("{}/", item_lower);
+            if entry_lower.starts_with(&prefix) {
+                let folder_name = Path::new(item_trimmed)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| item_trimmed.to_string());
+                let rel_inside = &entry_trimmed[item_trimmed.len() + 1..];
+                let safe_rel: PathBuf = Path::new(rel_inside)
+                    .components()
+                    .filter(|c| matches!(c, std::path::Component::Normal(_)))
+                    .collect();
+                return Some(destination_dir.join(folder_name).join(safe_rel));
+            }
+        }
+        None
+    }
+
+    pub fn extract_virtual_entries(
+        archive_path: &Path,
+        inner_paths: &[String],
+        destination_dir: &Path,
+    ) -> Result<usize, String> {
+        if !archive_path.is_file() {
+            return Err(format!("Archivdatei nicht gefunden: {}", archive_path.display()));
+        }
+        if inner_paths.is_empty() {
+            return Ok(0);
+        }
+
+        fs::create_dir_all(destination_dir).map_err(|e| e.to_string())?;
+        let lower = archive_path.to_string_lossy().to_ascii_lowercase();
+
+        if lower.ends_with(".7z") {
+            let temp_dir = std::env::temp_dir()
+                .join("ModernExplorer")
+                .join(format!("7z_ext_{}_{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+            let _ = fs::remove_dir_all(&temp_dir);
+            fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+            let res = sevenz_rust::decompress_file(archive_path, &temp_dir);
+            if let Err(e) = res {
+                let _ = fs::remove_dir_all(&temp_dir);
+                return Err(e.to_string());
+            }
+
+            let mut count = 0usize;
+            let mut extracted_targets = HashSet::new();
+
+            for entry in WalkDir::new(&temp_dir).min_depth(1) {
+                let Ok(entry) = entry else { continue };
+                let Ok(rel) = entry.path().strip_prefix(&temp_dir) else { continue };
+                let rel_str = rel.to_string_lossy().replace('\\', "/");
+                let is_dir = entry.file_type().is_dir();
+
+                if let Some(target_path) = Self::match_archive_entry_target(&rel_str, is_dir, inner_paths, destination_dir) {
+                    if !extracted_targets.insert(target_path.clone()) {
+                        continue;
+                    }
+                    if is_dir {
+                        let _ = fs::create_dir_all(&target_path);
+                    } else {
+                        if let Some(p) = target_path.parent() {
+                            let _ = fs::create_dir_all(p);
+                        }
+                        if fs::copy(entry.path(), &target_path).is_ok() {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+
+            let _ = fs::remove_dir_all(&temp_dir);
+            return Ok(count.max(if inner_paths.is_empty() { 0 } else { 1 }));
+        }
+
+        if lower.ends_with(".rar") {
+            let temp_dir = std::env::temp_dir()
+                .join("ModernExplorer")
+                .join(format!("rar_ext_{}_{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+            let _ = fs::remove_dir_all(&temp_dir);
+            fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+
+            let mut cmd = Command::new("tar");
+            cmd.arg("-xf").arg(archive_path).arg("-C").arg(&temp_dir);
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x08000000);
+            }
+            let status = cmd.status().map_err(|e| e.to_string())?;
+            if !status.success() {
+                let _ = fs::remove_dir_all(&temp_dir);
+                return Err("RAR-Entpacken fehlgeschlagen".to_string());
+            }
+
+            let mut count = 0usize;
+            let mut extracted_targets = HashSet::new();
+
+            for entry in WalkDir::new(&temp_dir).min_depth(1) {
+                let Ok(entry) = entry else { continue };
+                let Ok(rel) = entry.path().strip_prefix(&temp_dir) else { continue };
+                let rel_str = rel.to_string_lossy().replace('\\', "/");
+                let is_dir = entry.file_type().is_dir();
+
+                if let Some(target_path) = Self::match_archive_entry_target(&rel_str, is_dir, inner_paths, destination_dir) {
+                    if !extracted_targets.insert(target_path.clone()) {
+                        continue;
+                    }
+                    if is_dir {
+                        let _ = fs::create_dir_all(&target_path);
+                    } else {
+                        if let Some(p) = target_path.parent() {
+                            let _ = fs::create_dir_all(p);
+                        }
+                        if fs::copy(entry.path(), &target_path).is_ok() {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+
+            let _ = fs::remove_dir_all(&temp_dir);
+            return Ok(count.max(if inner_paths.is_empty() { 0 } else { 1 }));
+        }
+
+        if Self::is_tar_variant(&lower) {
+            let raw_tar = Self::decode_tar_bytes(archive_path)?;
+            let mut tar = tar::Archive::new(Cursor::new(raw_tar));
+            let mut count = 0usize;
+            let mut extracted_targets = HashSet::new();
+
+            for item in tar.entries().map_err(|e| e.to_string())? {
+                let mut entry = item.map_err(|e| e.to_string())?;
+                let path = entry.path().map_err(|e| e.to_string())?;
+                let raw_name = path.to_string_lossy().to_string();
+                let is_dir = entry.header().entry_type().is_dir();
+
+                if let Some(target_path) = Self::match_archive_entry_target(&raw_name, is_dir, inner_paths, destination_dir) {
+                    if !extracted_targets.insert(target_path.clone()) {
+                        continue;
+                    }
+                    if is_dir {
+                        fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
+                    } else {
+                        if let Some(p) = target_path.parent() {
+                            fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                        }
+                        let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
+                        io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
+                        count += 1;
+                    }
+                }
+            }
+            return Ok(count.max(if inner_paths.is_empty() { 0 } else { 1 }));
+        }
+
+        // Default ZIP (.zip, .jar, .nupkg)
+        let f = File::open(archive_path).map_err(|e| e.to_string())?;
+        let mut zip = ZipArchive::new(f).map_err(|e| e.to_string())?;
+        let mut count = 0usize;
+        let mut extracted_targets = HashSet::new();
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i).map_err(|e| e.to_string())?;
+            let raw_name = file.name().to_string();
+            let is_dir = file.is_dir();
+
+            if let Some(target_path) = Self::match_archive_entry_target(&raw_name, is_dir, inner_paths, destination_dir) {
+                if !extracted_targets.insert(target_path.clone()) {
+                    continue;
+                }
+                if is_dir {
+                    fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
+                } else {
+                    if let Some(p) = target_path.parent() {
+                        fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                    }
+                    let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
+                    io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+                    count += 1;
+                }
+            }
+        }
+        Ok(count.max(if inner_paths.is_empty() { 0 } else { 1 }))
+    }
 }
