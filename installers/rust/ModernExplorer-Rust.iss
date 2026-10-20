@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Modern Explorer Studio — Rust Edition (Windows x64 & ARM64)
 #ifndef AppVersion
-  #define AppVersion "1.9.17"
+  #define AppVersion "1.9.18"
 #endif
 #ifndef TargetRid
   #define TargetRid "win-x64"
