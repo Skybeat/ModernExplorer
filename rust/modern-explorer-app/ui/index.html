@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.18 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.19 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1267,7 +1267,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.18 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.19 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1810,7 +1810,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.18</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.19</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1961,7 +1961,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.18</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.18</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.19</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.19</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1970,7 +1970,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.18.
+        ✓ Sie verwenden die aktuelle Version v1.9.19.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2187,7 +2187,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif']);
 
 const STATE = {
-  version: '1.9.18',
+  version: '1.9.19',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2895,7 +2895,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.18": "Installed version: v1.9.14",
+  "Installierte Version: v1.9.19": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -3982,7 +3982,7 @@ const I18N = {
     "Installed version:": "Versión instalada:",
     "Installed version: v1.9.14": "Versión instalada: v1.9.16",
     "Installierte Version:": "Versión instalada:",
-    "Installierte Version: v1.9.18": "Versión instalada: v1.9.16",
+    "Installierte Version: v1.9.19": "Versión instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula inmediatamente el tamaño recursivo de la carpeta resaltada",
     "Internal Text & Code Editor": "Editor interno de texto y código.",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código y hexadecimal (F4)",
@@ -5865,7 +5865,7 @@ const I18N = {
     "Installed version:": "Version installée :",
     "Installed version: v1.9.14": "Version installée : v1.9.16",
     "Installierte Version:": "Version installée :",
-    "Installierte Version: v1.9.18": "Version installée : v1.9.16",
+    "Installierte Version: v1.9.19": "Version installée : v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcule immédiatement la taille récursive du dossier en surbrillance",
     "Internal Text & Code Editor": "Éditeur de texte et de code interne",
     "Internal Text, Code & Hex Editor (F4)": "Éditeur interne de texte, de code et hexadécimal (F4)",
@@ -7748,7 +7748,7 @@ const I18N = {
     "Installed version:": "Versione installata:",
     "Installed version: v1.9.14": "Versione installata: v1.9.16",
     "Installierte Version:": "Versione installata:",
-    "Installierte Version: v1.9.18": "Versione installata: v1.9.16",
+    "Installierte Version: v1.9.19": "Versione installata: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcola immediatamente la dimensione ricorsiva della cartella evidenziata",
     "Internal Text & Code Editor": "Editor interno di testo e codice",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno di testo, codice ed esadecimale (F4)",
@@ -9631,7 +9631,7 @@ const I18N = {
     "Installed version:": "Geïnstalleerde versie:",
     "Installed version: v1.9.14": "Geïnstalleerde versie: v1.9.16",
     "Installierte Version:": "Geïnstalleerde versie:",
-    "Installierte Version: v1.9.18": "Geïnstalleerde versie: v1.9.16",
+    "Installierte Version: v1.9.19": "Geïnstalleerde versie: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Berekent onmiddellijk de recursieve grootte van de gemarkeerde map",
     "Internal Text & Code Editor": "Interne tekst- en code-editor",
     "Internal Text, Code & Hex Editor (F4)": "Interne tekst-, code- en hex-editor (F4)",
@@ -11514,7 +11514,7 @@ const I18N = {
     "Installed version:": "Zainstalowana wersja:",
     "Installed version: v1.9.14": "Zainstalowana wersja: v1.9.16",
     "Installierte Version:": "Zainstalowana wersja:",
-    "Installierte Version: v1.9.18": "Zainstalowana wersja: v1.9.16",
+    "Installierte Version: v1.9.19": "Zainstalowana wersja: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Natychmiast oblicza rekurencyjny rozmiar podświetlonego folderu",
     "Internal Text & Code Editor": "Wewnętrzny edytor tekstu i kodu",
     "Internal Text, Code & Hex Editor (F4)": "Wewnętrzny edytor tekstu, kodu i szesnastkowego (F4)",
@@ -13397,7 +13397,7 @@ const I18N = {
     "Installed version:": "Versão instalada:",
     "Installed version: v1.9.14": "Versão instalada: v1.9.16",
     "Installierte Version:": "Versão instalada:",
-    "Installierte Version: v1.9.18": "Versão instalada: v1.9.16",
+    "Installierte Version: v1.9.19": "Versão instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula imediatamente o tamanho recursivo da pasta destacada",
     "Internal Text & Code Editor": "Editor interno de texto e código",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código e hexadecimal (F4)",
@@ -15280,7 +15280,7 @@ const I18N = {
     "Installed version:": "インストールされているバージョン:",
     "Installed version: v1.9.14": "インストールされているバージョン: v1.9.16",
     "Installierte Version:": "インストールされているバージョン:",
-    "Installierte Version: v1.9.18": "インストールされているバージョン: v1.9.16",
+    "Installierte Version: v1.9.19": "インストールされているバージョン: v1.9.16",
     "Instantly calculates recursive size of selected folder": "強調表示されたフォルダーの再帰的なサイズを即座に計算します。",
     "Internal Text & Code Editor": "内部テキストおよびコードエディター",
     "Internal Text, Code & Hex Editor (F4)": "内部テキスト、コード、および 16 進数エディター (F4)",
@@ -17163,7 +17163,7 @@ const I18N = {
     "Installed version:": "安装版本：",
     "Installed version: v1.9.14": "安装版本：v1.9.16",
     "Installierte Version:": "安装版本：",
-    "Installierte Version: v1.9.18": "安装版本：v1.9.16",
+    "Installierte Version: v1.9.19": "安装版本：v1.9.16",
     "Instantly calculates recursive size of selected folder": "立即计算突出显示文件夹的递归大小",
     "Internal Text & Code Editor": "内部文本和代码编辑器",
     "Internal Text, Code & Hex Editor (F4)": "内部文本、代码和十六进制编辑器 (F4)",
@@ -18501,6 +18501,60 @@ const I18N = {
   }
 };
 
+const EN_TO_DE = (function() {
+  const map = {};
+  if (typeof I18N_EN !== 'undefined') {
+    for (const [deKey, enVal] of Object.entries(I18N_EN)) {
+      if (typeof enVal === 'string' && enVal.trim()) {
+        map[enVal.trim()] = deKey;
+      }
+    }
+  }
+  return map;
+})();
+
+const REVERSE_I18N = (function() {
+  const rev = {};
+  const de = (typeof I18N !== 'undefined' && I18N.de) ? I18N.de : {};
+
+  // Priority 1: Map from I18N.de
+  for (const [canonicalKey, val] of Object.entries(de)) {
+    if (typeof val === 'string' && val.trim()) {
+      rev[val.trim()] = canonicalKey;
+    }
+  }
+
+  // Priority 2: Map from all languages in I18N
+  if (typeof I18N !== 'undefined') {
+    for (const lang of Object.keys(I18N)) {
+      const dict = I18N[lang];
+      if (!dict) continue;
+      for (const [rawKey, translatedVal] of Object.entries(dict)) {
+        if (typeof translatedVal === 'string') {
+          const valTrim = translatedVal.trim();
+          if (valTrim) {
+            let target = rawKey;
+            if (EN_TO_DE[target]) {
+              target = EN_TO_DE[target];
+            }
+            if (de[target]) {
+              target = de[target];
+            }
+            if (!rev[valTrim] || EN_TO_DE[rev[valTrim]]) {
+              rev[valTrim] = target;
+            }
+            const stripped = valTrim.replace(/^[^\w\s\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]+\s*/u, '').trim();
+            if (stripped && (!rev[stripped] || EN_TO_DE[rev[stripped]])) {
+              rev[stripped] = target;
+            }
+          }
+        }
+      }
+    }
+  }
+  return rev;
+})();
+
 function getEffectiveLang() {
   const raw = String(STATE.settings?.language || 'de').toLowerCase();
   if (raw === 'system' || !raw) {
@@ -18514,37 +18568,76 @@ function t(key) {
   if (!key) return key;
   const k = String(key).trim();
   const lang = getEffectiveLang();
-  return (I18N[lang] && I18N[lang][k]) || 
-         (lang !== 'de' && I18N.en && I18N.en[k]) || 
-         (I18N.de && I18N.de[k]) || 
-         key;
+
+  // 1. If asking for German:
+  if (lang === 'de') {
+    if (I18N.de && I18N.de[k] !== undefined) return I18N.de[k];
+    if (EN_TO_DE[k] !== undefined) return EN_TO_DE[k];
+    const canonical = (typeof REVERSE_I18N !== 'undefined' && REVERSE_I18N[k]) || k;
+    if (I18N.de && I18N.de[canonical] !== undefined) return I18N.de[canonical];
+    if (EN_TO_DE[canonical] !== undefined) return EN_TO_DE[canonical];
+    return canonical;
+  }
+
+  // 2. Direct hit in current language
+  if (I18N[lang] && I18N[lang][k] !== undefined) return I18N[lang][k];
+
+  // 3. Resolve to canonical key if k was in another language (e.g. Japanese or Chinese)
+  const canonical = (typeof REVERSE_I18N !== 'undefined' && REVERSE_I18N[k]) || k;
+  if (I18N[lang] && I18N[lang][canonical] !== undefined) return I18N[lang][canonical];
+
+  // 4. Fallback to English
+  if (I18N.en && I18N.en[canonical] !== undefined) return I18N.en[canonical];
+  if (I18N.en && I18N.en[k] !== undefined) return I18N.en[k];
+
+  // 5. Fallback to German
+  if (I18N.de && I18N.de[canonical] !== undefined) return I18N.de[canonical];
+  if (I18N.de && I18N.de[k] !== undefined) return I18N.de[k];
+
+  return canonical;
 }
 
 function translateElementTree(root) {
   if (!root) return;
   const lang = getEffectiveLang();
 
+  function resolveCanonical(text) {
+    if (!text) return text;
+    const tTrim = text.trim();
+    if (typeof REVERSE_I18N !== 'undefined' && REVERSE_I18N[tTrim]) return REVERSE_I18N[tTrim];
+    if (typeof EN_TO_DE !== 'undefined' && EN_TO_DE[tTrim]) return EN_TO_DE[tTrim];
+    return tTrim;
+  }
+
   function localizeEl(el) {
     if (!el || el.querySelector('input, select, textarea')) return;
+    if (el.hasAttribute('data-i18n')) return;
+
     let orig = el.getAttribute('data-i18n-orig');
     if (orig == null) {
       orig = el.innerHTML.trim();
-      el.setAttribute('data-i18n-orig', orig);
+      const canon = resolveCanonical(orig);
+      el.setAttribute('data-i18n-orig', canon);
+      orig = canon;
+    } else {
+      const canon = resolveCanonical(orig);
+      if (canon !== orig) {
+        orig = canon;
+        el.setAttribute('data-i18n-orig', orig);
+      }
     }
     if (!orig) return;
-    if (lang === 'de') {
-      el.innerHTML = orig;
-      return;
-    }
+
     let trans = t(orig);
     if (!trans || trans === orig) {
       const plain = el.textContent.trim();
-      const transPlain = t(plain);
+      const canonPlain = resolveCanonical(plain);
+      const transPlain = t(canonPlain);
       if (transPlain && transPlain !== plain) {
         trans = transPlain;
       }
     }
-    if (trans && trans !== orig) {
+    if (trans && trans !== el.innerHTML) {
       el.innerHTML = trans;
     }
   }
@@ -18553,15 +18646,21 @@ function translateElementTree(root) {
     let orig = el.getAttribute(origAttr);
     if (orig == null) {
       orig = el.getAttribute(attr);
-      if (orig) el.setAttribute(origAttr, orig);
+      if (orig) {
+        const canon = resolveCanonical(orig);
+        el.setAttribute(origAttr, canon);
+        orig = canon;
+      }
+    } else {
+      const canon = resolveCanonical(orig);
+      if (canon !== orig) {
+        orig = canon;
+        el.setAttribute(origAttr, orig);
+      }
     }
     if (!orig) return;
-    if (lang === 'de') {
-      el.setAttribute(attr, orig);
-    } else {
-      const trans = t(orig);
-      if (trans && trans !== orig) el.setAttribute(attr, trans);
-    }
+    const trans = t(orig);
+    if (trans) el.setAttribute(attr, trans);
   }
 
   // 1. Specific classes
@@ -18581,25 +18680,30 @@ function translateElementTree(root) {
     if (!el.querySelector('input, select, button')) localizeEl(el);
   });
 
-  // 4. Buttons (.btn, .ibtn)
-  root.querySelectorAll('button.btn, button.ibtn').forEach(el => {
+  // 4. Buttons (.btn, .ibtn, .seg > button)
+  root.querySelectorAll('button.btn, button.ibtn, .seg > button').forEach(el => {
     if (!el.querySelector('input, select')) localizeEl(el);
   });
 
   // 5. Select options
   root.querySelectorAll('select option').forEach(el => {
+    if (el.parentElement?.id === 'set-language') return;
     let orig = el.getAttribute('data-i18n-orig');
     if (orig == null) {
       orig = el.textContent.trim();
-      el.setAttribute('data-i18n-orig', orig);
+      const canon = resolveCanonical(orig);
+      el.setAttribute('data-i18n-orig', canon);
+      orig = canon;
+    } else {
+      const canon = resolveCanonical(orig);
+      if (canon !== orig) {
+        orig = canon;
+        el.setAttribute('data-i18n-orig', orig);
+      }
     }
     if (!orig) return;
-    if (lang === 'de') {
-      el.textContent = orig;
-    } else {
-      const trans = t(orig);
-      if (trans && trans !== orig) el.textContent = trans;
-    }
+    const trans = t(orig);
+    if (trans) el.textContent = trans;
   });
 
   // 6. Labels
@@ -18613,14 +18717,18 @@ function translateElementTree(root) {
         const tn = textNodes[0];
         if (orig == null) {
           orig = tn.nodeValue.trim();
-          el.setAttribute('data-i18n-orig', orig);
-        }
-        if (lang === 'de') {
-          tn.nodeValue = ' ' + orig;
+          const canon = resolveCanonical(orig);
+          el.setAttribute('data-i18n-orig', canon);
+          orig = canon;
         } else {
-          const trans = t(orig);
-          if (trans && trans !== orig) tn.nodeValue = ' ' + trans;
+          const canon = resolveCanonical(orig);
+          if (canon !== orig) {
+            orig = canon;
+            el.setAttribute('data-i18n-orig', orig);
+          }
         }
+        const trans = t(orig);
+        if (trans) tn.nodeValue = ' ' + trans;
       }
     }
   });
@@ -18843,6 +18951,7 @@ function applyLocalizationToDom() {
       ch[2].innerHTML = `${esc(t('col.modified'))} <span id="sort-${side}-Modified">${esc(sMod)}</span>`;
       ch[3].innerHTML = `${esc(t('col.type'))} <span id="sort-${side}-Extension">${esc(sExt)}</span>`;
     }
+    updatePaneFooter(side);
   });
 
   // Right Inspector Dock
@@ -19055,7 +19164,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.18';
+  STATE.version = data.version || '1.9.19';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
