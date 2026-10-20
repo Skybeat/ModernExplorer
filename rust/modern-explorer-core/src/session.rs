@@ -37,12 +37,24 @@ impl ExplorerViewMode {
     }
 }
 
+fn default_sort_column() -> String {
+    "Name".to_string()
+}
+
+fn default_sort_ascending() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedTabState {
     pub path: String,
     pub home_path: String,
     pub lock_state: TabLockState,
     pub view_mode: ExplorerViewMode,
+    #[serde(default = "default_sort_column")]
+    pub sort_column: String,
+    #[serde(default = "default_sort_ascending")]
+    pub sort_ascending: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +85,8 @@ impl Default for SessionState {
             home_path: cwd,
             lock_state: TabLockState::Normal,
             view_mode: ExplorerViewMode::Details,
+            sort_column: default_sort_column(),
+            sort_ascending: default_sort_ascending(),
         };
         Self {
             left_tabs: vec![default_tab.clone()],
@@ -230,4 +244,64 @@ impl CommandRegistry {
         ]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_saved_tab_state_sorting_roundtrip() {
+        let tab = SavedTabState {
+            path: "C:\\Data".to_string(),
+            home_path: "C:\\Data".to_string(),
+            lock_state: TabLockState::Normal,
+            view_mode: ExplorerViewMode::Details,
+            sort_column: "Modified".to_string(),
+            sort_ascending: false,
+        };
+
+        let json_str = serde_json::to_string(&tab).expect("serialize tab");
+        let deserialized: SavedTabState =
+            serde_json::from_str(&json_str).expect("deserialize tab");
+
+        assert_eq!(deserialized.sort_column, "Modified");
+        assert!(!deserialized.sort_ascending);
+    }
+
+    #[test]
+    fn test_saved_tab_state_backwards_compatibility() {
+        // Old sessions did not have sort_column or sort_ascending fields
+        let legacy_json = r#"{
+            "path": "D:\\Work",
+            "home_path": "D:\\Work",
+            "lock_state": "Pinned",
+            "view_mode": "Details"
+        }"#;
+
+        let tab: SavedTabState =
+            serde_json::from_str(legacy_json).expect("deserialize legacy tab");
+
+        assert_eq!(tab.path, "D:\\Work");
+        assert_eq!(tab.sort_column, "Name");
+        assert!(tab.sort_ascending);
+    }
+
+    #[test]
+    fn test_session_state_with_per_tab_sorting() {
+        let mut session = SessionState::default();
+        assert_eq!(session.left_tabs[0].sort_column, "Name");
+        assert!(session.left_tabs[0].sort_ascending);
+
+        session.left_tabs[0].sort_column = "Size".to_string();
+        session.left_tabs[0].sort_ascending = false;
+
+        let json_str = serde_json::to_string_pretty(&session).expect("serialize session");
+        let restored: SessionState =
+            serde_json::from_str(&json_str).expect("deserialize session");
+
+        assert_eq!(restored.left_tabs[0].sort_column, "Size");
+        assert!(!restored.left_tabs[0].sort_ascending);
+    }
+}
+
 

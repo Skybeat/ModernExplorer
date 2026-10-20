@@ -975,6 +975,10 @@ pub struct WorkspaceTabSnapshot {
     pub is_pinned: bool,
     pub is_locked: bool,
     pub view_mode: String,
+    #[serde(default)]
+    pub sort_column: Option<String>,
+    #[serde(default)]
+    pub sort_ascending: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
