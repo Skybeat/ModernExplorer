@@ -9,6 +9,8 @@ use std::fs::{self, File};
 use std::io::{self, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
@@ -777,11 +779,33 @@ impl ArchiveService {
         inner_paths: &[String],
         destination_dir: &Path,
     ) -> Result<usize, String> {
+        Self::extract_virtual_entries_with_progress(archive_path, inner_paths, destination_dir, None, None)
+    }
+
+    pub fn extract_virtual_entries_with_progress(
+        archive_path: &Path,
+        inner_paths: &[String],
+        destination_dir: &Path,
+        cancel_flag: Option<&Arc<AtomicBool>>,
+        on_progress: Option<&dyn Fn(&str, usize, usize)>,
+    ) -> Result<usize, String> {
         if !archive_path.is_file() {
             return Err(format!("Archivdatei nicht gefunden: {}", archive_path.display()));
         }
         if inner_paths.is_empty() {
             return Ok(0);
+        }
+
+        let is_cancelled = || -> bool {
+            if let Some(cf) = cancel_flag {
+                cf.load(Ordering::Relaxed)
+            } else {
+                false
+            }
+        };
+
+        if is_cancelled() {
+            return Err("Vorgang durch Benutzer abgebrochen".to_string());
         }
 
         fs::create_dir_all(destination_dir).map_err(|e| e.to_string())?;
@@ -793,17 +817,32 @@ impl ArchiveService {
                 .join(format!("7z_ext_{}_{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
             let _ = fs::remove_dir_all(&temp_dir);
             fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+
+            if let Some(cb) = on_progress {
+                cb("7z-Archiv wird dekomprimiert…", 0, 0);
+            }
+
             let res = sevenz_rust::decompress_file(archive_path, &temp_dir);
             if let Err(e) = res {
                 let _ = fs::remove_dir_all(&temp_dir);
                 return Err(e.to_string());
             }
 
+            if is_cancelled() {
+                let _ = fs::remove_dir_all(&temp_dir);
+                return Err("Vorgang durch Benutzer abgebrochen".to_string());
+            }
+
+            let all_entries: Vec<_> = WalkDir::new(&temp_dir).min_depth(1).into_iter().filter_map(|e| e.ok()).collect();
+            let total_entries = all_entries.len();
             let mut count = 0usize;
             let mut extracted_targets = HashSet::new();
 
-            for entry in WalkDir::new(&temp_dir).min_depth(1) {
-                let Ok(entry) = entry else { continue };
+            for entry in all_entries {
+                if is_cancelled() {
+                    let _ = fs::remove_dir_all(&temp_dir);
+                    return Err("Vorgang durch Benutzer abgebrochen".to_string());
+                }
                 let Ok(rel) = entry.path().strip_prefix(&temp_dir) else { continue };
                 let rel_str = rel.to_string_lossy().replace('\\', "/");
                 let is_dir = entry.file_type().is_dir();
@@ -820,6 +859,9 @@ impl ArchiveService {
                         }
                         if fs::copy(entry.path(), &target_path).is_ok() {
                             count += 1;
+                            if let Some(cb) = on_progress {
+                                cb(&rel_str, count, total_entries);
+                            }
                         }
                     }
                 }
@@ -836,6 +878,10 @@ impl ArchiveService {
             let _ = fs::remove_dir_all(&temp_dir);
             fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
 
+            if let Some(cb) = on_progress {
+                cb("RAR-Archiv wird dekomprimiert…", 0, 0);
+            }
+
             let mut cmd = Command::new("tar");
             cmd.arg("-xf").arg(archive_path).arg("-C").arg(&temp_dir);
             #[cfg(target_os = "windows")]
@@ -849,11 +895,21 @@ impl ArchiveService {
                 return Err("RAR-Entpacken fehlgeschlagen".to_string());
             }
 
+            if is_cancelled() {
+                let _ = fs::remove_dir_all(&temp_dir);
+                return Err("Vorgang durch Benutzer abgebrochen".to_string());
+            }
+
+            let all_entries: Vec<_> = WalkDir::new(&temp_dir).min_depth(1).into_iter().filter_map(|e| e.ok()).collect();
+            let total_entries = all_entries.len();
             let mut count = 0usize;
             let mut extracted_targets = HashSet::new();
 
-            for entry in WalkDir::new(&temp_dir).min_depth(1) {
-                let Ok(entry) = entry else { continue };
+            for entry in all_entries {
+                if is_cancelled() {
+                    let _ = fs::remove_dir_all(&temp_dir);
+                    return Err("Vorgang durch Benutzer abgebrochen".to_string());
+                }
                 let Ok(rel) = entry.path().strip_prefix(&temp_dir) else { continue };
                 let rel_str = rel.to_string_lossy().replace('\\', "/");
                 let is_dir = entry.file_type().is_dir();
@@ -870,6 +926,9 @@ impl ArchiveService {
                         }
                         if fs::copy(entry.path(), &target_path).is_ok() {
                             count += 1;
+                            if let Some(cb) = on_progress {
+                                cb(&rel_str, count, total_entries);
+                            }
                         }
                     }
                 }
@@ -880,12 +939,18 @@ impl ArchiveService {
         }
 
         if Self::is_tar_variant(&lower) {
+            if let Some(cb) = on_progress {
+                cb("Tar-Archiv wird dekomprimiert…", 0, 0);
+            }
             let raw_tar = Self::decode_tar_bytes(archive_path)?;
             let mut tar = tar::Archive::new(Cursor::new(raw_tar));
             let mut count = 0usize;
             let mut extracted_targets = HashSet::new();
 
             for item in tar.entries().map_err(|e| e.to_string())? {
+                if is_cancelled() {
+                    return Err("Vorgang durch Benutzer abgebrochen".to_string());
+                }
                 let mut entry = item.map_err(|e| e.to_string())?;
                 let path = entry.path().map_err(|e| e.to_string())?;
                 let raw_name = path.to_string_lossy().to_string();
@@ -904,6 +969,9 @@ impl ArchiveService {
                         let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
                         io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
                         count += 1;
+                        if let Some(cb) = on_progress {
+                            cb(&raw_name, count, 0);
+                        }
                     }
                 }
             }
@@ -913,10 +981,14 @@ impl ArchiveService {
         // Default ZIP (.zip, .jar, .nupkg)
         let f = File::open(archive_path).map_err(|e| e.to_string())?;
         let mut zip = ZipArchive::new(f).map_err(|e| e.to_string())?;
+        let total_entries = zip.len();
         let mut count = 0usize;
         let mut extracted_targets = HashSet::new();
 
-        for i in 0..zip.len() {
+        for i in 0..total_entries {
+            if is_cancelled() {
+                return Err("Vorgang durch Benutzer abgebrochen".to_string());
+            }
             let mut file = zip.by_index(i).map_err(|e| e.to_string())?;
             let raw_name = file.name().to_string();
             let is_dir = file.is_dir();
@@ -934,6 +1006,9 @@ impl ArchiveService {
                     let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
                     io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
                     count += 1;
+                    if let Some(cb) = on_progress {
+                        cb(&raw_name, count, total_entries);
+                    }
                 }
             }
         }

@@ -460,6 +460,35 @@ mod tests {
         assert_eq!(count3, 1);
         assert!(out_dir2.join("inner.rs").is_file());
         assert_eq!(fs::read_to_string(out_dir2.join("inner.rs")).unwrap(), "fn main() {}");
+
+        // 4d. Extract with progress callback and cancel flag
+        let out_dir3 = dir.path().join("progress_target");
+        fs::create_dir_all(&out_dir3).unwrap();
+        let progress_items = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let pi = std::sync::Arc::clone(&progress_items);
+        let cb = move |item: &str, processed: usize, total: usize| {
+            pi.lock().unwrap().push((item.to_string(), processed, total));
+        };
+        let count4 = ArchiveService::extract_virtual_entries_with_progress(
+            &zip_path,
+            &["hello.txt".to_string()],
+            &out_dir3,
+            None,
+            Some(&cb),
+        ).unwrap();
+        assert_eq!(count4, 1);
+        assert!(!progress_items.lock().unwrap().is_empty());
+
+        // 4e. Cancelled extraction returns error
+        let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let cancel_res = ArchiveService::extract_virtual_entries_with_progress(
+            &zip_path,
+            &["hello.txt".to_string()],
+            &out_dir3,
+            Some(&cancel_flag),
+            None,
+        );
+        assert!(cancel_res.is_err());
     }
 
     #[test]

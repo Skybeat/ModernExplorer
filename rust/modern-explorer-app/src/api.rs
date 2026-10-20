@@ -92,6 +92,29 @@ pub struct TreemapJobState {
     pub cancel_flag: Arc<AtomicBool>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CopyJobProgress {
+    pub running: bool,
+    pub is_archive: bool,
+    pub is_move: bool,
+    pub title: String,
+    pub current_item: String,
+    pub dest_dir: String,
+    pub processed_items: usize,
+    pub total_items: usize,
+    pub percent: u32,
+    pub done: bool,
+    pub cancelled: bool,
+    pub count: usize,
+    pub error: Option<String>,
+}
+
+pub struct CopyJobState {
+    pub progress: Arc<Mutex<CopyJobProgress>>,
+    pub cancel_flag: Arc<AtomicBool>,
+    pub pending_undo: Arc<Mutex<Vec<(String, UndoAction)>>>,
+}
+
 pub struct BackendState {
     pub settings: AppSettings,
     pub favorites: FavoritesStore,
@@ -104,6 +127,7 @@ pub struct BackendState {
     pub cached_treemap: Option<TreemapNode>,
     pub duplicates_job: Arc<Mutex<Option<DuplicatesJobState>>>,
     pub treemap_job: Arc<Mutex<Option<TreemapJobState>>>,
+    pub copy_job: Arc<Mutex<Option<CopyJobState>>>,
     pub selection_store: SelectionPresetsStore,
     pub transfer_queue: TransferQueueManager,
     pub frecency_store: FrecencyStore,
@@ -127,6 +151,7 @@ impl BackendState {
             cached_treemap: None,
             duplicates_job: Arc::new(Mutex::new(None)),
             treemap_job: Arc::new(Mutex::new(None)),
+            copy_job: Arc::new(Mutex::new(None)),
             selection_store: SelectionPresetsStore::load(),
             transfer_queue: TransferQueueManager::new(),
             frecency_store: FrecencyStore::load(),
@@ -143,6 +168,9 @@ impl BackendState {
             "list_dir" => self.rpc_list_dir(params),
             "open_item" => self.rpc_open_item(params),
             "copy_or_move" => self.rpc_copy_or_move(params),
+            "copy_or_move_start" => self.rpc_copy_or_move_start(params),
+            "copy_or_move_poll" => self.rpc_copy_or_move_poll(),
+            "copy_or_move_cancel" => self.rpc_copy_or_move_cancel(),
             "delete_items" => self.rpc_delete_items(params),
             "rename_item" => self.rpc_rename_item(params),
             "create_item" => self.rpc_create_item(params),
@@ -765,6 +793,266 @@ impl BackendState {
             "can_undo": self.undo_service.can_undo(),
             "undo_desc": self.undo_service.last_description().unwrap_or(""),
         })
+    }
+
+    fn rpc_copy_or_move_start(&mut self, params: &Value) -> Value {
+        let is_move = params
+            .get("is_move")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let dest_dir_str = params
+            .get("dest_dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".");
+
+        if ArchiveService::is_virtual_archive_path(dest_dir_str) {
+            return json!({
+                "ok": false,
+                "error": "Kopieren in ein virtuelles Archiv wird aktuell noch nicht unterstützt."
+            });
+        }
+
+        let dest_dir = PathBuf::from(dest_dir_str);
+        let paths: Vec<String> = params
+            .get("paths")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if paths.is_empty() {
+            return json!({ "ok": false, "error": "Keine Elemente zum Kopieren ausgewählt." });
+        }
+
+        let is_archive_src = paths.iter().any(|p| ArchiveService::is_virtual_archive_path(p));
+        let title = if is_archive_src {
+            "📦 Aus Archiv entpacken…".to_string()
+        } else if is_move {
+            "➔ Elemente verschieben…".to_string()
+        } else {
+            "📁 Elemente kopieren…".to_string()
+        };
+
+        let initial_progress = CopyJobProgress {
+            running: true,
+            is_archive: is_archive_src,
+            is_move,
+            title,
+            current_item: "Vorbereiten…".to_string(),
+            dest_dir: dest_dir.to_string_lossy().to_string(),
+            processed_items: 0,
+            total_items: paths.len(),
+            percent: 0,
+            done: false,
+            cancelled: false,
+            count: 0,
+            error: None,
+        };
+
+        let progress_arc = Arc::new(Mutex::new(initial_progress));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let pending_undo = Arc::new(Mutex::new(Vec::new()));
+
+        let job_state = CopyJobState {
+            progress: Arc::clone(&progress_arc),
+            cancel_flag: Arc::clone(&cancel_flag),
+            pending_undo: Arc::clone(&pending_undo),
+        };
+
+        if let Ok(mut lock) = self.copy_job.lock() {
+            *lock = Some(job_state);
+        }
+
+        let progress_thread = Arc::clone(&progress_arc);
+        let cancel_thread = Arc::clone(&cancel_flag);
+        let pending_thread = Arc::clone(&pending_undo);
+
+        std::thread::spawn(move || {
+            let mut total_count = 0usize;
+            let mut virtual_archive_groups: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
+            let mut normal_paths: Vec<String> = Vec::new();
+
+            for p in &paths {
+                if ArchiveService::is_virtual_archive_path(p) {
+                    if let Some((arch_file, inner_path)) = ArchiveService::parse_virtual_archive_path(p) {
+                        virtual_archive_groups
+                            .entry(arch_file)
+                            .or_default()
+                            .push(inner_path);
+                    }
+                } else {
+                    normal_paths.push(p.clone());
+                }
+            }
+
+            let mut job_error: Option<String> = None;
+
+            // 1. Process virtual archive paths
+            for (arch_file, inners) in virtual_archive_groups {
+                if cancel_thread.load(Ordering::Relaxed) {
+                    break;
+                }
+                let arch_path = Path::new(&arch_file);
+                let arch_display = arch_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| arch_file.clone());
+
+                let progress_inner = Arc::clone(&progress_thread);
+                let inners_count = inners.len();
+
+                let cb = move |item_name: &str, processed: usize, total: usize| {
+                    if let Ok(mut p) = progress_inner.lock() {
+                        p.current_item = item_name.to_string();
+                        p.processed_items = processed;
+                        p.total_items = if total > 0 { total } else { inners_count.max(processed) };
+                        if p.total_items > 0 {
+                            p.percent = ((p.processed_items as f64 / p.total_items as f64) * 100.0).clamp(0.0, 100.0) as u32;
+                        }
+                    }
+                };
+
+                match ArchiveService::extract_virtual_entries_with_progress(
+                    arch_path,
+                    &inners,
+                    &dest_dir,
+                    Some(&cancel_thread),
+                    Some(&cb),
+                ) {
+                    Ok(extracted) => {
+                        total_count += extracted;
+                        if let Ok(mut u) = pending_thread.lock() {
+                            u.push((
+                                format!("Aus Archiv entpackt ({arch_display}): {extracted} Element(e)"),
+                                UndoAction::Copied {
+                                    copied_path: dest_dir.to_string_lossy().to_string(),
+                                },
+                            ));
+                        }
+                    }
+                    Err(err) => {
+                        if cancel_thread.load(Ordering::Relaxed) {
+                            // User cancelled
+                        } else {
+                            job_error = Some(format!("Fehler beim Entpacken aus {arch_display}: {err}"));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 2. Process normal filesystem paths
+            let total_normals = normal_paths.len();
+            for (idx, src_str) in normal_paths.iter().enumerate() {
+                if cancel_thread.load(Ordering::Relaxed) {
+                    break;
+                }
+                let src = Path::new(src_str);
+                let name = src
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| src_str.clone());
+
+                if let Ok(mut p) = progress_thread.lock() {
+                    p.current_item = name;
+                    p.processed_items = idx + 1;
+                    p.total_items = total_normals;
+                    p.percent = (((idx + 1) as f64 / total_normals as f64) * 100.0).clamp(0.0, 100.0) as u32;
+                }
+
+                if is_move {
+                    if let Ok(Some(moved)) =
+                        FileOperationExecutor::move_entry(src, &dest_dir, ConflictResolution::KeepBoth)
+                    {
+                        if let Ok(mut u) = pending_thread.lock() {
+                            u.push((
+                                format!("Verschoben: {}", src.display()),
+                                UndoAction::Moved {
+                                    original_path: src_str.clone(),
+                                    moved_path: moved.to_string_lossy().to_string(),
+                                },
+                            ));
+                        }
+                        total_count += 1;
+                    }
+                } else if let Ok(Some(copied)) =
+                    FileOperationExecutor::copy_entry(src, &dest_dir, ConflictResolution::KeepBoth)
+                {
+                    if let Ok(mut u) = pending_thread.lock() {
+                        u.push((
+                            format!("Kopiert: {}", src.display()),
+                            UndoAction::Copied {
+                                copied_path: copied.to_string_lossy().to_string(),
+                            },
+                        ));
+                    }
+                    total_count += 1;
+                }
+            }
+
+            let was_cancelled = cancel_thread.load(Ordering::Relaxed);
+            if let Ok(mut p) = progress_thread.lock() {
+                p.running = false;
+                p.done = true;
+                p.cancelled = was_cancelled;
+                p.count = total_count;
+                p.percent = 100;
+                p.error = job_error;
+            }
+        });
+
+        json!({ "ok": true, "started": true })
+    }
+
+    fn rpc_copy_or_move_poll(&mut self) -> Value {
+        if let Ok(lock) = self.copy_job.lock() {
+            if let Some(ref job) = *lock {
+                if let Ok(p) = job.progress.lock() {
+                    if p.done {
+                        if let Ok(mut pending) = job.pending_undo.lock() {
+                            for (desc, action) in pending.drain(..) {
+                                self.undo_service.record(desc, action);
+                            }
+                        }
+                    }
+                    return json!({
+                        "ok": true,
+                        "running": p.running,
+                        "done": p.done,
+                        "cancelled": p.cancelled,
+                        "is_archive": p.is_archive,
+                        "is_move": p.is_move,
+                        "title": p.title,
+                        "current_item": p.current_item,
+                        "dest_dir": p.dest_dir,
+                        "processed_items": p.processed_items,
+                        "total_items": p.total_items,
+                        "percent": p.percent,
+                        "count": p.count,
+                        "error": p.error,
+                        "can_undo": self.undo_service.can_undo(),
+                        "undo_desc": self.undo_service.last_description().unwrap_or(""),
+                    });
+                }
+            }
+        }
+        json!({ "ok": true, "running": false, "no_job": true })
+    }
+
+    fn rpc_copy_or_move_cancel(&mut self) -> Value {
+        if let Ok(lock) = self.copy_job.lock() {
+            if let Some(ref job) = *lock {
+                job.cancel_flag.store(true, Ordering::SeqCst);
+                if let Ok(mut p) = job.progress.lock() {
+                    p.cancelled = true;
+                }
+            }
+        }
+        json!({ "ok": true, "cancelled": true })
     }
 
     fn rpc_delete_items(&mut self, params: &Value) -> Value {
