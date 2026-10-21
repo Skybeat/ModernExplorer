@@ -34,14 +34,16 @@ fn percent_decode(input: &str) -> String {
 
 fn guess_mime_type(path: &str) -> &'static str {
     let lower = path.to_ascii_lowercase();
-    if lower.ends_with(".png") {
+    if lower.ends_with(".png") || lower.ends_with(".apng") {
         "image/png"
-    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".jfif") {
+    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".jpe") || lower.ends_with(".jfif") {
         "image/jpeg"
     } else if lower.ends_with(".gif") {
         "image/gif"
     } else if lower.ends_with(".webp") {
         "image/webp"
+    } else if lower.ends_with(".avif") {
+        "image/avif"
     } else if lower.ends_with(".svg") {
         "image/svg+xml"
     } else if lower.ends_with(".bmp") {
@@ -96,7 +98,20 @@ fn main() {
         .manage(state.clone())
         .invoke_handler(tauri::generate_handler![rpc])
         .register_uri_scheme_protocol("file-preview", |_app, request| {
+            // Handle CORS preflight
+            if request.method() == http::Method::OPTIONS {
+                return http::Response::builder()
+                    .status(204)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+                    .header("Access-Control-Allow-Headers", "*")
+                    .body(Vec::new())
+                    .unwrap();
+            }
+
             let mut file_path = String::new();
+
+            // Try 1: Query string (?path=...)
             if let Some(query) = request.uri().query() {
                 for pair in query.split('&') {
                     if let Some(val) = pair.strip_prefix("path=") {
@@ -105,6 +120,42 @@ fn main() {
                     }
                 }
             }
+
+            // Try 2: Substring "path=" in full URI
+            if file_path.is_empty() {
+                let uri_str = request.uri().to_string();
+                if let Some(idx) = uri_str.find("path=") {
+                    let raw = &uri_str[idx + 5..];
+                    let end = raw.find('&').unwrap_or(raw.len());
+                    file_path = percent_decode(&raw[..end]);
+                }
+            }
+
+            // Try 3: Direct path component (/path=... or /C:/...)
+            if file_path.is_empty() {
+                let p = request.uri().path();
+                if let Some(val) = p.strip_prefix("/?path=") {
+                    file_path = percent_decode(val);
+                } else if let Some(val) = p.strip_prefix("/path=") {
+                    file_path = percent_decode(val);
+                } else if p.len() > 1 && !p.starts_with("/favicon.ico") {
+                    let raw = if p.len() > 3 && p.chars().nth(2) == Some(':') {
+                        &p[1..]
+                    } else {
+                        p
+                    };
+                    file_path = percent_decode(raw);
+                }
+            }
+
+            // Normalize Windows drive letter if there is a leading slash/backslash
+            if (file_path.starts_with('/') || file_path.starts_with('\\'))
+                && file_path.len() > 2
+                && file_path.chars().nth(2) == Some(':')
+            {
+                file_path = file_path[1..].to_string();
+            }
+
             if !file_path.is_empty() {
                 let actual_path = if modern_explorer_core::archive::ArchiveService::is_virtual_archive_path(&file_path) {
                     if let Some((arch_file, inner_path)) = modern_explorer_core::archive::ArchiveService::parse_virtual_archive_path(&file_path) {
@@ -124,6 +175,7 @@ fn main() {
                             .header("Content-Type", mime)
                             .header("Cache-Control", "max-age=60")
                             .header("Access-Control-Allow-Origin", "*")
+                            .header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
                             .body(bytes)
                             .unwrap();
                     }
@@ -131,6 +183,7 @@ fn main() {
             }
             http::Response::builder()
                 .status(404)
+                .header("Access-Control-Allow-Origin", "*")
                 .body(Vec::new())
                 .unwrap()
         })

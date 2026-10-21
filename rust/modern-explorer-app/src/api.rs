@@ -191,6 +191,7 @@ impl BackendState {
             "autocomplete_path" => self.rpc_autocomplete_path(params),
             "open_terminal" => self.rpc_open_terminal(params),
             "quick_preview" => self.rpc_quick_preview(params),
+            "image_preview" => self.rpc_image_preview(params),
             "save_file_text" => self.rpc_save_file_text(params),
             "batch_rename_preview" => self.rpc_batch_rename_preview(params),
             "batch_rename_execute" => self.rpc_batch_rename_execute(params),
@@ -1753,6 +1754,64 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             "resolution": media.resolution_text,
             "checksum": hashes.first(),
         })
+    }
+
+    fn rpc_image_preview(&self, params: &Value) -> Value {
+        let path_str = params.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        let mut temp_extracted: Option<PathBuf> = None;
+        let path = if ArchiveService::is_virtual_archive_path(path_str) {
+            if let Some((arch_file, inner_path)) = ArchiveService::parse_virtual_archive_path(path_str) {
+                if let Ok(extracted) = ArchiveService::extract_single_entry_to_temp(&arch_file, &inner_path) {
+                    temp_extracted = Some(extracted);
+                }
+            }
+            temp_extracted.as_deref().unwrap_or_else(|| Path::new(path_str))
+        } else {
+            Path::new(path_str)
+        };
+
+        if !path.is_file() {
+            return json!({ "error": "Not a file" });
+        }
+
+        if let Ok(meta) = std::fs::metadata(path) {
+            if meta.len() > 30 * 1024 * 1024 {
+                return json!({ "error": "File too large for inline preview" });
+            }
+        }
+
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                let lower = path.to_string_lossy().to_ascii_lowercase();
+                let mime = if lower.ends_with(".png") || lower.ends_with(".apng") {
+                    "image/png"
+                } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".jpe") || lower.ends_with(".jfif") {
+                    "image/jpeg"
+                } else if lower.ends_with(".gif") {
+                    "image/gif"
+                } else if lower.ends_with(".webp") {
+                    "image/webp"
+                } else if lower.ends_with(".avif") {
+                    "image/avif"
+                } else if lower.ends_with(".svg") {
+                    "image/svg+xml"
+                } else if lower.ends_with(".bmp") {
+                    "image/bmp"
+                } else if lower.ends_with(".ico") {
+                    "image/x-icon"
+                } else if lower.ends_with(".tif") || lower.ends_with(".tiff") {
+                    "image/tiff"
+                } else {
+                    "application/octet-stream"
+                };
+                let b64 = base64_encode(&bytes);
+                json!({
+                    "ok": true,
+                    "data_url": format!("data:{};base64,{}", mime, b64)
+                })
+            }
+            Err(e) => json!({ "error": e.to_string() }),
+        }
     }
 
     fn rpc_save_file_text(&self, params: &Value) -> Value {
@@ -3678,4 +3737,64 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         }
     }
 }
+
+pub fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(ALPHABET[(triple >> 18) & 0x3F] as char);
+        out.push(ALPHABET[(triple >> 12) & 0x3F] as char);
+        if chunk.len() > 1 {
+            out.push(ALPHABET[(triple >> 6) & 0x3F] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(ALPHABET[triple & 0x3F] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_base64_encode() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
+    fn test_rpc_image_preview_returns_data_url() {
+        let temp_dir = std::env::temp_dir();
+        let test_img_path = temp_dir.join("test_modern_explorer_preview.png");
+        let sample_png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4";
+        std::fs::write(&test_img_path, sample_png_bytes).expect("write sample png");
+
+        let backend = BackendState::new();
+        let res = backend.rpc_image_preview(&serde_json::json!({
+            "path": test_img_path.to_string_lossy()
+        }));
+
+        let _ = std::fs::remove_file(&test_img_path);
+
+        assert_eq!(res["ok"], true);
+        let data_url = res["data_url"].as_str().expect("data_url string");
+        assert!(data_url.starts_with("data:image/png;base64,"));
+    }
+}
+
 
