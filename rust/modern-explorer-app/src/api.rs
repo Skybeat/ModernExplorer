@@ -243,6 +243,7 @@ impl BackendState {
             "import_color_theme" => self.rpc_import_color_theme(params),
             "export_settings_package" => self.rpc_export_settings_package(),
             "import_settings_package" => self.rpc_import_settings_package(params),
+            "show_native_context_menu" => self.rpc_show_native_context_menu(params),
             "open_url" => {
                 if let Some(u) = params.get("url").and_then(|v| v.as_str()) {
                     GitHubUpdateService::open_release_in_browser(Some(u));
@@ -3736,6 +3737,76 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             }),
         }
     }
+
+    #[cfg(windows)]
+    fn rpc_show_native_context_menu(&self, params: &Value) -> Value {
+        let is_background = params.get("is_background").and_then(|v| v.as_bool()).unwrap_or(false);
+        let extended = params.get("extended").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        let raw_paths: Vec<String> = if let Some(arr) = params.get("paths").and_then(|v| v.as_array()) {
+            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+        } else if let Some(single) = params.get("path").and_then(|v| v.as_str()) {
+            vec![single.to_string()]
+        } else {
+            vec![]
+        };
+
+        if raw_paths.is_empty() {
+            return json!({ "ok": false, "error": "No paths provided" });
+        }
+
+        if raw_paths.iter().any(|p| p.starts_with("archive://")) {
+            return json!({ "ok": false, "virtual_archive": true });
+        }
+
+        let handle = std::thread::spawn(move || -> Result<(), String> {
+            let _com = win_context_menu::init_com().map_err(|e| format!("COM init error: {e}"))?;
+
+            let items = if is_background {
+                let dir_path = PathBuf::from(&raw_paths[0]);
+                win_context_menu::ShellItems::folder_background(&dir_path)
+                    .map_err(|e| format!("folder_background error: {e}"))?
+            } else {
+                let path_bufs: Vec<PathBuf> = raw_paths.iter().map(PathBuf::from).collect();
+                if path_bufs.len() > 1 {
+                    match win_context_menu::ShellItems::from_paths(&path_bufs) {
+                        Ok(items) => items,
+                        Err(_) => win_context_menu::ShellItems::from_path(&path_bufs[0])
+                            .map_err(|e| format!("from_path error: {e}"))?,
+                    }
+                } else {
+                    win_context_menu::ShellItems::from_path(&path_bufs[0])
+                        .map_err(|e| format!("from_path error: {e}"))?
+                }
+            };
+
+            let menu = win_context_menu::ContextMenu::new(items)
+                .map_err(|e| format!("ContextMenu new error: {e}"))?
+                .extended(extended);
+
+            match menu.show() {
+                Ok(Some(selected)) => {
+                    if let Err(e) = selected.execute() {
+                        eprintln!("[ContextMenu] execute error: {e}");
+                    }
+                    Ok(())
+                }
+                Ok(None) => Ok(()),
+                Err(e) => Err(format!("ContextMenu show error: {e}")),
+            }
+        });
+
+        match handle.join() {
+            Ok(Ok(())) => json!({ "ok": true }),
+            Ok(Err(e)) => json!({ "ok": false, "error": e }),
+            Err(_) => json!({ "ok": false, "error": "Context menu thread panicked" }),
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn rpc_show_native_context_menu(&self, _params: &Value) -> Value {
+        json!({ "ok": false, "unsupported": true })
+    }
 }
 
 pub fn base64_encode(data: &[u8]) -> String {
@@ -3794,6 +3865,37 @@ mod tests {
         assert_eq!(res["ok"], true);
         let data_url = res["data_url"].as_str().expect("data_url string");
         assert!(data_url.starts_with("data:image/png;base64,"));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_win_context_menu_shell_items() {
+        let _com = win_context_menu::init_com().expect("init com");
+        let temp_dir = std::env::temp_dir();
+
+        // 1. Folder background
+        let bg_items = win_context_menu::ShellItems::folder_background(&temp_dir);
+        assert!(bg_items.is_ok(), "folder_background should succeed");
+        let bg_menu = win_context_menu::ContextMenu::new(bg_items.unwrap()).expect("bg menu");
+        let bg_entries = bg_menu.enumerate();
+        assert!(bg_entries.is_ok(), "bg menu enumerate should succeed");
+
+        // 2. Folder as an item
+        let folder_items = win_context_menu::ShellItems::from_path(&temp_dir);
+        assert!(folder_items.is_ok(), "from_path on folder should succeed");
+        let folder_menu = win_context_menu::ContextMenu::new(folder_items.unwrap()).expect("folder menu");
+        let folder_entries = folder_menu.enumerate();
+        assert!(folder_entries.is_ok(), "folder menu enumerate should succeed");
+
+        // 3. File as an item
+        let file_path = temp_dir.join("test_ctx_menu_item.txt");
+        let _ = std::fs::write(&file_path, "hello");
+        let file_items = win_context_menu::ShellItems::from_path(&file_path);
+        assert!(file_items.is_ok(), "from_path on file should succeed");
+        let file_menu = win_context_menu::ContextMenu::new(file_items.unwrap()).expect("file menu");
+        let file_entries = file_menu.enumerate();
+        let _ = std::fs::remove_file(&file_path);
+        assert!(file_entries.is_ok(), "file menu enumerate should succeed");
     }
 }
 

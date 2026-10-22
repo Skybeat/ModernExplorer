@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.21 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.22 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -1267,7 +1267,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.21 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.22 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1810,7 +1810,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.21</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.22</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1961,7 +1961,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.21</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.21</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.22</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.22</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1970,7 +1970,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.21.
+        ✓ Sie verwenden die aktuelle Version v1.9.22.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2187,7 +2187,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.jpe','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif','.avif','.apng']);
 
 const STATE = {
-  version: '1.9.21',
+  version: '1.9.22',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2914,7 +2914,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.21": "Installed version: v1.9.14",
+  "Installierte Version: v1.9.22": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -4001,7 +4001,7 @@ const I18N = {
     "Installed version:": "Versión instalada:",
     "Installed version: v1.9.14": "Versión instalada: v1.9.16",
     "Installierte Version:": "Versión instalada:",
-    "Installierte Version: v1.9.21": "Versión instalada: v1.9.16",
+    "Installierte Version: v1.9.22": "Versión instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula inmediatamente el tamaño recursivo de la carpeta resaltada",
     "Internal Text & Code Editor": "Editor interno de texto y código.",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código y hexadecimal (F4)",
@@ -5884,7 +5884,7 @@ const I18N = {
     "Installed version:": "Version installée :",
     "Installed version: v1.9.14": "Version installée : v1.9.16",
     "Installierte Version:": "Version installée :",
-    "Installierte Version: v1.9.21": "Version installée : v1.9.16",
+    "Installierte Version: v1.9.22": "Version installée : v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcule immédiatement la taille récursive du dossier en surbrillance",
     "Internal Text & Code Editor": "Éditeur de texte et de code interne",
     "Internal Text, Code & Hex Editor (F4)": "Éditeur interne de texte, de code et hexadécimal (F4)",
@@ -7767,7 +7767,7 @@ const I18N = {
     "Installed version:": "Versione installata:",
     "Installed version: v1.9.14": "Versione installata: v1.9.16",
     "Installierte Version:": "Versione installata:",
-    "Installierte Version: v1.9.21": "Versione installata: v1.9.16",
+    "Installierte Version: v1.9.22": "Versione installata: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcola immediatamente la dimensione ricorsiva della cartella evidenziata",
     "Internal Text & Code Editor": "Editor interno di testo e codice",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno di testo, codice ed esadecimale (F4)",
@@ -9650,7 +9650,7 @@ const I18N = {
     "Installed version:": "Geïnstalleerde versie:",
     "Installed version: v1.9.14": "Geïnstalleerde versie: v1.9.16",
     "Installierte Version:": "Geïnstalleerde versie:",
-    "Installierte Version: v1.9.21": "Geïnstalleerde versie: v1.9.16",
+    "Installierte Version: v1.9.22": "Geïnstalleerde versie: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Berekent onmiddellijk de recursieve grootte van de gemarkeerde map",
     "Internal Text & Code Editor": "Interne tekst- en code-editor",
     "Internal Text, Code & Hex Editor (F4)": "Interne tekst-, code- en hex-editor (F4)",
@@ -11533,7 +11533,7 @@ const I18N = {
     "Installed version:": "Zainstalowana wersja:",
     "Installed version: v1.9.14": "Zainstalowana wersja: v1.9.16",
     "Installierte Version:": "Zainstalowana wersja:",
-    "Installierte Version: v1.9.21": "Zainstalowana wersja: v1.9.16",
+    "Installierte Version: v1.9.22": "Zainstalowana wersja: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Natychmiast oblicza rekurencyjny rozmiar podświetlonego folderu",
     "Internal Text & Code Editor": "Wewnętrzny edytor tekstu i kodu",
     "Internal Text, Code & Hex Editor (F4)": "Wewnętrzny edytor tekstu, kodu i szesnastkowego (F4)",
@@ -13416,7 +13416,7 @@ const I18N = {
     "Installed version:": "Versão instalada:",
     "Installed version: v1.9.14": "Versão instalada: v1.9.16",
     "Installierte Version:": "Versão instalada:",
-    "Installierte Version: v1.9.21": "Versão instalada: v1.9.16",
+    "Installierte Version: v1.9.22": "Versão instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula imediatamente o tamanho recursivo da pasta destacada",
     "Internal Text & Code Editor": "Editor interno de texto e código",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código e hexadecimal (F4)",
@@ -15299,7 +15299,7 @@ const I18N = {
     "Installed version:": "インストールされているバージョン:",
     "Installed version: v1.9.14": "インストールされているバージョン: v1.9.16",
     "Installierte Version:": "インストールされているバージョン:",
-    "Installierte Version: v1.9.21": "インストールされているバージョン: v1.9.16",
+    "Installierte Version: v1.9.22": "インストールされているバージョン: v1.9.16",
     "Instantly calculates recursive size of selected folder": "強調表示されたフォルダーの再帰的なサイズを即座に計算します。",
     "Internal Text & Code Editor": "内部テキストおよびコードエディター",
     "Internal Text, Code & Hex Editor (F4)": "内部テキスト、コード、および 16 進数エディター (F4)",
@@ -17182,7 +17182,7 @@ const I18N = {
     "Installed version:": "安装版本：",
     "Installed version: v1.9.14": "安装版本：v1.9.16",
     "Installierte Version:": "安装版本：",
-    "Installierte Version: v1.9.21": "安装版本：v1.9.16",
+    "Installierte Version: v1.9.22": "安装版本：v1.9.16",
     "Instantly calculates recursive size of selected folder": "立即计算突出显示文件夹的递归大小",
     "Internal Text & Code Editor": "内部文本和代码编辑器",
     "Internal Text, Code & Hex Editor (F4)": "内部文本、代码和十六进制编辑器 (F4)",
@@ -19183,7 +19183,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.21';
+  STATE.version = data.version || '1.9.22';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
@@ -19670,6 +19670,17 @@ function renderFileList(side) {
   host.className = flClasses.join(' ');
   document.getElementById('colhead-' + side).style.display = mode === 'Details' ? 'grid' : 'none';
   host.innerHTML = '';
+  host.oncontextmenu = (e) => {
+    if (!e.target.closest('.file-row, .file-card')) {
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveSide(side);
+      document.getElementById('list-' + side)?.focus({ preventScroll: true });
+      p.selected.clear();
+      renderFileList(side);
+      openBackgroundContextMenu(e, side);
+    }
+  };
 
   // Parent directory [..] entry if not at root
   const hasParent = tab.path.startsWith('archive://') || (tab.path.length > 3 && (tab.path.includes('\\') || tab.path.includes('/')));
@@ -19908,7 +19919,7 @@ function bindItemEvents(el, side, item, idx) {
       p.selected.add(item.full_path);
       renderFileList(side);
     }
-    openFileContextMenu(e, side, item);
+    openNativeOrFallbackContextMenu(e, side, item);
   };
   if (isImageExt(item.extension)) {
     el.onmouseenter = (e) => showImageHoverPreview(e, item);
@@ -20501,6 +20512,59 @@ function showContextMenuAt(e, items) {
   if (y + rect.height > window.innerHeight) y = Math.max(8, window.innerHeight - rect.height - 8);
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
+}
+
+async function openNativeOrFallbackContextMenu(e, side, item) {
+  if (!item || (item.full_path && item.full_path.startsWith('archive://'))) {
+    openFileContextMenu(e, side, item);
+    return;
+  }
+
+  const p = STATE.panes[side];
+  let paths = [];
+  if (p && p.selected && p.selected.has(item.full_path) && p.selected.size > 1) {
+    paths = Array.from(p.selected);
+  } else if (p && p.marked && p.marked.has(item.full_path) && p.marked.size > 1) {
+    paths = Array.from(p.marked);
+  } else {
+    paths = [item.full_path];
+  }
+
+  try {
+    const res = await rpc('show_native_context_menu', {
+      paths: paths,
+      is_background: false,
+      extended: !!e.shiftKey
+    });
+    if (res && (res.virtual_archive || res.unsupported)) {
+      openFileContextMenu(e, side, item);
+    } else if (res && res.ok) {
+      loadPane(side);
+    }
+  } catch (err) {
+    console.error('Failed to show native context menu', err);
+    openFileContextMenu(e, side, item);
+  }
+}
+
+async function openBackgroundContextMenu(e, side) {
+  const tab = getTab(side);
+  if (!tab || !tab.path || tab.path.startsWith('archive://')) {
+    return;
+  }
+
+  try {
+    const res = await rpc('show_native_context_menu', {
+      paths: [tab.path],
+      is_background: true,
+      extended: !!e.shiftKey
+    });
+    if (res && res.ok) {
+      loadPane(side);
+    }
+  } catch (err) {
+    console.error('Failed to show native background context menu', err);
+  }
 }
 
 function openFileContextMenu(e, side, item) {
