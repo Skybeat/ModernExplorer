@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.23 (Rust Edition)</title>
+<title>ModernExplorer Studio — Dual-Pane File Manager v1.9.24 (Rust Edition)</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" href="/app-icon.png">
 <style>
@@ -143,12 +143,13 @@
   ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
 
-  /* ============ APP SHELL (Nuharji/markdown-studio Layout) ============ */
+  /* ============ APP SHELL ============ */
   .app {
-    display: grid;
-    grid-template-rows: 34px 40px auto 1fr auto auto auto 24px;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     width: 100vw;
+    overflow: hidden;
   }
 
   /* ============ MENU BAR (.menubar) ============ */
@@ -156,7 +157,7 @@
     display: flex; align-items: center; gap: 2px;
     padding: 0 10px; background: var(--bg-panel);
     border-bottom: 1px solid var(--border); font-size: var(--fs-toolbar);
-    position: relative; z-index: 200;
+    position: relative; z-index: 200; height: 34px; flex-shrink: 0;
   }
   .app-logo {
     display: flex; align-items: center; gap: 7px;
@@ -212,6 +213,7 @@
     display: flex; align-items: center; gap: 4px;
     padding: 0 10px; background: var(--bg-panel);
     border-bottom: 1px solid var(--border); overflow-x: auto;
+    flex-shrink: 0; min-height: 36px;
   }
   .optbar::-webkit-scrollbar { height: 0; }
   .opt-group {
@@ -247,6 +249,7 @@
     display: flex; align-items: center; gap: 4px; padding: 3px 10px;
     background: var(--bg-panel); border-bottom: 1px solid var(--border);
     overflow-x: auto; font-size: calc(var(--fs-toolbar) - 1px); min-height: 28px;
+    flex-shrink: 0;
   }
   .fav-label { color: var(--fg-muted); font-weight: 600; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .fav-chip {
@@ -262,6 +265,7 @@
     display: flex;
     flex-direction: row;
     align-items: stretch;
+    flex: 1;
     min-height: 0; overflow: hidden;
   }
   .tools {
@@ -690,6 +694,7 @@
   .qconsole {
     background: var(--bg-panel); border-top: 1px solid var(--border);
     padding: 5px 10px; display: flex; flex-direction: column; gap: 5px;
+    flex-shrink: 0;
   }
   .qconsole.hidden { display: none; }
   .qc-row { display: flex; align-items: center; gap: 6px; }
@@ -709,7 +714,7 @@
   .fnbar {
     display: grid; grid-template-columns: repeat(11, 1fr); gap: 3px;
     padding: 3px 8px; background: var(--bg-panel); border-top: 1px solid var(--border);
-    font-size: var(--fs-fnbar);
+    font-size: var(--fs-fnbar); height: 30px; flex-shrink: 0;
   }
   .fnbar.hidden { display: none; }
   .fn-btn {
@@ -724,7 +729,7 @@
   .status {
     display: flex; align-items: center; padding: 0 10px; gap: 14px;
     background: var(--bg-panel); border-top: 1px solid var(--border);
-    font-size: var(--fs-status); color: var(--fg-dim);
+    font-size: var(--fs-status); color: var(--fg-dim); height: 24px; flex-shrink: 0;
   }
   .status .st-item { display: inline-flex; align-items: center; gap: 5px; }
   .status .st-spacer { flex: 1; }
@@ -1267,7 +1272,7 @@
         <button onclick="adjustZoom(10)">+</button>
       </span>
     </div>
-    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.23 (Rust Studio)</strong></div>
+    <div class="st-item" style="cursor:pointer" onclick="openAboutModal(false)"><strong id="statusVersionLabel">v1.9.24 (Rust Studio)</strong></div>
   </div>
 </div>
 
@@ -1359,10 +1364,6 @@
           <div class="prefs-row">
             <div><div class="pr-label" id="lblSetMultilineDriveBar">Laufwerksleiste mehrzeilig umbrechen</div><div class="pr-sub" id="subSetMultilineDriveBar">Bricht die Laufwerksleiste automatisch auf mehrere Zeilen um, wenn sie über die Breite des Explorerfensters hinausgeht</div></div>
             <div class="pr-ctl"><div class="switch" id="sw-multiline_drive_bar" onclick="toggleBoolSetting('multiline_drive_bar')"></div></div>
-          </div>
-          <div class="prefs-row">
-            <div><div class="pr-label" id="lblSetShowFullDriveNames">Vollständigen Laufwerksnamen anzeigen</div><div class="pr-sub" id="subSetShowFullDriveNames">Zeigt den kompletten Namen und Speicherplatz anstelle von nur dem Laufwerksbuchstaben</div></div>
-            <div class="pr-ctl"><div class="switch" id="sw-show_full_drive_names" onclick="toggleBoolSetting('show_full_drive_names')"></div></div>
           </div>
           <div class="prefs-row">
             <div><div class="pr-label">Favoriten- &amp; Schnellstart-Skriptleiste anzeigen</div><div class="pr-sub">Zeigt angeheftete Ordner-Favoriten (★) und benutzerdefinierte Skript-Buttons (⚡) unter der Optionsleiste</div></div>
@@ -1509,6 +1510,10 @@
       <div class="prefs-pane" id="pcat-Behavior">
         <div class="prefs-section-title">📁 Darstellung, Formatierung &amp; Sortierung in der Dateiliste</div>
         <div class="prefs-card">
+          <div class="prefs-row">
+            <div><div class="pr-label" id="lblSetShowFullDriveNames">Vollständigen Laufwerksnamen in Laufwerksleiste anzeigen</div><div class="pr-sub" id="subSetShowFullDriveNames">Zeigt den kompletten Namen und Speicherplatz anstelle von nur dem Laufwerksbuchstaben (C:)</div></div>
+            <div class="pr-ctl"><div class="switch" id="sw-show_full_drive_names" onclick="toggleBoolSetting('show_full_drive_names')"></div></div>
+          </div>
           <div class="prefs-row">
             <div><div class="pr-label">Standard-Ansichtsmodus für neue Tabs</div><div class="pr-sub">Wird beim Öffnen neuer Tabs verwendet</div></div>
             <div class="pr-ctl">
@@ -1818,7 +1823,7 @@
         <div class="prefs-section-title">🔄 Anwendungs-Updates</div>
         <div class="prefs-card">
           <div class="prefs-row">
-            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.23</div></div>
+            <div><div class="pr-label">Beim Programmstart automatisch nach Updates suchen</div><div class="pr-sub" id="prefsInstalledVerLabel">Installierte Version: v1.9.24</div></div>
             <div class="pr-ctl">
               <div class="switch" id="sw-check_updates_on_startup" onclick="toggleBoolSetting('check_updates_on_startup')"></div>
               <button class="btn primary" onclick="openAboutModal(true)">🔄 Jetzt auf Updates prüfen</button>
@@ -1969,7 +1974,7 @@
           <img src="/app-icon.png" alt="ModernExplorer Icon" style="width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;">
           <div>
             <div style="font-size:16px;font-weight:700;">ModernExplorer Studio (Rust Edition)</div>
-            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.23</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.23</strong></div>
+            <div style="color:var(--fg-dim);font-size:12px;">Dual-Pane File Manager • Installiert: <strong id="aboutInstalledVer">v1.9.24</strong> • Verfügbar: <strong id="aboutLatestVer">v1.9.24</strong></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1978,7 +1983,7 @@
         </div>
       </div>
       <div id="aboutUpdateBanner" style="padding:10px 14px;border-radius:6px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent);font-weight:600;flex-shrink:0;">
-        ✓ Sie verwenden die aktuelle Version v1.9.23.
+        ✓ Sie verwenden die aktuelle Version v1.9.24.
       </div>
       <div style="display:flex;flex-direction:column;flex:1;min-height:140px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
@@ -2195,7 +2200,7 @@
 const IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.jpe','.gif','.webp','.bmp','.svg','.ico','.tif','.tiff','.jfif','.avif','.apng']);
 
 const STATE = {
-  version: '1.9.23',
+  version: '1.9.24',
   releasesUrl: 'https://github.com/Skybeat/ModernExplorer/releases',
   defaultReleaseNotes: '',
   settings: {},
@@ -2458,6 +2463,8 @@ const I18N_EN = {
   "Bricht die Laufwerksleiste automatisch auf mehrere Zeilen um, wenn sie über die Breite des Explorerfensters hinausgeht": "Automatically wraps drive bar to multiple lines when exceeding window width",
   "Vollständigen Laufwerksnamen anzeigen": "Show full drive names",
   "Zeigt den kompletten Namen und Speicherplatz anstelle von nur dem Laufwerksbuchstaben": "Shows full drive name and disk space instead of only the drive letter",
+  "Vollständigen Laufwerksnamen in Laufwerksleiste anzeigen": "Show full drive names in drive bar",
+  "Zeigt den kompletten Namen und Speicherplatz anstelle von nur dem Laufwerksbuchstaben (C:)": "Shows full volume label and disk space instead of only the drive letter (C:)",
   "Favoriten- & Schnellstart-Skriptleiste anzeigen": "Show favorites & quick-launch script bar",
   "Zeigt angeheftete Ordner-Favoriten (★) und benutzerdefinierte Skript-Buttons (⚡) unter der Optionsleiste": "Shows pinned folder favorites (★) and custom script buttons (⚡) below options bar",
   "Linke vertikale Werkzeug-Rail anzeigen": "Show left vertical tool rail",
@@ -2926,7 +2933,7 @@ const I18N_EN = {
   "Icon (.ico)": "Icon (.ico)",
   "Im Explorer-Ordner anzeigen": "Reveal in Explorer folder",
   "In Eingabefelder übernehmen": "Apply to input fields",
-  "Installierte Version: v1.9.23": "Installed version: v1.9.14",
+  "Installierte Version: v1.9.24": "Installed version: v1.9.14",
   "Interner Text-, Code- & Hex-Editor (F4)": "Internal Text, Code & Hex Editor (F4)",
   "JPEG (.jpg)": "JPEG (.jpg)",
   "JSON": "JSON",
@@ -4013,7 +4020,7 @@ const I18N = {
     "Installed version:": "Versión instalada:",
     "Installed version: v1.9.14": "Versión instalada: v1.9.16",
     "Installierte Version:": "Versión instalada:",
-    "Installierte Version: v1.9.23": "Versión instalada: v1.9.16",
+    "Installierte Version: v1.9.24": "Versión instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula inmediatamente el tamaño recursivo de la carpeta resaltada",
     "Internal Text & Code Editor": "Editor interno de texto y código.",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código y hexadecimal (F4)",
@@ -5896,7 +5903,7 @@ const I18N = {
     "Installed version:": "Version installée :",
     "Installed version: v1.9.14": "Version installée : v1.9.16",
     "Installierte Version:": "Version installée :",
-    "Installierte Version: v1.9.23": "Version installée : v1.9.16",
+    "Installierte Version: v1.9.24": "Version installée : v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcule immédiatement la taille récursive du dossier en surbrillance",
     "Internal Text & Code Editor": "Éditeur de texte et de code interne",
     "Internal Text, Code & Hex Editor (F4)": "Éditeur interne de texte, de code et hexadécimal (F4)",
@@ -7779,7 +7786,7 @@ const I18N = {
     "Installed version:": "Versione installata:",
     "Installed version: v1.9.14": "Versione installata: v1.9.16",
     "Installierte Version:": "Versione installata:",
-    "Installierte Version: v1.9.23": "Versione installata: v1.9.16",
+    "Installierte Version: v1.9.24": "Versione installata: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcola immediatamente la dimensione ricorsiva della cartella evidenziata",
     "Internal Text & Code Editor": "Editor interno di testo e codice",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno di testo, codice ed esadecimale (F4)",
@@ -9662,7 +9669,7 @@ const I18N = {
     "Installed version:": "Geïnstalleerde versie:",
     "Installed version: v1.9.14": "Geïnstalleerde versie: v1.9.16",
     "Installierte Version:": "Geïnstalleerde versie:",
-    "Installierte Version: v1.9.23": "Geïnstalleerde versie: v1.9.16",
+    "Installierte Version: v1.9.24": "Geïnstalleerde versie: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Berekent onmiddellijk de recursieve grootte van de gemarkeerde map",
     "Internal Text & Code Editor": "Interne tekst- en code-editor",
     "Internal Text, Code & Hex Editor (F4)": "Interne tekst-, code- en hex-editor (F4)",
@@ -11545,7 +11552,7 @@ const I18N = {
     "Installed version:": "Zainstalowana wersja:",
     "Installed version: v1.9.14": "Zainstalowana wersja: v1.9.16",
     "Installierte Version:": "Zainstalowana wersja:",
-    "Installierte Version: v1.9.23": "Zainstalowana wersja: v1.9.16",
+    "Installierte Version: v1.9.24": "Zainstalowana wersja: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Natychmiast oblicza rekurencyjny rozmiar podświetlonego folderu",
     "Internal Text & Code Editor": "Wewnętrzny edytor tekstu i kodu",
     "Internal Text, Code & Hex Editor (F4)": "Wewnętrzny edytor tekstu, kodu i szesnastkowego (F4)",
@@ -13428,7 +13435,7 @@ const I18N = {
     "Installed version:": "Versão instalada:",
     "Installed version: v1.9.14": "Versão instalada: v1.9.16",
     "Installierte Version:": "Versão instalada:",
-    "Installierte Version: v1.9.23": "Versão instalada: v1.9.16",
+    "Installierte Version: v1.9.24": "Versão instalada: v1.9.16",
     "Instantly calculates recursive size of selected folder": "Calcula imediatamente o tamanho recursivo da pasta destacada",
     "Internal Text & Code Editor": "Editor interno de texto e código",
     "Internal Text, Code & Hex Editor (F4)": "Editor interno de texto, código e hexadecimal (F4)",
@@ -15311,7 +15318,7 @@ const I18N = {
     "Installed version:": "インストールされているバージョン:",
     "Installed version: v1.9.14": "インストールされているバージョン: v1.9.16",
     "Installierte Version:": "インストールされているバージョン:",
-    "Installierte Version: v1.9.23": "インストールされているバージョン: v1.9.16",
+    "Installierte Version: v1.9.24": "インストールされているバージョン: v1.9.16",
     "Instantly calculates recursive size of selected folder": "強調表示されたフォルダーの再帰的なサイズを即座に計算します。",
     "Internal Text & Code Editor": "内部テキストおよびコードエディター",
     "Internal Text, Code & Hex Editor (F4)": "内部テキスト、コード、および 16 進数エディター (F4)",
@@ -17194,7 +17201,7 @@ const I18N = {
     "Installed version:": "安装版本：",
     "Installed version: v1.9.14": "安装版本：v1.9.16",
     "Installierte Version:": "安装版本：",
-    "Installierte Version: v1.9.23": "安装版本：v1.9.16",
+    "Installierte Version: v1.9.24": "安装版本：v1.9.16",
     "Instantly calculates recursive size of selected folder": "立即计算突出显示文件夹的递归大小",
     "Internal Text & Code Editor": "内部文本和代码编辑器",
     "Internal Text, Code & Hex Editor (F4)": "内部文本、代码和十六进制编辑器 (F4)",
@@ -18595,9 +18602,20 @@ function getEffectiveLang() {
   return I18N[raw] ? raw : 'en';
 }
 
+function decodeEntities(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
 function t(key) {
   if (!key) return key;
-  const k = String(key).trim();
+  const k = decodeEntities(String(key)).trim();
   const lang = getEffectiveLang();
 
   // 1. If asking for German:
@@ -18634,7 +18652,7 @@ function translateElementTree(root) {
 
   function resolveCanonical(text) {
     if (!text) return text;
-    const tTrim = text.trim();
+    const tTrim = decodeEntities(text).trim();
     if (typeof REVERSE_I18N !== 'undefined' && REVERSE_I18N[tTrim]) return REVERSE_I18N[tTrim];
     if (typeof EN_TO_DE !== 'undefined' && EN_TO_DE[tTrim]) return EN_TO_DE[tTrim];
     return tTrim;
@@ -18646,10 +18664,9 @@ function translateElementTree(root) {
 
     let orig = el.getAttribute('data-i18n-orig');
     if (orig == null) {
-      orig = el.innerHTML.trim();
-      const canon = resolveCanonical(orig);
-      el.setAttribute('data-i18n-orig', canon);
-      orig = canon;
+      const raw = (el.children && el.children.length === 0) ? el.textContent : el.innerHTML;
+      orig = resolveCanonical(raw);
+      el.setAttribute('data-i18n-orig', orig);
     } else {
       const canon = resolveCanonical(orig);
       if (canon !== orig) {
@@ -18661,11 +18678,11 @@ function translateElementTree(root) {
 
     let trans = t(orig);
     if (!trans || trans === orig) {
-      const plain = el.textContent.trim();
-      const canonPlain = resolveCanonical(plain);
-      const transPlain = t(canonPlain);
+      const plain = resolveCanonical(el.textContent);
+      const transPlain = t(plain);
       if (transPlain && transPlain !== plain) {
         trans = transPlain;
+        el.setAttribute('data-i18n-orig', plain);
       }
     }
     if (trans && trans !== el.innerHTML) {
@@ -18676,6 +18693,23 @@ function translateElementTree(root) {
   function localizeAttr(el, attr, origAttr) {
     let orig = el.getAttribute(origAttr);
     if (orig == null) {
+      orig = el.getAttribute(attr);
+      if (orig) {
+        const canon = resolveCanonical(orig);
+        el.setAttribute(origAttr, canon);
+        orig = canon;
+      }
+    } else {
+      const canon = resolveCanonical(orig);
+      if (canon !== orig) {
+        orig = canon;
+        el.setAttribute(origAttr, orig);
+      }
+    }
+    if (!orig) return;
+    const trans = t(orig);
+    if (trans) el.setAttribute(attr, trans);
+  }
       orig = el.getAttribute(attr);
       if (orig) {
         const canon = resolveCanonical(orig);
@@ -19199,7 +19233,7 @@ async function initApp() {
     toast('Fehler beim Initialisieren: ' + (data?.error || 'Unbekannt'));
     return;
   }
-  STATE.version = data.version || '1.9.23';
+  STATE.version = data.version || '1.9.24';
   STATE.releasesUrl = data.releases_url || STATE.releasesUrl;
   STATE.defaultReleaseNotes = data.default_release_notes || '';
   const stVer = document.getElementById('statusVersionLabel');
