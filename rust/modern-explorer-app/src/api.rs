@@ -269,6 +269,7 @@ impl BackendState {
                 let short = d.root_path.trim_end_matches('\\').to_string();
                 json!({
                     "root_path": d.root_path,
+                    "short_label": short,
                     "display_text": if d.name.is_empty() {
                         format!("{} ({})", short, format_bytes(d.available_bytes))
                     } else {

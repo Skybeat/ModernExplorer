@@ -6,7 +6,7 @@ use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::io::{self, Cursor, Read, Write};
+use std::io::{self, BufReader, BufWriter, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -812,62 +812,53 @@ impl ArchiveService {
         let lower = archive_path.to_string_lossy().to_ascii_lowercase();
 
         if lower.ends_with(".7z") {
-            let temp_dir = std::env::temp_dir()
-                .join("ModernExplorer")
-                .join(format!("7z_ext_{}_{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
-            let _ = fs::remove_dir_all(&temp_dir);
-            fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+            let mut extracted_targets = HashSet::new();
+            let mut count = 0usize;
+            let dest_buf = destination_dir.to_path_buf();
+            let inner_paths_owned: Vec<String> = inner_paths.to_vec();
 
             if let Some(cb) = on_progress {
                 cb("7z-Archiv wird dekomprimiert…", 0, 0);
             }
 
-            let res = sevenz_rust::decompress_file(archive_path, &temp_dir);
-            if let Err(e) = res {
-                let _ = fs::remove_dir_all(&temp_dir);
-                return Err(e.to_string());
-            }
-
-            if is_cancelled() {
-                let _ = fs::remove_dir_all(&temp_dir);
-                return Err("Vorgang durch Benutzer abgebrochen".to_string());
-            }
-
-            let all_entries: Vec<_> = WalkDir::new(&temp_dir).min_depth(1).into_iter().filter_map(|e| e.ok()).collect();
-            let total_entries = all_entries.len();
-            let mut count = 0usize;
-            let mut extracted_targets = HashSet::new();
-
-            for entry in all_entries {
-                if is_cancelled() {
-                    let _ = fs::remove_dir_all(&temp_dir);
-                    return Err("Vorgang durch Benutzer abgebrochen".to_string());
-                }
-                let Ok(rel) = entry.path().strip_prefix(&temp_dir) else { continue };
-                let rel_str = rel.to_string_lossy().replace('\\', "/");
-                let is_dir = entry.file_type().is_dir();
-
-                if let Some(target_path) = Self::match_archive_entry_target(&rel_str, is_dir, inner_paths, destination_dir) {
-                    if !extracted_targets.insert(target_path.clone()) {
-                        continue;
+            let res = sevenz_rust::decompress_file_with_extract_fn(
+                archive_path,
+                &dest_buf,
+                |entry, reader, _default_dest| {
+                    if is_cancelled() {
+                        return Err(sevenz_rust::Error::other("Vorgang durch Benutzer abgebrochen"));
                     }
-                    if is_dir {
-                        let _ = fs::create_dir_all(&target_path);
-                    } else {
-                        if let Some(p) = target_path.parent() {
-                            let _ = fs::create_dir_all(p);
+                    let raw_name = entry.name().to_string();
+                    let is_dir = entry.is_directory();
+
+                    if let Some(target_path) = Self::match_archive_entry_target(&raw_name, is_dir, &inner_paths_owned, &dest_buf) {
+                        if !extracted_targets.insert(target_path.clone()) {
+                            let _ = io::copy(reader, &mut io::sink());
+                            return Ok(true);
                         }
-                        if fs::copy(entry.path(), &target_path).is_ok() {
+                        if is_dir {
+                            let _ = fs::create_dir_all(&target_path);
+                        } else {
+                            if let Some(p) = target_path.parent() {
+                                let _ = fs::create_dir_all(p);
+                            }
+                            let out_file = File::create(&target_path).map_err(sevenz_rust::Error::io)?;
+                            let mut writer = BufWriter::with_capacity(128 * 1024, out_file);
+                            io::copy(reader, &mut writer).map_err(sevenz_rust::Error::io)?;
                             count += 1;
                             if let Some(cb) = on_progress {
-                                cb(&rel_str, count, total_entries);
+                                cb(&raw_name, count, 0);
                             }
                         }
+                    } else {
+                        let _ = io::copy(reader, &mut io::sink());
                     }
-                }
+                    Ok(true)
+                },
+            );
+            if let Err(e) = res {
+                return Err(e.to_string());
             }
-
-            let _ = fs::remove_dir_all(&temp_dir);
             return Ok(count.max(if inner_paths.is_empty() { 0 } else { 1 }));
         }
 
@@ -966,8 +957,9 @@ impl ArchiveService {
                         if let Some(p) = target_path.parent() {
                             fs::create_dir_all(p).map_err(|e| e.to_string())?;
                         }
-                        let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
-                        io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
+                        let outfile = File::create(&target_path).map_err(|e| e.to_string())?;
+                        let mut writer = BufWriter::with_capacity(128 * 1024, outfile);
+                        io::copy(&mut entry, &mut writer).map_err(|e| e.to_string())?;
                         count += 1;
                         if let Some(cb) = on_progress {
                             cb(&raw_name, count, 0);
@@ -980,35 +972,46 @@ impl ArchiveService {
 
         // Default ZIP (.zip, .jar, .nupkg)
         let f = File::open(archive_path).map_err(|e| e.to_string())?;
-        let mut zip = ZipArchive::new(f).map_err(|e| e.to_string())?;
+        let reader = BufReader::with_capacity(256 * 1024, f);
+        let mut zip = ZipArchive::new(reader).map_err(|e| e.to_string())?;
         let total_entries = zip.len();
         let mut count = 0usize;
         let mut extracted_targets = HashSet::new();
 
+        // 1. Fast pre-scan matching entries in memory using central directory
+        let mut matching_indices = Vec::new();
         for i in 0..total_entries {
+            if let Some(raw_name) = zip.name_for_index(i) {
+                let is_dir = raw_name.ends_with('/') || raw_name.ends_with('\\');
+                if let Some(target_path) = Self::match_archive_entry_target(raw_name, is_dir, inner_paths, destination_dir) {
+                    if extracted_targets.insert(target_path.clone()) {
+                        matching_indices.push((i, target_path, is_dir));
+                    }
+                }
+            }
+        }
+
+        let total_matched = matching_indices.len();
+        for (idx, target_path, is_dir_hint) in matching_indices {
             if is_cancelled() {
                 return Err("Vorgang durch Benutzer abgebrochen".to_string());
             }
-            let mut file = zip.by_index(i).map_err(|e| e.to_string())?;
+            let mut file = zip.by_index(idx).map_err(|e| e.to_string())?;
             let raw_name = file.name().to_string();
-            let is_dir = file.is_dir();
+            let is_dir = file.is_dir() || is_dir_hint;
 
-            if let Some(target_path) = Self::match_archive_entry_target(&raw_name, is_dir, inner_paths, destination_dir) {
-                if !extracted_targets.insert(target_path.clone()) {
-                    continue;
+            if is_dir {
+                fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
+            } else {
+                if let Some(p) = target_path.parent() {
+                    fs::create_dir_all(p).map_err(|e| e.to_string())?;
                 }
-                if is_dir {
-                    fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
-                } else {
-                    if let Some(p) = target_path.parent() {
-                        fs::create_dir_all(p).map_err(|e| e.to_string())?;
-                    }
-                    let mut outfile = File::create(&target_path).map_err(|e| e.to_string())?;
-                    io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
-                    count += 1;
-                    if let Some(cb) = on_progress {
-                        cb(&raw_name, count, total_entries);
-                    }
+                let outfile = File::create(&target_path).map_err(|e| e.to_string())?;
+                let mut writer = BufWriter::with_capacity(128 * 1024, outfile);
+                io::copy(&mut file, &mut writer).map_err(|e| e.to_string())?;
+                count += 1;
+                if let Some(cb) = on_progress {
+                    cb(&raw_name, count, total_matched);
                 }
             }
         }
